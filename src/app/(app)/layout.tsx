@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { getProfile } from "@/lib/auth";
+import { roleLabel } from "@/lib/types";
 import { logout } from "@/app/login/actions";
 
 export default async function AppLayout({
@@ -32,8 +33,8 @@ export default async function AppLayout({
             <p className="truncate text-xs text-muted-foreground">
               {profile.email}
             </p>
-            <Badge variant="secondary" className="mt-1 capitalize">
-              {profile.role}
+            <Badge variant="secondary" className="mt-1">
+              {roleLabel(profile.role)}
             </Badge>
           </div>
           <form action={logout}>

@@ -1,5 +1,10 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { ArrowRight, CheckCircle2, Clock, FileText, XCircle } from "lucide-react";
+import {
+  AnnualBudgetSummary,
+  AnnualBudgetSummarySkeleton,
+} from "@/components/annual-budget-summary";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,8 +37,12 @@ interface RecentReport {
   author: { full_name: string; email: string } | null;
 }
 
-export default async function DashboardPage() {
-  const profile = await getProfile();
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ budget_year?: string; budget_author?: string }>;
+}) {
+  const [profile, params] = await Promise.all([getProfile(), searchParams]);
   const supabase = await createClient();
   const reviewer = isReviewer(profile.role);
 
@@ -47,15 +56,6 @@ export default async function DashboardPage() {
     return count ?? 0;
   };
 
-  // Staff only ever see their own rows through RLS; scoping is for reviewers.
-  const mineOnly = !reviewer;
-  const [total, submitted, reviewed, rejected] = await Promise.all([
-    countBy(undefined, mineOnly),
-    countBy("submitted", mineOnly),
-    countBy("reviewed", mineOnly),
-    countBy("rejected", mineOnly),
-  ]);
-
   let recentQuery = supabase
     .from("reports")
     .select(
@@ -67,7 +67,17 @@ export default async function DashboardPage() {
     // Reviewers care about the pending queue first.
     recentQuery = recentQuery.eq("status", "submitted");
   }
-  const { data: recentData } = await recentQuery;
+
+  // Staff only ever see their own rows through RLS; scoping is for reviewers.
+  const mineOnly = !reviewer;
+  const [total, submitted, reviewed, rejected, { data: recentData }] =
+    await Promise.all([
+      countBy(undefined, mineOnly),
+      countBy("submitted", mineOnly),
+      countBy("reviewed", mineOnly),
+      countBy("rejected", mineOnly),
+      recentQuery,
+    ]);
   const recent = (recentData ?? []) as unknown as RecentReport[];
 
   const stats = [
@@ -110,6 +120,15 @@ export default async function DashboardPage() {
         ))}
       </div>
 
+      <Suspense fallback={<AnnualBudgetSummarySkeleton />}>
+        <AnnualBudgetSummary
+          userId={profile.id}
+          role={profile.role}
+          year={params.budget_year}
+          author={params.budget_author}
+        />
+      </Suspense>
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>
@@ -126,7 +145,7 @@ export default async function DashboardPage() {
           {recent.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {reviewer
-                ? "Nothing waiting for review. 🎉"
+                ? "Nothing waiting for review."
                 : "No reports yet — create your first one."}
             </p>
           ) : (

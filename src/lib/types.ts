@@ -1,4 +1,8 @@
-export type AppRole = "admin" | "manager" | "staff";
+export type AppRole =
+  | "admin"
+  | "head_of_department"
+  | "manager"
+  | "staff";
 export type ReportType = "budget" | "monthly";
 export type BudgetPeriod = "annual" | "monthly";
 export type ReportStatus = "draft" | "submitted" | "reviewed" | "rejected";
@@ -9,6 +13,12 @@ export interface Profile {
   full_name: string;
   role: AppRole;
   created_at: string;
+}
+
+export function roleLabel(role: AppRole) {
+  return role === "head_of_department"
+    ? "Head of Department"
+    : role.charAt(0).toUpperCase() + role.slice(1);
 }
 
 export interface MonthlyContent {

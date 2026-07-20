@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { CalendarDays, CalendarRange, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { saveReport, type ActionState } from "@/app/(app)/reports/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,6 @@ import {
   MONTH_NAMES,
   MONTH_SHORT,
   type BudgetItem,
-  type BudgetPeriod,
   type Report,
   type ReportType,
 } from "@/lib/types";
@@ -96,9 +95,9 @@ export function ReportForm({
 
   const now = new Date();
   const content = report?.content ?? {};
-  const [budgetPeriod, setBudgetPeriod] = useState<BudgetPeriod>(
-    report?.budget_period ?? "monthly"
-  );
+  // New budget reports are monthly-only. Existing annual reports keep their
+  // legacy layout when edited so historical data remains maintainable.
+  const budgetPeriod = report?.budget_period ?? "monthly";
   const [budgetMonth, setBudgetMonth] = useState(
     report?.period_month ?? now.getMonth() + 1
   );
@@ -214,39 +213,6 @@ export function ReportForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {type === "budget" ? (
-            <fieldset className="space-y-2">
-              <legend className="text-sm font-medium">Reporting period</legend>
-              <div className="grid max-w-md grid-cols-2 rounded-lg border bg-muted/30 p-1">
-                {(
-                  [
-                    ["monthly", "Monthly", CalendarDays],
-                    ["annual", "Annual", CalendarRange],
-                  ] as const
-                ).map(([value, label, Icon]) => (
-                  <Button
-                    key={value}
-                    type="button"
-                    variant={budgetPeriod === value ? "default" : "ghost"}
-                    className="gap-2"
-                    aria-pressed={budgetPeriod === value}
-                    disabled={Boolean(report)}
-                    onClick={() => setBudgetPeriod(value)}
-                  >
-                    <Icon className="size-4" />
-                    {label}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {report
-                  ? "The reporting period cannot be changed after the report is created."
-                  : budgetPeriod === "monthly"
-                    ? "Create a separate report for the selected month."
-                    : "Use the existing full-year Jan–Dec layout."}
-              </p>
-            </fieldset>
-          ) : null}
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
             <Input

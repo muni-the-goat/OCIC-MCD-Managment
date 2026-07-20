@@ -14,7 +14,15 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-export function ReviewControls({ reportId }: { reportId: string }) {
+export function ReviewControls({
+  reportId,
+  canMarkReviewed,
+  canReject,
+}: {
+  reportId: string;
+  canMarkReviewed: boolean;
+  canReject: boolean;
+}) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     reviewReport,
     null
@@ -33,43 +41,50 @@ export function ReviewControls({ reportId }: { reportId: string }) {
       <CardHeader>
         <CardTitle>Review</CardTitle>
         <CardDescription>
-          Mark this report as reviewed, or reject it with a comment explaining
-          what needs to change. The author can edit and resubmit a rejected
-          report.
+          {canMarkReviewed
+            ? "Mark this report as reviewed, or reject it with feedback."
+            : "You can reject this report with feedback. Only the Head of Department can mark it as reviewed."}{" "}
+          The author can edit and resubmit a rejected report.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form action={formAction} className="space-y-3">
           <input type="hidden" name="report_id" value={reportId} />
-          <div className="space-y-2">
-            <Label htmlFor="review-comment">
-              Comment (required when rejecting)
-            </Label>
-            <Textarea
-              id="review-comment"
-              name="comment"
-              rows={3}
-              placeholder="Feedback for the author…"
-            />
-          </div>
+          {canReject ? (
+            <div className="space-y-2">
+              <Label htmlFor="review-comment">
+                Comment (required when rejecting)
+              </Label>
+              <Textarea
+                id="review-comment"
+                name="comment"
+                rows={3}
+                placeholder="Feedback for the author…"
+              />
+            </div>
+          ) : null}
           <div className="flex gap-3">
-            <Button
-              type="submit"
-              name="decision"
-              value="reviewed"
-              disabled={pending}
-            >
-              Mark as reviewed
-            </Button>
-            <Button
-              type="submit"
-              name="decision"
-              value="rejected"
-              variant="destructive"
-              disabled={pending}
-            >
-              Reject
-            </Button>
+            {canMarkReviewed ? (
+              <Button
+                type="submit"
+                name="decision"
+                value="reviewed"
+                disabled={pending}
+              >
+                {pending ? "Saving…" : "Mark as reviewed"}
+              </Button>
+            ) : null}
+            {canReject ? (
+              <Button
+                type="submit"
+                name="decision"
+                value="rejected"
+                variant="destructive"
+                disabled={pending}
+              >
+                {pending ? "Saving…" : "Reject"}
+              </Button>
+            ) : null}
           </div>
         </form>
       </CardContent>

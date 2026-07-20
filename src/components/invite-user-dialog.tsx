@@ -82,14 +82,17 @@ export function InviteUserDialog() {
               <Input id="invite-email" name="email" type="email" required />
             </div>
             <div className="space-y-2">
-              <Label>Role</Label>
+              <Label htmlFor="invite-role">Role</Label>
               <Select name="role" defaultValue="staff">
-                <SelectTrigger>
+                <SelectTrigger id="invite-role">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="staff">Staff</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="head_of_department">
+                    Head of Department
+                  </SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>

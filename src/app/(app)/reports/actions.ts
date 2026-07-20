@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getProfile, isReviewer } from "@/lib/auth";
+import {
+  canMarkReviewed,
+  canRejectReport,
+  getProfile,
+} from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { BudgetPeriod } from "@/lib/types";
 
@@ -132,6 +136,14 @@ export async function saveReport(
 
   const intent = formData.get("intent") === "submit" ? "submitted" : "draft";
   const reportId = String(formData.get("report_id") ?? "") || null;
+
+  if (
+    !reportId &&
+    parsed.data.type === "budget" &&
+    parsed.data.budget_period !== "monthly"
+  ) {
+    return { error: "New budget reports must use a monthly reporting period" };
+  }
 
   if (reportId) {
     const { data: existing, error } = await supabase
@@ -335,16 +347,20 @@ export async function reviewReport(
   formData: FormData
 ): Promise<ActionState> {
   const profile = await getProfile();
-  if (!isReviewer(profile.role)) {
-    return { error: "Only managers and admins can review reports" };
-  }
-
   const reportId = String(formData.get("report_id") ?? "");
   const decision = String(formData.get("decision") ?? "");
   const comment = String(formData.get("comment") ?? "").trim();
 
   if (!reportId || (decision !== "reviewed" && decision !== "rejected")) {
     return { error: "Invalid review request" };
+  }
+  if (decision === "reviewed" && !canMarkReviewed(profile.role)) {
+    return {
+      error: "Only the Head of Department can mark reports as reviewed",
+    };
+  }
+  if (decision === "rejected" && !canRejectReport(profile.role)) {
+    return { error: "You do not have permission to reject reports" };
   }
   if (decision === "rejected" && !comment) {
     return { error: "A comment explaining the rejection is required" };
@@ -364,6 +380,7 @@ export async function reviewReport(
 
   revalidatePath(`/reports/${reportId}`);
   revalidatePath("/reports");
+  revalidatePath("/dashboard");
   return null;
 }
 

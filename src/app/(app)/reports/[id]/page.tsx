@@ -15,7 +15,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { BudgetGrid } from "@/components/budget-grid";
 import { deleteAttachment } from "../actions";
-import { getProfile, isReviewer } from "@/lib/auth";
+import {
+  canMarkReviewed,
+  canRejectReport,
+  getProfile,
+} from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   reportPeriodLabel,
@@ -96,8 +100,10 @@ export default async function ReportDetailPage({
     profile.role === "admin";
   const canDelete =
     (isAuthor && report.status === "draft") || profile.role === "admin";
+  const canApprove = canMarkReviewed(profile.role);
+  const canReject = canRejectReport(profile.role);
   const canReview =
-    isReviewer(profile.role) && report.status === "submitted" && !isAuthor;
+    (canApprove || canReject) && report.status === "submitted" && !isAuthor;
 
   return (
     <div
@@ -235,7 +241,13 @@ export default async function ReportDetailPage({
         </CardContent>
       </Card>
 
-      {canReview ? <ReviewControls reportId={report.id} /> : null}
+      {canReview ? (
+        <ReviewControls
+          reportId={report.id}
+          canMarkReviewed={canApprove}
+          canReject={canReject}
+        />
+      ) : null}
 
       <Card>
         <CardHeader>

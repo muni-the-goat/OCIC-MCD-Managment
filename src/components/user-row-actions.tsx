@@ -67,12 +67,13 @@ export function RoleSelect({
         formAction(formData);
       }}
     >
-      <SelectTrigger className="w-32" size="sm">
+      <SelectTrigger className="w-48" size="sm">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="staff">Staff</SelectItem>
         <SelectItem value="manager">Manager</SelectItem>
+        <SelectItem value="head_of_department">Head of Department</SelectItem>
         <SelectItem value="admin">Admin</SelectItem>
       </SelectContent>
     </Select>

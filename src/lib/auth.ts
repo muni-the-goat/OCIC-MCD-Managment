@@ -30,5 +30,15 @@ export async function requireRole(...roles: AppRole[]): Promise<Profile> {
 }
 
 export function isReviewer(role: AppRole) {
-  return role === "admin" || role === "manager";
+  return (
+    role === "admin" || role === "head_of_department" || role === "manager"
+  );
+}
+
+export function canMarkReviewed(role: AppRole) {
+  return role === "head_of_department";
+}
+
+export function canRejectReport(role: AppRole) {
+  return isReviewer(role);
 }

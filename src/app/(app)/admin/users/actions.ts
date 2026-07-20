@@ -21,7 +21,7 @@ function generateTempPassword() {
 const inviteSchema = z.object({
   email: z.email("Enter a valid email address"),
   full_name: z.string().trim().min(1, "Full name is required").max(120),
-  role: z.enum(["admin", "manager", "staff"]),
+  role: z.enum(["admin", "head_of_department", "manager", "staff"]),
 });
 
 export async function inviteUser(
@@ -89,7 +89,10 @@ export async function updateUserRole(
 
   const userId = String(formData.get("user_id") ?? "");
   const role = String(formData.get("role") ?? "");
-  if (!userId || !["admin", "manager", "staff"].includes(role)) {
+  if (
+    !userId ||
+    !["admin", "head_of_department", "manager", "staff"].includes(role)
+  ) {
     return { error: "Invalid request" };
   }
   if (userId === me.id) {
