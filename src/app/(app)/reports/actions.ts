@@ -9,7 +9,7 @@ import {
   getProfile,
 } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { BudgetPeriod } from "@/lib/types";
+import { MONTH_NAMES, type BudgetPeriod } from "@/lib/types";
 
 export type ActionState = { error: string } | null;
 
@@ -83,6 +83,10 @@ const reportSchema = z.object({
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 
+function duplicateBudgetMessage(month: number, year: number) {
+  return `A monthly budget already exists for ${MONTH_NAMES[month - 1]} ${year}. Open that report from Reports and edit it instead.`;
+}
+
 async function uploadAttachments(
   supabase: Awaited<ReturnType<typeof createClient>>,
   reportId: string,
@@ -136,6 +140,14 @@ export async function saveReport(
 
   const intent = formData.get("intent") === "submit" ? "submitted" : "draft";
   const reportId = String(formData.get("report_id") ?? "") || null;
+  let existingReport: {
+    id: string;
+    author_id: string;
+    type: string;
+    budget_period: string;
+    period_month: number;
+    period_year: number;
+  } | null = null;
 
   if (
     !reportId &&
@@ -148,7 +160,9 @@ export async function saveReport(
   if (reportId) {
     const { data: existing, error } = await supabase
       .from("reports")
-      .select("id, type, budget_period")
+      .select(
+        "id, author_id, type, budget_period, period_month, period_year"
+      )
       .eq("id", reportId)
       .maybeSingle();
     if (error) return { error: error.message };
@@ -163,6 +177,40 @@ export async function saveReport(
       return {
         error: "An existing budget report's period type cannot be changed",
       };
+    }
+    existingReport = existing;
+  }
+
+  if (
+    parsed.data.type === "budget" &&
+    parsed.data.budget_period === "monthly"
+  ) {
+    const sameExistingPeriod =
+      existingReport?.period_month === parsed.data.period_month &&
+      existingReport?.period_year === parsed.data.period_year;
+
+    if (!sameExistingPeriod) {
+      let duplicateQuery = supabase
+        .from("reports")
+        .select("id")
+        .eq("author_id", existingReport?.author_id ?? profile.id)
+        .eq("type", "budget")
+        .eq("budget_period", "monthly")
+        .eq("period_month", parsed.data.period_month)
+        .eq("period_year", parsed.data.period_year)
+        .limit(1);
+      if (reportId) duplicateQuery = duplicateQuery.neq("id", reportId);
+
+      const { data: duplicate, error } = await duplicateQuery.maybeSingle();
+      if (error) return { error: error.message };
+      if (duplicate) {
+        return {
+          error: duplicateBudgetMessage(
+            parsed.data.period_month,
+            parsed.data.period_year
+          ),
+        };
+      }
     }
   }
 
@@ -229,7 +277,17 @@ export async function saveReport(
       .eq("id", id)
       .select("id")
       .maybeSingle();
-    if (error) return { error: error.message };
+    if (error) {
+      return {
+        error:
+          error.code === "23505"
+            ? duplicateBudgetMessage(
+                parsed.data.period_month,
+                parsed.data.period_year
+              )
+            : error.message,
+      };
+    }
     if (!updated) return { error: "This report can no longer be edited" };
 
     if (parsed.data.type === "budget") {
@@ -254,7 +312,17 @@ export async function saveReport(
       })
       .select("id")
       .single();
-    if (error) return { error: error.message };
+    if (error) {
+      return {
+        error:
+          error.code === "23505"
+            ? duplicateBudgetMessage(
+                parsed.data.period_month,
+                parsed.data.period_year
+              )
+            : error.message,
+      };
+    }
     id = created.id as string;
   }
 
@@ -299,6 +367,7 @@ export async function saveReport(
   }
 
   revalidatePath("/reports");
+  revalidatePath("/dashboard");
   redirect(`/reports/${id}`);
 }
 

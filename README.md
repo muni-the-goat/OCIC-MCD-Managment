@@ -19,6 +19,7 @@ Built with Next.js 16 (App Router) + Supabase (Auth, Postgres with Row Level Sec
    6. [`supabase/migrations/0006_head_of_department_role.sql`](supabase/migrations/0006_head_of_department_role.sql) — adds the Head of Department role and restricts positive review approval to that role
    7. [`supabase/migrations/0007_coordinator_and_admin_review.sql`](supabase/migrations/0007_coordinator_and_admin_review.sql) — adds the Coordinator role and allows Admins or the Head of Department to mark reports reviewed
    8. [`supabase/migrations/0008_admin_self_review.sql`](supabase/migrations/0008_admin_self_review.sql) — gives Admins unrestricted review authority, including for their own submitted reports
+   9. [`supabase/migrations/0009_monthly_budget_uniqueness_and_revisions.sql`](supabase/migrations/0009_monthly_budget_uniqueness_and_revisions.sql) — blocks new duplicate author/month budgets and lets authors revise submitted or reviewed reports for re-review
 
 ### 2. Configure environment variables
 
@@ -56,7 +57,7 @@ Open http://localhost:3000 and sign in.
 
 | Role | Can do |
 |---|---|
-| **Staff** | Create/edit own drafts, submit for review, edit & resubmit rejected reports, comment on own reports |
+| **Staff** | Create reports, edit any report they authored, submit revisions for review, and comment on their reports; revising a reviewed report requires a new review |
 | **Manager** | Everything staff can, plus see all non-draft reports, reject another author's submitted report with a required comment, and see only their own reviewed expenses in the annual summary |
 | **Coordinator** | Everything staff can, plus view the Users page and reset non-privileged users' passwords; cannot invite, change roles, delete users, or reset Admin/Head of Department passwords |
 | **Head of Department** | Everything staff can, plus see all non-draft reports, mark another author's submitted report reviewed or rejected, and see/filter every Manager's annual expenses; cannot self-review |
@@ -77,6 +78,7 @@ Access control is enforced by server-side role guards and Postgres Row Level Sec
 
 - Attachment uploads go through server actions; the request body limit is raised to 20 MB in `next.config.ts` (individual files capped at 15 MB in the action).
 - New budget reports are monthly-only. The dashboard annual summary groups matching section and line-item names and sums every reviewed monthly budget into its corresponding Jan–Dec column.
+- Each author may create only one monthly budget per month/year. Existing submitted or reviewed budgets must be edited; saving a revision removes the old approval and submitting it starts a new review cycle.
 - Annual-summary visibility is role-scoped: Managers see only their own reviewed expenses, the Head of Department sees and filters all Managers, and Admins remain unrestricted. Staff and Coordinators do not receive the annual summary.
 - A new monthly budget automatically reuses section and line-item names from the user's most recent earlier monthly budget. Previous amounts are shown as reference only; the new month's amounts start empty.
 - Annual budget records created before the monthly-only workflow remain available as historical reports.

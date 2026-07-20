@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
 import { History, Plus, Trash2 } from "lucide-react";
 import { saveReport, type ActionState } from "@/app/(app)/reports/actions";
@@ -163,6 +164,14 @@ export function ReportForm({
   const loadedHistory = budgetHistory.find(
     (entry) => entry.id === loadedHistoryId
   );
+  const existingMonthlyBudget =
+    !report && isMonthlyBudget
+      ? budgetHistory.find(
+          (entry) =>
+            entry.period_month === budgetMonth &&
+            entry.period_year === budgetYear
+        )
+      : undefined;
   const historicalAmounts = useMemo(() => {
     const values = new Map<string, number>();
     if (!loadedHistory) return values;
@@ -279,6 +288,34 @@ export function ReportForm({
       {state?.error ? (
         <Alert variant="destructive">
           <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {existingMonthlyBudget ? (
+        <Alert>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              A {existingMonthlyBudget.status} monthly budget already exists
+              for {MONTH_NAMES[budgetMonth - 1]} {budgetYear}. Edit that report
+              instead of creating another submission.
+            </span>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/reports/${existingMonthlyBudget.id}/edit`}>
+                Edit existing report
+              </Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {report &&
+      (report.status === "submitted" || report.status === "reviewed") ? (
+        <Alert>
+          <AlertDescription>
+            Editing this {report.status} report removes its current review
+            status. Submit the updated report for review again when your
+            changes are ready.
+          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -785,11 +822,16 @@ export function ReportForm({
           name="intent"
           value="draft"
           variant="outline"
-          disabled={pending}
+          disabled={pending || Boolean(existingMonthlyBudget)}
         >
           Save draft
         </Button>
-        <Button type="submit" name="intent" value="submit" disabled={pending}>
+        <Button
+          type="submit"
+          name="intent"
+          value="submit"
+          disabled={pending || Boolean(existingMonthlyBudget)}
+        >
           {pending ? "Saving…" : "Submit for review"}
         </Button>
       </div>

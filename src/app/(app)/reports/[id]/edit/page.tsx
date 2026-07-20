@@ -22,10 +22,7 @@ export default async function EditReportPage({
   if (!data) notFound();
 
   const report = data as Report;
-  const editable =
-    (report.author_id === profile.id &&
-      (report.status === "draft" || report.status === "rejected")) ||
-    profile.role === "admin";
+  const editable = report.author_id === profile.id || profile.role === "admin";
   if (!editable) redirect(`/reports/${id}`);
 
   let budgetItems: BudgetItem[] = [];

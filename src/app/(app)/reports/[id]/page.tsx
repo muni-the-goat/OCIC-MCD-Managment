@@ -95,9 +95,7 @@ export default async function ReportDetailPage({
     (userId && people.get(userId)) || "Unknown";
 
   const isAuthor = report.author_id === profile.id;
-  const canEdit =
-    (isAuthor && (report.status === "draft" || report.status === "rejected")) ||
-    profile.role === "admin";
+  const canEdit = isAuthor || profile.role === "admin";
   const canDelete =
     (isAuthor && report.status === "draft") || profile.role === "admin";
   const canApprove = canMarkReviewed(profile.role);

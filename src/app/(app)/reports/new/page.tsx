@@ -29,7 +29,7 @@ export default async function NewReportPage({
       const { data } = await supabase
         .from("reports")
         .select(
-          "id, period_month, period_year, updated_at, items:budget_items(*)"
+          "id, title, status, period_month, period_year, updated_at, items:budget_items(*)"
         )
         .eq("author_id", profile.id)
         .eq("type", "budget")
@@ -41,6 +41,8 @@ export default async function NewReportPage({
 
       budgetHistory = (data ?? []).map((entry) => ({
         id: entry.id,
+        title: entry.title,
+        status: entry.status,
         period_month: entry.period_month,
         period_year: entry.period_year,
         updated_at: entry.updated_at,

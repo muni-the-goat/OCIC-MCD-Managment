@@ -74,6 +74,8 @@ export interface BudgetItem extends MonthlyAmounts {
 
 export interface BudgetHistoryReport {
   id: string;
+  title: string;
+  status: ReportStatus;
   period_month: number;
   period_year: number;
   updated_at: string;
