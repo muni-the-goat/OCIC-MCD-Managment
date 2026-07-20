@@ -195,9 +195,12 @@ export async function AnnualBudgetSummary({
   const items = showAuthorGroups ? [] : aggregateItems(sourceItems);
 
   return (
-    <Card>
+    <Card className="rounded-2xl">
       <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1.5">
+          <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Reviewed expenses
+          </p>
           <CardTitle>Annual budget summary · FY {selectedYear}</CardTitle>
           <CardDescription>
             {isAdmin
@@ -261,7 +264,7 @@ export async function AnnualBudgetSummary({
 
 export function AnnualBudgetSummarySkeleton() {
   return (
-    <Card className="min-h-72">
+    <Card className="min-h-72 rounded-2xl">
       <CardHeader>
         <div className="h-6 w-64 rounded bg-muted motion-safe:animate-pulse" />
         <div className="h-4 w-96 max-w-full rounded bg-muted motion-safe:animate-pulse" />

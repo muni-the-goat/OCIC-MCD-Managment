@@ -24,6 +24,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-status-good: var(--status-good);
+  --color-status-warning: var(--status-warning);
+  --color-status-critical: var(--status-critical);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -93,6 +96,13 @@
   --ocic-gold-deep: #caa52f;
   --ocic-gold-light: #edd060;
   --ocic-gold-faint: rgba(218, 180, 40, 0.07);
+
+  /* Report-status palette. Held identical in both themes so a status never
+     changes hue, and always rendered beside an icon and a text label — warning
+     sits below 3:1 on the light surface and cannot carry meaning alone. */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
 }
 
 .dark {
