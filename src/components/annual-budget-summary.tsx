@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { isReviewer } from "@/lib/auth";
+import { canViewAnnualBudget } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   MONTH_KEYS,
@@ -85,10 +85,36 @@ export async function AnnualBudgetSummary({
   year?: string;
   author?: string;
 }) {
+  if (!canViewAnnualBudget(role)) return null;
+
   const supabase = await createClient();
-  const reviewer = isReviewer(role);
+  const isAdmin = role === "admin";
+  const isHeadOfDepartment = role === "head_of_department";
+  const canFilterAuthors = isAdmin || isHeadOfDepartment;
   const selectedYear = validYear(year);
-  const selectedAuthor = reviewer && validUuid(author) ? author : undefined;
+
+  const authorsResult = canFilterAuthors
+    ? await (() => {
+        let query = supabase
+          .from("profiles")
+          .select("id, full_name, email, role")
+          .order("full_name");
+        if (isHeadOfDepartment) query = query.eq("role", "manager");
+        return query;
+      })()
+    : { data: [], error: null };
+
+  const authors = (authorsResult.data ?? []).map((profile) => ({
+    id: profile.id,
+    label: profile.full_name || profile.email,
+  }));
+  const permittedAuthorIds = new Set(authors.map((profile) => profile.id));
+  const selectedAuthor =
+    canFilterAuthors &&
+    validUuid(author) &&
+    permittedAuthorIds.has(author as string)
+      ? author
+      : undefined;
 
   let itemQuery = supabase
     .from("budget_items")
@@ -104,7 +130,14 @@ export async function AnnualBudgetSummary({
 
   if (selectedAuthor) {
     itemQuery = itemQuery.eq("report.author_id", selectedAuthor);
-  } else if (!reviewer) {
+  } else if (isHeadOfDepartment) {
+    itemQuery = itemQuery.in(
+      "report.author_id",
+      authors.length > 0
+        ? authors.map((profile) => profile.id)
+        : ["00000000-0000-0000-0000-000000000000"]
+    );
+  } else if (!isAdmin) {
     itemQuery = itemQuery.eq("report.author_id", userId);
   }
 
@@ -115,16 +148,20 @@ export async function AnnualBudgetSummary({
     .eq("budget_period", "monthly")
     .eq("status", "reviewed")
     .limit(1000);
-  if (!reviewer) yearQuery = yearQuery.eq("author_id", userId);
+  if (isHeadOfDepartment) {
+    yearQuery = yearQuery.in(
+      "author_id",
+      authors.length > 0
+        ? authors.map((profile) => profile.id)
+        : ["00000000-0000-0000-0000-000000000000"]
+    );
+  } else if (!isAdmin) {
+    yearQuery = yearQuery.eq("author_id", userId);
+  }
 
-  const authorsQuery = reviewer
-    ? supabase.from("profiles").select("id, full_name, email").order("full_name")
-    : Promise.resolve({ data: [], error: null });
-
-  const [itemsResult, yearsResult, authorsResult] = await Promise.all([
+  const [itemsResult, yearsResult] = await Promise.all([
     itemQuery,
     yearQuery,
-    authorsQuery,
   ]);
 
   const years = Array.from(
@@ -133,10 +170,6 @@ export async function AnnualBudgetSummary({
       ...(yearsResult.data ?? []).map((report) => report.period_year),
     ])
   ).sort((a, b) => b - a);
-  const authors = (authorsResult.data ?? []).map((profile) => ({
-    id: profile.id,
-    label: profile.full_name || profile.email,
-  }));
   const items = aggregateItems(
     (itemsResult.data ?? []) as unknown as SourceBudgetItem[]
   );
@@ -147,8 +180,11 @@ export async function AnnualBudgetSummary({
         <div className="space-y-1.5">
           <CardTitle>Annual budget summary · FY {selectedYear}</CardTitle>
           <CardDescription>
-            Automatically combines only reviewed monthly budget reports
-            {reviewer ? " across the office" : " that you submitted"}.
+            {isAdmin
+              ? "Automatically combines all reviewed monthly budget reports across the office."
+              : isHeadOfDepartment
+                ? "Automatically combines reviewed monthly budget reports submitted by Managers."
+                : "Automatically combines only your reviewed monthly budget reports."}
           </CardDescription>
         </div>
         <AnnualBudgetFilters
@@ -156,10 +192,13 @@ export async function AnnualBudgetSummary({
           selectedYear={selectedYear}
           authors={authors}
           selectedAuthor={selectedAuthor}
+          allAuthorsLabel={
+            isHeadOfDepartment ? "All managers" : "All authors"
+          }
         />
       </CardHeader>
       <CardContent>
-        {itemsResult.error || yearsResult.error ? (
+        {itemsResult.error || yearsResult.error || authorsResult.error ? (
           <p className="text-sm text-destructive">
             The annual budget summary could not be loaded. Refresh to try
             again.

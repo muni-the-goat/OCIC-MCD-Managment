@@ -42,3 +42,9 @@ export function canMarkReviewed(role: AppRole) {
 export function canRejectReport(role: AppRole) {
   return isReviewer(role);
 }
+
+export function canViewAnnualBudget(role: AppRole) {
+  return (
+    role === "admin" || role === "head_of_department" || role === "manager"
+  );
+}

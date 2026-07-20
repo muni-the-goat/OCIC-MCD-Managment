@@ -17,11 +17,13 @@ export function AnnualBudgetFilters({
   selectedYear,
   authors,
   selectedAuthor,
+  allAuthorsLabel = "All authors",
 }: {
   years: number[];
   selectedYear: number;
   authors: { id: string; label: string }[];
   selectedAuthor?: string;
+  allAuthorsLabel?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -68,7 +70,7 @@ export function AnnualBudgetFilters({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL_AUTHORS}>All authors</SelectItem>
+              <SelectItem value={ALL_AUTHORS}>{allAuthorsLabel}</SelectItem>
               {authors.map((author) => (
                 <SelectItem key={author.id} value={author.id}>
                   {author.label}

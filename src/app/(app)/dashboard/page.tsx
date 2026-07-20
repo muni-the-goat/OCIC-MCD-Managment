@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getProfile, isReviewer } from "@/lib/auth";
+import { canViewAnnualBudget, getProfile, isReviewer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   reportPeriodLabel,
@@ -45,6 +45,7 @@ export default async function DashboardPage({
   const [profile, params] = await Promise.all([getProfile(), searchParams]);
   const supabase = await createClient();
   const reviewer = isReviewer(profile.role);
+  const showAnnualBudget = canViewAnnualBudget(profile.role);
 
   const countBy = async (status?: ReportStatus, mineOnly = false) => {
     let query = supabase
@@ -120,14 +121,16 @@ export default async function DashboardPage({
         ))}
       </div>
 
-      <Suspense fallback={<AnnualBudgetSummarySkeleton />}>
-        <AnnualBudgetSummary
-          userId={profile.id}
-          role={profile.role}
-          year={params.budget_year}
-          author={params.budget_author}
-        />
-      </Suspense>
+      {showAnnualBudget ? (
+        <Suspense fallback={<AnnualBudgetSummarySkeleton />}>
+          <AnnualBudgetSummary
+            userId={profile.id}
+            role={profile.role}
+            year={params.budget_year}
+            author={params.budget_author}
+          />
+        </Suspense>
+      ) : null}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">

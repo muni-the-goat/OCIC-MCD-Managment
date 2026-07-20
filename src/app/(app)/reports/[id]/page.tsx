@@ -103,7 +103,9 @@ export default async function ReportDetailPage({
   const canApprove = canMarkReviewed(profile.role);
   const canReject = canRejectReport(profile.role);
   const canReview =
-    (canApprove || canReject) && report.status === "submitted" && !isAuthor;
+    (canApprove || canReject) &&
+    report.status === "submitted" &&
+    (!isAuthor || profile.role === "admin");
 
   return (
     <div
