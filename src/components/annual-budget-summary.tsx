@@ -170,9 +170,29 @@ export async function AnnualBudgetSummary({
       ...(yearsResult.data ?? []).map((report) => report.period_year),
     ])
   ).sort((a, b) => b - a);
-  const items = aggregateItems(
-    (itemsResult.data ?? []) as unknown as SourceBudgetItem[]
+  const sourceItems = (itemsResult.data ?? []) as unknown as SourceBudgetItem[];
+  const showAuthorGroups = canFilterAuthors && !selectedAuthor;
+  const authorLabels = new Map(
+    authors.map((profile) => [profile.id, profile.label])
   );
+  const groupedSourceItems = new Map<string, SourceBudgetItem[]>();
+
+  if (showAuthorGroups) {
+    for (const item of sourceItems) {
+      const authorItems = groupedSourceItems.get(item.report.author_id) ?? [];
+      authorItems.push(item);
+      groupedSourceItems.set(item.report.author_id, authorItems);
+    }
+  }
+
+  const authorGroups = [...groupedSourceItems.entries()]
+    .map(([authorId, authorItems]) => ({
+      id: authorId,
+      label: authorLabels.get(authorId) ?? "Unknown author",
+      items: aggregateItems(authorItems),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const items = showAuthorGroups ? [] : aggregateItems(sourceItems);
 
   return (
     <Card>
@@ -203,11 +223,34 @@ export async function AnnualBudgetSummary({
             The annual budget summary could not be loaded. Refresh to try
             again.
           </p>
-        ) : items.length === 0 ? (
+        ) : sourceItems.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             No reviewed monthly budget reports are available for this
             selection.
           </p>
+        ) : showAuthorGroups ? (
+          <div className="space-y-6">
+            {authorGroups.map((group) => (
+              <section
+                key={group.id}
+                aria-labelledby={`annual-budget-author-${group.id}`}
+                className="overflow-hidden rounded-lg border"
+              >
+                <div className="border-b bg-muted/30 px-4 py-3">
+                  <h3
+                    id={`annual-budget-author-${group.id}`}
+                    className="font-semibold"
+                  >
+                    {group.label}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Reviewed monthly expenses · FY {selectedYear}
+                  </p>
+                </div>
+                <BudgetGrid items={group.items} />
+              </section>
+            ))}
+          </div>
         ) : (
           <BudgetGrid items={items} />
         )}

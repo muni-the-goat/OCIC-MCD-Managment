@@ -393,6 +393,50 @@ export async function deleteReport(formData: FormData) {
   redirect("/reports");
 }
 
+export async function bulkDeleteReports(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const profile = await getProfile();
+  if (profile.role !== "admin") {
+    return { error: "Only an Admin can delete multiple reports" };
+  }
+
+  const parsed = z
+    .array(z.string().uuid())
+    .min(1)
+    .max(200)
+    .safeParse(formData.getAll("report_ids"));
+  if (!parsed.success) {
+    return { error: "Select between 1 and 200 valid reports to delete" };
+  }
+
+  const reportIds = [...new Set(parsed.data)];
+  const supabase = await createClient();
+  const { data: attachments, error: attachmentError } = await supabase
+    .from("report_attachments")
+    .select("storage_path")
+    .in("report_id", reportIds);
+  if (attachmentError) return { error: attachmentError.message };
+
+  if (attachments && attachments.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from("attachments")
+      .remove(attachments.map((attachment) => attachment.storage_path));
+    if (storageError) return { error: storageError.message };
+  }
+
+  const { error: deleteError } = await supabase
+    .from("reports")
+    .delete()
+    .in("id", reportIds);
+  if (deleteError) return { error: deleteError.message };
+
+  revalidatePath("/reports");
+  revalidatePath("/dashboard");
+  redirect("/reports");
+}
+
 export async function deleteAttachment(formData: FormData) {
   const attachmentId = String(formData.get("attachment_id") ?? "");
   const reportId = String(formData.get("report_id") ?? "");

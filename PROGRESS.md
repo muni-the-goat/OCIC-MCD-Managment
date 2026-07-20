@@ -2,9 +2,9 @@
 
 ## Current status
 
-The main reporting workflow is implemented, production-build verified, and pushed to GitHub `main` through commit `af1f178` (`feat: scope annual budgets by role`). Vercel is connected to the repository for automatic deployments.
+The main reporting workflow is implemented, production-build verified, and pushed to GitHub `main` through commit `13194b3` (`feat: enforce monthly budget revisions`). Vercel is connected to the repository for automatic deployments. The admin bulk-report deletion and named all-author annual summaries described below are the current local changes and have not yet been pushed.
 
-Supabase migrations `0001` through `0008` have been applied to the production project. Migration `0009_monthly_budget_uniqueness_and_revisions.sql` is implemented locally but must still be applied. It blocks new duplicate monthly budgets and allows author revisions of submitted/reviewed reports.
+Supabase migrations `0001` through `0009` have been applied to the production project. No additional migration is required for the current UI/server-action changes.
 
 Latest verification completed successfully:
 
@@ -81,6 +81,7 @@ The current schema does not have a separate department table or `department_id`.
 - Has unrestricted report and user-management authority.
 - Can invite users, assign roles, reset passwords, and delete users.
 - Can edit or delete reports according to the Admin policies.
+- Can select one or more reports on the Reports page and permanently delete them together after confirmation.
 - Can mark any submitted report reviewed or rejected, including a report authored by the same Admin account.
 - Annual budget summary includes reviewed monthly budgets from all authors.
 - Can filter the annual summary by year and any author.
@@ -142,6 +143,8 @@ Aggregation behavior:
 - A Manager query is always pinned to that Manager's user ID.
 - A Head of Department query is limited to authors whose profile role is `manager`.
 - An Admin query remains unrestricted.
+- When an Admin or Head of Department selects the all-author option, the summary renders a separate grid under each author's name instead of merging identical section/item names across people.
+- Selecting one author keeps the focused single-grid summary.
 - Staff and Coordinator dashboards do not render or query the annual summary.
 - The summary is streamed behind a Suspense loading skeleton so it does not block the rest of the dashboard.
 
@@ -199,13 +202,14 @@ The Users page uses the server-only Supabase secret client for Auth Admin operat
 8. `0008_admin_self_review.sql` — permits Admin self-review while preserving self-review restrictions for HoD and Manager.
 9. `0009_monthly_budget_uniqueness_and_revisions.sql` — permits authors to revise submitted/reviewed reports and blocks new duplicate monthly budgets per author/month/year without deleting existing duplicates.
 
-Migrations `0001`–`0008` are confirmed applied in Supabase. Migration `0009` is pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0009` are confirmed applied in Supabase. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Main code locations
 
 - `src/app/(app)/dashboard/page.tsx` — role-aware dashboard and streamed annual-summary boundary.
 - `src/components/annual-budget-summary.tsx` — reviewed-only annual aggregation and role-specific author scope.
 - `src/components/annual-budget-filters.tsx` — year and author/Manager filters.
+- `src/components/reports-table.tsx` — report list, accessible Admin selection controls, and bulk-delete confirmation.
 - `src/components/report-form.tsx` — activity/budget form, historical structure reuse, calculations, and serialization.
 - `src/app/(app)/reports/actions.ts` — save, submit, delete, review, comment, and attachment actions.
 - `src/app/(app)/reports/[id]/page.tsx` — detail view and review-control visibility.
@@ -221,24 +225,24 @@ Migrations `0001`–`0008` are confirmed applied in Supabase. Migration `0009` i
 
 - GitHub repository: `muni-the-goat/OCIC-MCD-Managment`
 - Active branch: `main`
-- Latest pushed commit: `af1f178`
+- Latest pushed commit: `13194b3`
 - Hosting: Vercel, connected for automatic deployment from GitHub
-- Database: Supabase, migrations `0001`–`0008` applied; `0009` pending
+- Database: Supabase, migrations `0001`–`0009` applied
 - Supabase region: Northeast Asia (Seoul)
 
 ## Remaining validation checklist
 
 These are production acceptance checks, not unfinished implementation:
 
-1. Apply `0009_monthly_budget_uniqueness_and_revisions.sql`.
-2. Confirm a second monthly budget for the same author/month/year is blocked and the form links to the existing report.
-3. Confirm editing a reviewed report removes it from the annual summary until its revision is reviewed again.
-4. Confirm an Admin can review their own submitted report.
-5. Confirm a Head of Department cannot review their own report but can review a Manager's submitted report.
-6. Confirm a Manager's annual summary contains only that Manager's reviewed expenses and has no Author filter.
-7. Confirm the Head of Department sees only Manager-authored expenses and can filter by Manager.
-8. Confirm Admin sees all reviewed expenses and can filter by any author.
-9. Confirm Staff and Coordinator do not see the annual summary.
+1. Confirm a second monthly budget for the same author/month/year is blocked and the form links to the existing report.
+2. Confirm editing a reviewed report removes it from the annual summary until its revision is reviewed again.
+3. Confirm an Admin can review their own submitted report.
+4. Confirm a Head of Department cannot review their own report but can review a Manager's submitted report.
+5. Confirm a Manager's annual summary contains only that Manager's reviewed expenses and has no Author filter.
+6. Confirm the Head of Department sees only Manager-authored expenses and can filter by Manager.
+7. Confirm the all-author annual summary labels and separates each author's expense grid.
+8. Confirm Admin can select one, several, or all visible reports and delete them after confirmation.
+9. Confirm Staff and Coordinator do not see the annual summary or bulk-delete controls.
 10. Confirm a Coordinator can reset an eligible user's password but cannot invite, change roles, delete users, or reset Admin/HoD passwords.
 11. Confirm a reviewed monthly budget enters the correct annual-summary month while draft, submitted, and rejected budgets stay excluded.
 12. Confirm a new monthly budget reuses the nearest earlier section/item structure but leaves current amounts empty.

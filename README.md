@@ -61,7 +61,7 @@ Open http://localhost:3000 and sign in.
 | **Manager** | Everything staff can, plus see all non-draft reports, reject another author's submitted report with a required comment, and see only their own reviewed expenses in the annual summary |
 | **Coordinator** | Everything staff can, plus view the Users page and reset non-privileged users' passwords; cannot invite, change roles, delete users, or reset Admin/Head of Department passwords |
 | **Head of Department** | Everything staff can, plus see all non-draft reports, mark another author's submitted report reviewed or rejected, and see/filter every Manager's annual expenses; cannot self-review |
-| **Admin** | Unrestricted user/report management, review authority, and annual expense visibility, including reviewing Admin-authored submitted reports |
+| **Admin** | Unrestricted user/report management, including selecting and deleting multiple reports; full review authority and annual expense visibility, including reviewing Admin-authored submitted reports |
 
 Access control is enforced by server-side role guards and Postgres Row Level Security, not just by hidden UI controls.
 
@@ -79,7 +79,7 @@ Access control is enforced by server-side role guards and Postgres Row Level Sec
 - Attachment uploads go through server actions; the request body limit is raised to 20 MB in `next.config.ts` (individual files capped at 15 MB in the action).
 - New budget reports are monthly-only. The dashboard annual summary groups matching section and line-item names and sums every reviewed monthly budget into its corresponding Jan–Dec column.
 - Each author may create only one monthly budget per month/year. Existing submitted or reviewed budgets must be edited; saving a revision removes the old approval and submitting it starts a new review cycle.
-- Annual-summary visibility is role-scoped: Managers see only their own reviewed expenses, the Head of Department sees and filters all Managers, and Admins remain unrestricted. Staff and Coordinators do not receive the annual summary.
+- Annual-summary visibility is role-scoped: Managers see only their own reviewed expenses, the Head of Department sees and filters all Managers, and Admins remain unrestricted. The all-author view separates expenses into grids labeled with each author's name. Staff and Coordinators do not receive the annual summary.
 - A new monthly budget automatically reuses section and line-item names from the user's most recent earlier monthly budget. Previous amounts are shown as reference only; the new month's amounts start empty.
 - Annual budget records created before the monthly-only workflow remain available as historical reports.
 - The project folder living inside OneDrive can cause slow installs / file-lock errors — exclude it from sync if `npm` misbehaves.

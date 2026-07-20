@@ -1,16 +1,8 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { ReportFilters } from "@/components/report-filters";
-import { StatusBadge } from "@/components/status-badge";
+import { ReportsTable } from "@/components/reports-table";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { getProfile, isReviewer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -71,6 +63,20 @@ export default async function ReportsPage({
 
   const { data } = await query;
   const reports = (data ?? []) as unknown as ReportRow[];
+  const reportItems = reports.map((report) => ({
+    id: report.id,
+    title: report.title,
+    typeLabel: reportTypeLabel(report.type, report.budget_period),
+    periodLabel: reportPeriodLabel(
+      report.type,
+      report.period_month,
+      report.period_year,
+      report.budget_period
+    ),
+    authorLabel: report.author?.full_name || report.author?.email || "—",
+    status: report.status,
+    updatedLabel: new Date(report.updated_at).toLocaleDateString(),
+  }));
 
   let authors: { id: string; label: string }[] = [];
   if (reviewer) {
@@ -110,56 +116,12 @@ export default async function ReportsPage({
           No reports match. Create one with “New report”.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Period</TableHead>
-                {reviewer ? <TableHead>Author</TableHead> : null}
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {reports.map((report) => (
-                <TableRow key={report.id}>
-                  <TableCell>
-                    <Link
-                      href={`/reports/${report.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {report.title}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    {reportTypeLabel(report.type, report.budget_period)}
-                  </TableCell>
-                  <TableCell>
-                    {reportPeriodLabel(
-                      report.type,
-                      report.period_month,
-                      report.period_year,
-                      report.budget_period
-                    )}
-                  </TableCell>
-                  {reviewer ? (
-                    <TableCell>
-                      {report.author?.full_name || report.author?.email || "—"}
-                    </TableCell>
-                  ) : null}
-                  <TableCell>
-                    <StatusBadge status={report.status} />
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {new Date(report.updated_at).toLocaleDateString()}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <ReportsTable
+          key={`${params.type ?? "all"}:${params.status ?? "all"}:${params.author ?? "all"}`}
+          reports={reportItems}
+          showAuthor={reviewer}
+          canBulkDelete={profile.role === "admin"}
+        />
       )}
     </div>
   );
