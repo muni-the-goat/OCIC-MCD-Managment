@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { ReportForm } from "@/components/report-form";
 import { getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { BudgetItem, Report } from "@/lib/types";
+import { reportTypeLabel, type BudgetItem, type Report } from "@/lib/types";
 
 export const metadata = { title: "Edit report" };
 
@@ -41,7 +41,7 @@ export default async function EditReportPage({
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">
-        Edit {report.type} report
+        Edit {reportTypeLabel(report.type, report.budget_period).toLowerCase()} report
       </h1>
       <ReportForm type={report.type} report={report} budgetItems={budgetItems} />
     </div>

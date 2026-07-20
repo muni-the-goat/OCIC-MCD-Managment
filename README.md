@@ -1,6 +1,6 @@
 # MCD Management
 
-Internal office report tracker. Staff submit **budget reports** (full-year actual expenses by month) and **monthly reports** (structured sections) with file attachments, flowing through a **draft → submitted → reviewed/rejected** workflow with **Admin / Manager / Staff** roles.
+Internal office report tracker. Staff submit **budget reports** (separate monthly actual expenses or a full-year Jan–Dec grid) and **monthly activity reports** (structured narrative sections) with file attachments, flowing through a **draft → submitted → reviewed/rejected** workflow with **Admin / Manager / Staff** roles.
 
 Built with Next.js 16 (App Router) + Supabase (Auth, Postgres with Row Level Security, Storage) + Tailwind v4 + shadcn/ui.
 
@@ -15,6 +15,7 @@ Built with Next.js 16 (App Router) + Supabase (Auth, Postgres with Row Level Sec
    2. [`supabase/migrations/0002_rename_approved_to_reviewed.sql`](supabase/migrations/0002_rename_approved_to_reviewed.sql) — renames the positive terminal status to `reviewed`
    3. [`supabase/migrations/0003_budget_monthly_grid.sql`](supabase/migrations/0003_budget_monthly_grid.sql) — changes budget line items into the Jan–Dec actual-expense grid
    4. [`supabase/migrations/0004_security_hardening.sql`](supabase/migrations/0004_security_hardening.sql) — prevents role injection and makes review decisions transactional
+   5. [`supabase/migrations/0005_budget_period.sql`](supabase/migrations/0005_budget_period.sql) — adds separate monthly and annual budget report periods while preserving existing reports as annual
 
 ### 2. Configure environment variables
 

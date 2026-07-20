@@ -43,8 +43,8 @@ export default async function NewReportPage({
               <Wallet className="mb-2 size-8 text-primary" />
               <CardTitle>Budget report</CardTitle>
               <CardDescription>
-                Full-year actual expenses with monthly amounts, freeform
-                sections, and automatic subtotals.
+                Monthly or annual actual expenses with freeform sections and
+                automatic subtotals.
               </CardDescription>
             </CardHeader>
           </Card>

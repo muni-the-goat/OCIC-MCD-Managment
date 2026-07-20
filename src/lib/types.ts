@@ -1,5 +1,6 @@
 export type AppRole = "admin" | "manager" | "staff";
 export type ReportType = "budget" | "monthly";
+export type BudgetPeriod = "annual" | "monthly";
 export type ReportStatus = "draft" | "submitted" | "reviewed" | "rejected";
 
 export interface Profile {
@@ -21,6 +22,7 @@ export interface Report {
   id: string;
   author_id: string;
   type: ReportType;
+  budget_period: BudgetPeriod;
   title: string;
   period_month: number;
   period_year: number;
@@ -120,11 +122,21 @@ export function periodLabel(month: number, year: number) {
   return `${MONTH_NAMES[month - 1] ?? month} ${year}`;
 }
 
-// Budget reports span a full fiscal year; monthly reports name a single month.
 export function reportPeriodLabel(
   type: ReportType,
   month: number,
-  year: number
+  year: number,
+  budgetPeriod: BudgetPeriod = "annual"
 ) {
-  return type === "budget" ? `FY ${year}` : periodLabel(month, year);
+  return type === "budget" && budgetPeriod === "annual"
+    ? `FY ${year}`
+    : periodLabel(month, year);
+}
+
+export function reportTypeLabel(
+  type: ReportType,
+  budgetPeriod: BudgetPeriod = "annual"
+) {
+  if (type === "monthly") return "Monthly activity";
+  return budgetPeriod === "monthly" ? "Monthly budget" : "Annual budget";
 }

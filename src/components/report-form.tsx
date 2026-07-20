@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { CalendarDays, CalendarRange, Plus, Trash2 } from "lucide-react";
 import { saveReport, type ActionState } from "@/app/(app)/reports/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import {
   MONTH_NAMES,
   MONTH_SHORT,
   type BudgetItem,
+  type BudgetPeriod,
   type Report,
   type ReportType,
 } from "@/lib/types";
@@ -95,6 +96,13 @@ export function ReportForm({
 
   const now = new Date();
   const content = report?.content ?? {};
+  const [budgetPeriod, setBudgetPeriod] = useState<BudgetPeriod>(
+    report?.budget_period ?? "monthly"
+  );
+  const [budgetMonth, setBudgetMonth] = useState(
+    report?.period_month ?? now.getMonth() + 1
+  );
+  const isMonthlyBudget = type === "budget" && budgetPeriod === "monthly";
 
   const [sections, setSections] = useState<EditSection[]>(() =>
     sectionsFromItems(budgetItems ?? [])
@@ -172,6 +180,11 @@ export function ReportForm({
   return (
     <form action={formAction} className="space-y-6">
       <input type="hidden" name="type" value={type} />
+      <input
+        type="hidden"
+        name="budget_period"
+        value={type === "budget" ? budgetPeriod : "annual"}
+      />
       {report ? <input type="hidden" name="report_id" value={report.id} /> : null}
       {type === "budget" ? (
         <input type="hidden" name="budget_sections" value={budgetPayload} />
@@ -187,18 +200,53 @@ export function ReportForm({
         <CardHeader>
           <CardTitle>
             {type === "budget"
-              ? "Budget report — actual expense"
+              ? `${budgetPeriod === "monthly" ? "Monthly" : "Annual"} budget report — actual expense`
               : "Monthly report"}
           </CardTitle>
           <CardDescription>
             {type === "budget"
-              ? "Record actual expenses for the fiscal year, grouped into sections. Save as a draft or submit for review."
+              ? budgetPeriod === "monthly"
+                ? "Record actual expenses for one month. This report will be reviewed independently."
+                : "Record actual expenses for the full fiscal year in the Jan–Dec grid."
               : report
                 ? "Update the report, then save it as a draft or submit it for review."
                 : "Fill in the report, then save it as a draft or submit it for review."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {type === "budget" ? (
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium">Reporting period</legend>
+              <div className="grid max-w-md grid-cols-2 rounded-lg border bg-muted/30 p-1">
+                {(
+                  [
+                    ["monthly", "Monthly", CalendarDays],
+                    ["annual", "Annual", CalendarRange],
+                  ] as const
+                ).map(([value, label, Icon]) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    variant={budgetPeriod === value ? "default" : "ghost"}
+                    className="gap-2"
+                    aria-pressed={budgetPeriod === value}
+                    disabled={Boolean(report)}
+                    onClick={() => setBudgetPeriod(value)}
+                  >
+                    <Icon className="size-4" />
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {report
+                  ? "The reporting period cannot be changed after the report is created."
+                  : budgetPeriod === "monthly"
+                    ? "Create a separate report for the selected month."
+                    : "Use the existing full-year Jan–Dec layout."}
+              </p>
+            </fieldset>
+          ) : null}
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
             <Input
@@ -214,7 +262,7 @@ export function ReportForm({
               }
             />
           </div>
-          {type === "budget" ? (
+          {type === "budget" && budgetPeriod === "annual" ? (
             <div className="space-y-2">
               <Label htmlFor="period_year">Fiscal year</Label>
               <Input
@@ -230,17 +278,51 @@ export function ReportForm({
               {/* Budget reports span the whole year; month is not used. */}
               <input type="hidden" name="period_month" value="1" />
             </div>
+          ) : type === "budget" ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="budget_period_month">Budget month</Label>
+                <Select
+                  name="period_month"
+                  value={String(budgetMonth)}
+                  onValueChange={(value) => setBudgetMonth(Number(value))}
+                >
+                  <SelectTrigger id="budget_period_month">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTH_NAMES.map((name, i) => (
+                      <SelectItem key={name} value={String(i + 1)}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="period_year">Budget year</Label>
+                <Input
+                  id="period_year"
+                  name="period_year"
+                  type="number"
+                  min={2000}
+                  max={2100}
+                  required
+                  defaultValue={report?.period_year ?? now.getFullYear()}
+                />
+              </div>
+            </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Period month</Label>
+                <Label htmlFor="activity_period_month">Period month</Label>
                 <Select
                   name="period_month"
                   defaultValue={String(
                     report?.period_month ?? now.getMonth() + 1
                   )}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="activity_period_month">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -299,12 +381,22 @@ export function ReportForm({
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Monthly expenses</CardTitle>
+            <CardTitle>
+              {isMonthlyBudget
+                ? `${MONTH_NAMES[budgetMonth - 1]} expenses`
+                : "Monthly expenses"}
+            </CardTitle>
             <CardDescription>
               Group line items into sections (e.g. Social Media Ads, Google
-              Ads). Enter each item&apos;s spend per month. Grand total:{" "}
+              Ads).{" "}
+              {isMonthlyBudget
+                ? `Enter each item's actual spend for ${MONTH_NAMES[budgetMonth - 1]}.`
+                : "Enter each item's spend per month."}{" "}
+              Grand total:{" "}
               <span className="font-semibold text-foreground">
-                {currency.format(grandTotal)}
+                {currency.format(
+                  isMonthlyBudget ? monthTotals[budgetMonth - 1] : grandTotal
+                )}
               </span>
             </CardDescription>
           </CardHeader>
@@ -327,7 +419,11 @@ export function ReportForm({
                     <span className="ml-auto text-sm text-muted-foreground">
                       Subtotal:{" "}
                       <span className="font-semibold text-foreground">
-                        {currency.format(sectionTotal)}
+                        {currency.format(
+                          isMonthlyBudget
+                            ? subtotals[budgetMonth - 1]
+                            : sectionTotal
+                        )}
                       </span>
                     </span>
                     <Button
@@ -345,24 +441,32 @@ export function ReportForm({
                       <Trash2 className="size-4" />
                     </Button>
                   </div>
-                  <div className="overflow-x-auto">
+                  <div className={isMonthlyBudget ? "" : "overflow-x-auto"}>
                     <table className="w-full border-collapse text-sm">
                       <thead>
                         <tr className="border-b text-muted-foreground">
                           <th className="sticky left-0 z-10 min-w-44 bg-card p-2 text-left font-medium">
                             Line item
                           </th>
-                          {MONTH_SHORT.map((m) => (
-                            <th
-                              key={m}
-                              className="min-w-20 p-2 text-right font-medium"
-                            >
-                              {m}
+                          {isMonthlyBudget ? (
+                            <th className="min-w-36 p-2 text-right font-medium">
+                              Actual amount
                             </th>
-                          ))}
-                          <th className="min-w-24 p-2 text-right font-medium">
-                            Total
-                          </th>
+                          ) : (
+                            <>
+                              {MONTH_SHORT.map((m) => (
+                                <th
+                                  key={m}
+                                  className="min-w-20 p-2 text-right font-medium"
+                                >
+                                  {m}
+                                </th>
+                              ))}
+                              <th className="min-w-24 p-2 text-right font-medium">
+                                Total
+                              </th>
+                            </>
+                          )}
                           <th className="w-10 p-2" />
                         </tr>
                       </thead>
@@ -385,25 +489,44 @@ export function ReportForm({
                                   }
                                 />
                               </td>
-                              {item.amounts.map((amount, mi) => (
-                                <td key={mi} className="p-1">
-                                  <Input
-                                    aria-label={`${MONTH_SHORT[mi]} amount`}
-                                    type="number"
-                                    min={0}
-                                    step="0.01"
-                                    className="w-20 text-right"
-                                    placeholder="0"
-                                    value={amount}
-                                    onChange={(e) =>
-                                      setAmount(si, ii, mi, e.target.value)
-                                    }
-                                  />
+                              {(isMonthlyBudget
+                                ? [item.amounts[budgetMonth - 1]]
+                                : item.amounts
+                              ).map((amount, visibleIndex) => {
+                                const monthIndex = isMonthlyBudget
+                                  ? budgetMonth - 1
+                                  : visibleIndex;
+                                return (
+                                  <td key={monthIndex} className="p-1">
+                                    <Input
+                                      aria-label={`${MONTH_SHORT[monthIndex]} amount`}
+                                      type="number"
+                                      min={0}
+                                      step="0.01"
+                                      className={
+                                        isMonthlyBudget
+                                          ? "ml-auto w-full max-w-48 text-right"
+                                          : "w-20 text-right"
+                                      }
+                                      placeholder="0"
+                                      value={amount}
+                                      onChange={(e) =>
+                                        setAmount(
+                                          si,
+                                          ii,
+                                          monthIndex,
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </td>
+                                );
+                              })}
+                              {!isMonthlyBudget ? (
+                                <td className="p-2 text-right font-medium tabular-nums">
+                                  {currency.format(rowTotal)}
                                 </td>
-                              ))}
-                              <td className="p-2 text-right font-medium tabular-nums">
-                                {currency.format(rowTotal)}
-                              </td>
+                              ) : null}
                               <td className="p-1 text-center">
                                 <Button
                                   type="button"
@@ -431,17 +554,25 @@ export function ReportForm({
                           <td className="sticky left-0 z-10 bg-muted/40 p-2">
                             Subtotal
                           </td>
-                          {subtotals.map((t, mi) => (
-                            <td
-                              key={mi}
-                              className="p-2 text-right tabular-nums"
-                            >
-                              {t ? currency.format(t) : "—"}
+                          {isMonthlyBudget ? (
+                            <td className="p-2 text-right tabular-nums">
+                              {currency.format(subtotals[budgetMonth - 1])}
                             </td>
-                          ))}
-                          <td className="p-2 text-right tabular-nums">
-                            {currency.format(sectionTotal)}
-                          </td>
+                          ) : (
+                            <>
+                              {subtotals.map((t, mi) => (
+                                <td
+                                  key={mi}
+                                  className="p-2 text-right tabular-nums"
+                                >
+                                  {t ? currency.format(t) : "—"}
+                                </td>
+                              ))}
+                              <td className="p-2 text-right tabular-nums">
+                                {currency.format(sectionTotal)}
+                              </td>
+                            </>
+                          )}
                           <td />
                         </tr>
                       </tfoot>
@@ -485,7 +616,9 @@ export function ReportForm({
               <p className="text-sm">
                 Grand total:{" "}
                 <span className="text-lg font-semibold">
-                  {currency.format(grandTotal)}
+                  {currency.format(
+                    isMonthlyBudget ? monthTotals[budgetMonth - 1] : grandTotal
+                  )}
                 </span>
               </p>
             </div>

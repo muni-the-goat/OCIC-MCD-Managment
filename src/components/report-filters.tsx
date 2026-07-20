@@ -40,13 +40,15 @@ export function ReportFilters({
         value={searchParams.get("type") ?? ALL}
         onValueChange={(v) => setParam("type", v)}
       >
-        <SelectTrigger className="w-36">
+        <SelectTrigger className="w-44">
           <SelectValue placeholder="Type" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All types</SelectItem>
-          <SelectItem value="budget">Budget</SelectItem>
-          <SelectItem value="monthly">Monthly</SelectItem>
+          <SelectItem value={ALL}>All report types</SelectItem>
+          <SelectItem value="budget">All budget reports</SelectItem>
+          <SelectItem value="budget-monthly">Monthly budget</SelectItem>
+          <SelectItem value="budget-annual">Annual budget</SelectItem>
+          <SelectItem value="monthly">Monthly activity</SelectItem>
         </SelectContent>
       </Select>
       <Select

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getProfile, isReviewer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import type { BudgetPeriod } from "@/lib/types";
 
 export type ActionState = { error: string } | null;
 
@@ -38,7 +39,9 @@ const MONTH_COLS = [
 // Flatten sections → budget_items rows; drop fully-empty rows.
 function budgetRows(
   sections: z.infer<typeof budgetSectionSchema>[],
-  reportId: string
+  reportId: string,
+  budgetPeriod: BudgetPeriod,
+  periodMonth: number
 ) {
   const rows: Record<string, unknown>[] = [];
   let order = 0;
@@ -48,7 +51,12 @@ function budgetRows(
         item.name.trim() !== "" || item.amounts.some((a) => a > 0);
       if (!hasValue) continue;
       const monthly: Record<string, number> = {};
-      MONTH_COLS.forEach((col, i) => (monthly[col] = item.amounts[i]));
+      MONTH_COLS.forEach((col, i) => {
+        monthly[col] =
+          budgetPeriod === "annual" || i === periodMonth - 1
+            ? item.amounts[i]
+            : 0;
+      });
       rows.push({
         report_id: reportId,
         section: section.name.trim(),
@@ -63,6 +71,7 @@ function budgetRows(
 
 const reportSchema = z.object({
   type: z.enum(["budget", "monthly"]),
+  budget_period: z.enum(["annual", "monthly"]),
   title: z.string().trim().min(1, "Title is required").max(200),
   period_month: z.coerce.number().int().min(1).max(12),
   period_year: z.coerce.number().int().min(2000).max(2100),
@@ -112,6 +121,7 @@ export async function saveReport(
 
   const parsed = reportSchema.safeParse({
     type: formData.get("type"),
+    budget_period: formData.get("budget_period"),
     title: formData.get("title"),
     period_month: formData.get("period_month"),
     period_year: formData.get("period_year"),
@@ -126,13 +136,21 @@ export async function saveReport(
   if (reportId) {
     const { data: existing, error } = await supabase
       .from("reports")
-      .select("id, type")
+      .select("id, type, budget_period")
       .eq("id", reportId)
       .maybeSingle();
     if (error) return { error: error.message };
     if (!existing) return { error: "This report can no longer be edited" };
     if (existing.type !== parsed.data.type) {
       return { error: "The report type does not match the saved report" };
+    }
+    if (
+      existing.type === "budget" &&
+      existing.budget_period !== parsed.data.budget_period
+    ) {
+      return {
+        error: "An existing budget report's period type cannot be changed",
+      };
     }
   }
 
@@ -167,7 +185,12 @@ export async function saveReport(
     budgetSections = sectionsParsed.data;
     if (
       intent === "submitted" &&
-      budgetRows(budgetSections, "x").length === 0
+      budgetRows(
+        budgetSections,
+        "x",
+        parsed.data.budget_period,
+        parsed.data.period_month
+      ).length === 0
     ) {
       return { error: "Add at least one line item before submitting" };
     }
@@ -183,6 +206,7 @@ export async function saveReport(
       .from("reports")
       .update({
         title: parsed.data.title,
+        budget_period: parsed.data.budget_period,
         period_month: parsed.data.period_month,
         period_year: parsed.data.period_year,
         status: "draft",
@@ -209,6 +233,7 @@ export async function saveReport(
       .insert({
         author_id: profile.id,
         type: parsed.data.type,
+        budget_period: parsed.data.budget_period,
         title: parsed.data.title,
         period_month: parsed.data.period_month,
         period_year: parsed.data.period_year,
@@ -222,7 +247,12 @@ export async function saveReport(
   }
 
   if (parsed.data.type === "budget") {
-    const rows = budgetRows(budgetSections, id);
+    const rows = budgetRows(
+      budgetSections,
+      id,
+      parsed.data.budget_period,
+      parsed.data.period_month
+    );
     if (rows.length > 0) {
       const { error } = await supabase.from("budget_items").insert(rows);
       if (error) return { error: error.message };

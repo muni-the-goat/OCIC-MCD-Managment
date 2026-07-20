@@ -15,6 +15,8 @@ import { getProfile, isReviewer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   reportPeriodLabel,
+  reportTypeLabel,
+  type BudgetPeriod,
   type ReportStatus,
   type ReportType,
 } from "@/lib/types";
@@ -24,6 +26,7 @@ export const metadata = { title: "Reports" };
 interface ReportRow {
   id: string;
   type: ReportType;
+  budget_period: BudgetPeriod;
   title: string;
   period_month: number;
   period_year: number;
@@ -44,13 +47,17 @@ export default async function ReportsPage({
   let query = supabase
     .from("reports")
     .select(
-      "id, type, title, period_month, period_year, status, updated_at, author:profiles!author_id(full_name, email)"
+      "id, type, budget_period, title, period_month, period_year, status, updated_at, author:profiles!author_id(full_name, email)"
     )
     .order("updated_at", { ascending: false })
     .limit(200);
 
   if (params.type === "budget" || params.type === "monthly") {
     query = query.eq("type", params.type);
+  } else if (params.type === "budget-monthly") {
+    query = query.eq("type", "budget").eq("budget_period", "monthly");
+  } else if (params.type === "budget-annual") {
+    query = query.eq("type", "budget").eq("budget_period", "annual");
   }
   if (
     params.status &&
@@ -126,12 +133,15 @@ export default async function ReportsPage({
                       {report.title}
                     </Link>
                   </TableCell>
-                  <TableCell className="capitalize">{report.type}</TableCell>
+                  <TableCell>
+                    {reportTypeLabel(report.type, report.budget_period)}
+                  </TableCell>
                   <TableCell>
                     {reportPeriodLabel(
                       report.type,
                       report.period_month,
-                      report.period_year
+                      report.period_year,
+                      report.budget_period
                     )}
                   </TableCell>
                   {reviewer ? (

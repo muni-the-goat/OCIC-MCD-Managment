@@ -1,8 +1,10 @@
 import {
   MONTH_KEYS,
+  MONTH_NAMES,
   MONTH_SHORT,
   QUARTERS,
   itemTotal,
+  type BudgetPeriod,
   type BudgetItem,
 } from "@/lib/types";
 
@@ -42,7 +44,15 @@ function monthSums(items: BudgetItem[]): number[] {
   );
 }
 
-export function BudgetGrid({ items }: { items: BudgetItem[] }) {
+export function BudgetGrid({
+  items,
+  budgetPeriod = "annual",
+  month = 1,
+}: {
+  items: BudgetItem[];
+  budgetPeriod?: BudgetPeriod;
+  month?: number;
+}) {
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">No line items.</p>;
   }
@@ -50,6 +60,66 @@ export function BudgetGrid({ items }: { items: BudgetItem[] }) {
   const sections = groupSections(items);
   const grandMonth = monthSums(items);
   const grandTotal = grandMonth.reduce((a, b) => a + b, 0);
+
+  if (budgetPeriod === "monthly") {
+    const monthIndex = Math.min(11, Math.max(0, month - 1));
+    const monthKey = MONTH_KEYS[monthIndex];
+
+    return (
+      <div className="overflow-hidden rounded-lg border">
+        <table className="w-full border-collapse text-sm">
+          <caption className="sr-only">
+            Actual expenses for {MONTH_NAMES[monthIndex]}, grouped by section
+          </caption>
+          <thead>
+            <tr className="border-b text-muted-foreground">
+              <th className="p-3 text-left font-medium">Line item</th>
+              <th className="p-3 text-right font-medium">
+                {MONTH_NAMES[monthIndex]} actual amount
+              </th>
+            </tr>
+          </thead>
+          {sections.map((section, sectionIndex) => {
+            const subtotal = section.items.reduce(
+              (sum, item) => sum + Number(item[monthKey] ?? 0),
+              0
+            );
+            return (
+              <tbody key={sectionIndex}>
+                <tr className="bg-muted/40">
+                  <td colSpan={2} className="p-3 font-semibold">
+                    {section.name || "Uncategorized"}
+                  </td>
+                </tr>
+                {section.items.map((item) => (
+                  <tr key={item.id} className="border-b last:border-0">
+                    <td className="p-3">{item.name || "—"}</td>
+                    <td className="p-3 text-right tabular-nums">
+                      {fmt(Number(item[monthKey] ?? 0))}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="border-t bg-muted/20 font-medium">
+                  <td className="p-3">Subtotal</td>
+                  <td className="p-3 text-right tabular-nums">
+                    {fmt(subtotal)}
+                  </td>
+                </tr>
+              </tbody>
+            );
+          })}
+          <tfoot>
+            <tr className="border-t-2 bg-primary/5 font-semibold">
+              <td className="p-3">Total</td>
+              <td className="p-3 text-right tabular-nums">
+                {fmt(grandMonth[monthIndex])}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-x-auto">

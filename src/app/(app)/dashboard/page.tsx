@@ -12,6 +12,8 @@ import { getProfile, isReviewer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   reportPeriodLabel,
+  reportTypeLabel,
+  type BudgetPeriod,
   type ReportStatus,
   type ReportType,
 } from "@/lib/types";
@@ -22,6 +24,7 @@ interface RecentReport {
   id: string;
   title: string;
   type: ReportType;
+  budget_period: BudgetPeriod;
   status: ReportStatus;
   period_month: number;
   period_year: number;
@@ -56,7 +59,7 @@ export default async function DashboardPage() {
   let recentQuery = supabase
     .from("reports")
     .select(
-      "id, title, type, status, period_month, period_year, updated_at, author:profiles!author_id(full_name, email)"
+      "id, title, type, budget_period, status, period_month, period_year, updated_at, author:profiles!author_id(full_name, email)"
     )
     .order("updated_at", { ascending: false })
     .limit(6);
@@ -139,11 +142,12 @@ export default async function DashboardPage() {
                         {report.title}
                       </span>
                       <span className="block text-xs text-muted-foreground">
-                        <span className="capitalize">{report.type}</span> ·{" "}
+                        {reportTypeLabel(report.type, report.budget_period)} ·{" "}
                         {reportPeriodLabel(
                           report.type,
                           report.period_month,
-                          report.period_year
+                          report.period_year,
+                          report.budget_period
                         )}
                         {reviewer && report.author
                           ? ` · ${report.author.full_name || report.author.email}`

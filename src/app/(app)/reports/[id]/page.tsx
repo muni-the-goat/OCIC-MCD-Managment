@@ -19,6 +19,7 @@ import { getProfile, isReviewer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   reportPeriodLabel,
+  reportTypeLabel,
   type BudgetItem,
   type Profile,
   type Report,
@@ -111,11 +112,12 @@ export default async function ReportDetailPage({
             <StatusBadge status={report.status} />
           </div>
           <p className="text-sm text-muted-foreground">
-            <span className="capitalize">{report.type}</span> report ·{" "}
+            {reportTypeLabel(report.type, report.budget_period)} report ·{" "}
             {reportPeriodLabel(
               report.type,
               report.period_month,
-              report.period_year
+              report.period_year,
+              report.budget_period
             )} · by{" "}
             {nameOf(report.author_id)}
           </p>
@@ -152,7 +154,11 @@ export default async function ReportDetailPage({
             <CardTitle>Actual expenses</CardTitle>
           </CardHeader>
           <CardContent>
-            <BudgetGrid items={items} />
+            <BudgetGrid
+              items={items}
+              budgetPeriod={report.budget_period}
+              month={report.period_month}
+            />
           </CardContent>
         </Card>
       ) : (
