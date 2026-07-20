@@ -74,6 +74,7 @@ export function RoleSelect({
         <SelectItem value="staff">Staff</SelectItem>
         <SelectItem value="manager">Manager</SelectItem>
         <SelectItem value="head_of_department">Head of Department</SelectItem>
+        <SelectItem value="coordinator">Coordinator</SelectItem>
         <SelectItem value="admin">Admin</SelectItem>
       </SelectContent>
     </Select>

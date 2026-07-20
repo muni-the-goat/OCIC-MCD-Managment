@@ -1,6 +1,7 @@
 export type AppRole =
   | "admin"
   | "head_of_department"
+  | "coordinator"
   | "manager"
   | "staff";
 export type ReportType = "budget" | "monthly";
@@ -18,6 +19,8 @@ export interface Profile {
 export function roleLabel(role: AppRole) {
   return role === "head_of_department"
     ? "Head of Department"
+    : role === "coordinator"
+      ? "Coordinator"
     : role.charAt(0).toUpperCase() + role.slice(1);
 }
 
@@ -67,6 +70,14 @@ export interface BudgetItem extends MonthlyAmounts {
   section: string;
   name: string;
   sort_order: number;
+}
+
+export interface BudgetHistoryReport {
+  id: string;
+  period_month: number;
+  period_year: number;
+  updated_at: string;
+  items: BudgetItem[];
 }
 
 // Q1 = Jan–Mar, Q2 = Apr–Jun, Q3 = Jul–Sep, Q4 = Oct–Dec

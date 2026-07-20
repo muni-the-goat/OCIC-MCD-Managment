@@ -356,7 +356,7 @@ export async function reviewReport(
   }
   if (decision === "reviewed" && !canMarkReviewed(profile.role)) {
     return {
-      error: "Only the Head of Department can mark reports as reviewed",
+      error: "Only an Admin or the Head of Department can mark reports as reviewed",
     };
   }
   if (decision === "rejected" && !canRejectReport(profile.role)) {

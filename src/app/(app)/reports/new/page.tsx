@@ -7,6 +7,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getProfile } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import type { BudgetHistoryReport, BudgetItem } from "@/lib/types";
 
 export const metadata = { title: "New report" };
 
@@ -18,12 +21,41 @@ export default async function NewReportPage({
   const { type } = await searchParams;
 
   if (type === "budget" || type === "monthly") {
+    let budgetHistory: BudgetHistoryReport[] = [];
+
+    if (type === "budget") {
+      const profile = await getProfile();
+      const supabase = await createClient();
+      const { data } = await supabase
+        .from("reports")
+        .select(
+          "id, period_month, period_year, updated_at, items:budget_items(*)"
+        )
+        .eq("author_id", profile.id)
+        .eq("type", "budget")
+        .eq("budget_period", "monthly")
+        .order("period_year", { ascending: false })
+        .order("period_month", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .limit(60);
+
+      budgetHistory = (data ?? []).map((entry) => ({
+        id: entry.id,
+        period_month: entry.period_month,
+        period_year: entry.period_year,
+        updated_at: entry.updated_at,
+        items: ((entry.items ?? []) as BudgetItem[]).sort(
+          (a, b) => a.sort_order - b.sort_order
+        ),
+      }));
+    }
+
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold tracking-tight">
           New {type} report
         </h1>
-        <ReportForm type={type} />
+        <ReportForm type={type} budgetHistory={budgetHistory} />
       </div>
     );
   }

@@ -36,7 +36,7 @@ export function isReviewer(role: AppRole) {
 }
 
 export function canMarkReviewed(role: AppRole) {
-  return role === "head_of_department";
+  return role === "admin" || role === "head_of_department";
 }
 
 export function canRejectReport(role: AppRole) {

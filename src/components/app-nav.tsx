@@ -26,7 +26,7 @@ export function AppNav({ role }: { role: AppRole }) {
     { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
     { href: "/reports", label: "Reports", icon: "reports" },
     { href: "/reports/new", label: "New report", icon: "new" },
-    ...(role === "admin"
+    ...(role === "admin" || role === "coordinator"
       ? [{ href: "/admin/users", label: "Users", icon: "users" }]
       : []),
   ];

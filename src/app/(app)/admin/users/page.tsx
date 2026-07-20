@@ -20,7 +20,8 @@ import type { Profile } from "@/lib/types";
 export const metadata = { title: "Users" };
 
 export default async function AdminUsersPage() {
-  const me = await requireRole("admin");
+  const me = await requireRole("admin", "coordinator");
+  const isAdmin = me.role === "admin";
   const supabase = await createClient();
 
   const { data } = await supabase
@@ -35,10 +36,12 @@ export default async function AdminUsersPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
           <p className="text-sm text-muted-foreground">
-            Invite office members and manage their roles.
+            {isAdmin
+              ? "Invite office members and manage their roles."
+              : "View office members and reset eligible user passwords."}
           </p>
         </div>
-        <InviteUserDialog />
+        {isAdmin ? <InviteUserDialog /> : null}
       </div>
 
       <div className="overflow-x-auto rounded-lg border">
@@ -70,7 +73,7 @@ export default async function AdminUsersPage() {
                     <RoleSelect
                       userId={user.id}
                       role={user.role}
-                      disabled={isMe}
+                      disabled={isMe || !isAdmin}
                     />
                   </TableCell>
                   <TableCell className="text-muted-foreground">
@@ -79,11 +82,17 @@ export default async function AdminUsersPage() {
                   <TableCell className="text-right">
                     {isMe ? null : (
                       <span className="inline-flex items-center gap-1">
-                        <ResetPasswordButton userId={user.id} />
-                        <DeleteUserButton
-                          userId={user.id}
-                          label={user.full_name || user.email}
-                        />
+                        {isAdmin ||
+                        (user.role !== "admin" &&
+                          user.role !== "head_of_department") ? (
+                          <ResetPasswordButton userId={user.id} />
+                        ) : null}
+                        {isAdmin ? (
+                          <DeleteUserButton
+                            userId={user.id}
+                            label={user.full_name || user.email}
+                          />
+                        ) : null}
                       </span>
                     )}
                   </TableCell>

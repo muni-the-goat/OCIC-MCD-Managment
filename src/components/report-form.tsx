@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { History, Plus, Trash2 } from "lucide-react";
 import { saveReport, type ActionState } from "@/app/(app)/reports/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import {
   MONTH_KEYS,
   MONTH_NAMES,
   MONTH_SHORT,
+  type BudgetHistoryReport,
   type BudgetItem,
   type Report,
   type ReportType,
@@ -56,7 +57,10 @@ function num(raw: string): number {
 }
 
 // Rebuild grouped sections from the flat budget_items rows (order preserved).
-function sectionsFromItems(items: BudgetItem[]): EditSection[] {
+function sectionsFromItems(
+  items: BudgetItem[],
+  includeAmounts = true
+): EditSection[] {
   const bySection = new Map<string, EditSection>();
   const order: string[] = [];
   for (const item of items) {
@@ -68,6 +72,7 @@ function sectionsFromItems(items: BudgetItem[]): EditSection[] {
     bySection.get(key)!.items.push({
       name: item.name,
       amounts: MONTH_KEYS.map((m) => {
+        if (!includeAmounts) return "";
         const v = Number(item[m] ?? 0);
         return v === 0 ? "" : String(v);
       }),
@@ -79,14 +84,44 @@ function sectionsFromItems(items: BudgetItem[]): EditSection[] {
     : [{ name: "", items: [emptyItem()] }];
 }
 
+function periodIndex(month: number, year: number) {
+  return year * 12 + month;
+}
+
+function findPreviousBudget(
+  history: BudgetHistoryReport[],
+  month: number,
+  year: number
+) {
+  const target = periodIndex(month, year);
+  return history
+    .filter(
+      (entry) =>
+        entry.items.length > 0 &&
+        periodIndex(entry.period_month, entry.period_year) < target
+    )
+    .sort(
+      (a, b) =>
+        periodIndex(b.period_month, b.period_year) -
+          periodIndex(a.period_month, a.period_year) ||
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    )[0];
+}
+
+function historyItemKey(section: string, name: string) {
+  return `${section.trim().toLowerCase()}\u0000${name.trim().toLowerCase()}`;
+}
+
 export function ReportForm({
   type,
   report,
   budgetItems,
+  budgetHistory = [],
 }: {
   type: ReportType;
   report?: Report;
   budgetItems?: BudgetItem[];
+  budgetHistory?: BudgetHistoryReport[];
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     saveReport,
@@ -98,14 +133,48 @@ export function ReportForm({
   // New budget reports are monthly-only. Existing annual reports keep their
   // legacy layout when edited so historical data remains maintainable.
   const budgetPeriod = report?.budget_period ?? "monthly";
-  const [budgetMonth, setBudgetMonth] = useState(
-    report?.period_month ?? now.getMonth() + 1
-  );
+  const initialBudgetMonth = report?.period_month ?? now.getMonth() + 1;
+  const initialBudgetYear = report?.period_year ?? now.getFullYear();
+  const initialHistory = report
+    ? undefined
+    : findPreviousBudget(
+        budgetHistory,
+        initialBudgetMonth,
+        initialBudgetYear
+      );
+  const [budgetMonth, setBudgetMonth] = useState(initialBudgetMonth);
+  const [budgetYear, setBudgetYear] = useState(initialBudgetYear);
   const isMonthlyBudget = type === "budget" && budgetPeriod === "monthly";
 
   const [sections, setSections] = useState<EditSection[]>(() =>
-    sectionsFromItems(budgetItems ?? [])
+    report
+      ? sectionsFromItems(budgetItems ?? [])
+      : sectionsFromItems(initialHistory?.items ?? [], false)
   );
+  const [structureDirty, setStructureDirty] = useState(false);
+  const [loadedHistoryId, setLoadedHistoryId] = useState<string | null>(
+    initialHistory?.id ?? null
+  );
+
+  const historySource = useMemo(
+    () => findPreviousBudget(budgetHistory, budgetMonth, budgetYear),
+    [budgetHistory, budgetMonth, budgetYear]
+  );
+  const loadedHistory = budgetHistory.find(
+    (entry) => entry.id === loadedHistoryId
+  );
+  const historicalAmounts = useMemo(() => {
+    const values = new Map<string, number>();
+    if (!loadedHistory) return values;
+    const monthKey = MONTH_KEYS[loadedHistory.period_month - 1];
+    for (const item of loadedHistory.items) {
+      values.set(
+        historyItemKey(item.section, item.name),
+        Number(item[monthKey] ?? 0)
+      );
+    }
+    return values;
+  }, [loadedHistory]);
 
   // Per-month grand totals + overall total.
   const monthTotals = useMemo(() => {
@@ -138,12 +207,15 @@ export function ReportForm({
     }))
   );
 
-  const updateSection = (si: number, patch: Partial<EditSection>) =>
+  const updateSection = (si: number, patch: Partial<EditSection>) => {
+    setStructureDirty(true);
     setSections((prev) =>
       prev.map((s, i) => (i === si ? { ...s, ...patch } : s))
     );
+  };
 
-  const updateItem = (si: number, ii: number, patch: Partial<EditItem>) =>
+  const updateItem = (si: number, ii: number, patch: Partial<EditItem>) => {
+    setStructureDirty(true);
     setSections((prev) =>
       prev.map((s, i) =>
         i === si
@@ -156,8 +228,10 @@ export function ReportForm({
           : s
       )
     );
+  };
 
-  const setAmount = (si: number, ii: number, mi: number, value: string) =>
+  const setAmount = (si: number, ii: number, mi: number, value: string) => {
+    setStructureDirty(true);
     setSections((prev) =>
       prev.map((s, i) =>
         i === si
@@ -175,6 +249,19 @@ export function ReportForm({
           : s
       )
     );
+  };
+
+  const applyHistory = (source?: BudgetHistoryReport) => {
+    setSections(sectionsFromItems(source?.items ?? [], false));
+    setLoadedHistoryId(source?.id ?? null);
+    setStructureDirty(false);
+  };
+
+  const changeBudgetPeriod = (month: number, year: number) => {
+    if (!report && !structureDirty) {
+      applyHistory(findPreviousBudget(budgetHistory, month, year));
+    }
+  };
 
   return (
     <form action={formAction} className="space-y-6">
@@ -251,7 +338,11 @@ export function ReportForm({
                 <Select
                   name="period_month"
                   value={String(budgetMonth)}
-                  onValueChange={(value) => setBudgetMonth(Number(value))}
+                  onValueChange={(value) => {
+                    const month = Number(value);
+                    setBudgetMonth(month);
+                    changeBudgetPeriod(month, budgetYear);
+                  }}
                 >
                   <SelectTrigger id="budget_period_month">
                     <SelectValue />
@@ -274,7 +365,12 @@ export function ReportForm({
                   min={2000}
                   max={2100}
                   required
-                  defaultValue={report?.period_year ?? now.getFullYear()}
+                  value={budgetYear || ""}
+                  onChange={(event) => {
+                    const year = Number(event.target.value);
+                    setBudgetYear(year);
+                    changeBudgetPeriod(budgetMonth, year);
+                  }}
                 />
               </div>
             </div>
@@ -367,6 +463,63 @@ export function ReportForm({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {isMonthlyBudget && !report ? (
+              historySource ? (
+                loadedHistoryId === historySource.id ? (
+                  <div className="flex gap-3 rounded-lg border bg-muted/30 p-3 text-sm">
+                    <History
+                      className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    <div>
+                      <p className="font-medium">
+                        Previous structure loaded from{" "}
+                        {MONTH_NAMES[historySource.period_month - 1]}{" "}
+                        {historySource.period_year}
+                      </p>
+                      <p className="text-muted-foreground">
+                        Section and item names were reused for consistency.
+                        Previous amounts are shown for reference but were not
+                        copied into this report.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3 text-sm">
+                    <div className="flex gap-3">
+                      <History
+                        className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                      <div>
+                        <p className="font-medium">
+                          A previous structure is available from{" "}
+                          {MONTH_NAMES[historySource.period_month - 1]}{" "}
+                          {historySource.period_year}
+                        </p>
+                        <p className="text-muted-foreground">
+                          Replacing the structure clears the current line items
+                          and amounts.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => applyHistory(historySource)}
+                    >
+                      Use previous structure
+                    </Button>
+                  </div>
+                )
+              ) : (
+                <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                  No earlier monthly budget was found. Add the first section
+                  and line items for this reporting period.
+                </p>
+              )
+            ) : null}
             {sections.map((section, si) => {
               const subtotals = sectionMonthTotals(section);
               const sectionTotal = subtotals.reduce((a, b) => a + b, 0);
@@ -398,11 +551,12 @@ export function ReportForm({
                       size="icon"
                       aria-label="Remove section"
                       disabled={sections.length === 1}
-                      onClick={() =>
+                      onClick={() => {
+                        setStructureDirty(true);
                         setSections((prev) =>
                           prev.filter((_, i) => i !== si)
-                        )
-                      }
+                        );
+                      }}
                     >
                       <Trash2 className="size-4" />
                     </Button>
@@ -442,6 +596,11 @@ export function ReportForm({
                             (a, b) => a + num(b),
                             0
                           );
+                          const historicalAmount = loadedHistory
+                            ? historicalAmounts.get(
+                                historyItemKey(section.name, item.name)
+                              )
+                            : undefined;
                           return (
                             <tr key={ii} className="border-b last:border-0">
                               <td className="sticky left-0 z-10 bg-card p-1">
@@ -454,6 +613,19 @@ export function ReportForm({
                                     updateItem(si, ii, { name: e.target.value })
                                   }
                                 />
+                                {historicalAmount !== undefined &&
+                                loadedHistory ? (
+                                  <p className="px-2 pb-1 pt-0.5 text-xs text-muted-foreground">
+                                    Previous{" "}
+                                    {MONTH_SHORT[
+                                      loadedHistory.period_month - 1
+                                    ]}{" "}
+                                    {loadedHistory.period_year}:{" "}
+                                    {currency.format(
+                                      historicalAmount
+                                    )}
+                                  </p>
+                                ) : null}
                               </td>
                               {(isMonthlyBudget
                                 ? [item.amounts[budgetMonth - 1]]
@@ -500,13 +672,14 @@ export function ReportForm({
                                   size="icon"
                                   aria-label="Remove line item"
                                   disabled={section.items.length === 1}
-                                  onClick={() =>
+                                  onClick={() => {
+                                    setStructureDirty(true);
                                     updateSection(si, {
                                       items: section.items.filter(
                                         (_, j) => j !== ii
                                       ),
-                                    })
-                                  }
+                                    });
+                                  }}
                                 >
                                   <Trash2 className="size-4" />
                                 </Button>
@@ -550,11 +723,12 @@ export function ReportForm({
                       variant="outline"
                       size="sm"
                       className="gap-2"
-                      onClick={() =>
+                      onClick={() => {
+                        setStructureDirty(true);
                         updateSection(si, {
                           items: [...section.items, emptyItem()],
-                        })
-                      }
+                        });
+                      }}
                     >
                       <Plus className="size-4" />
                       Add line item
@@ -569,12 +743,13 @@ export function ReportForm({
                 type="button"
                 variant="outline"
                 className="gap-2"
-                onClick={() =>
+                onClick={() => {
+                  setStructureDirty(true);
                   setSections((prev) => [
                     ...prev,
                     { name: "", items: [emptyItem()] },
-                  ])
-                }
+                  ]);
+                }}
               >
                 <Plus className="size-4" />
                 Add section

@@ -21,7 +21,13 @@ function generateTempPassword() {
 const inviteSchema = z.object({
   email: z.email("Enter a valid email address"),
   full_name: z.string().trim().min(1, "Full name is required").max(120),
-  role: z.enum(["admin", "head_of_department", "manager", "staff"]),
+  role: z.enum([
+    "admin",
+    "head_of_department",
+    "coordinator",
+    "manager",
+    "staff",
+  ]),
 });
 
 export async function inviteUser(
@@ -91,7 +97,13 @@ export async function updateUserRole(
   const role = String(formData.get("role") ?? "");
   if (
     !userId ||
-    !["admin", "head_of_department", "manager", "staff"].includes(role)
+    ![
+      "admin",
+      "head_of_department",
+      "coordinator",
+      "manager",
+      "staff",
+    ].includes(role)
   ) {
     return { error: "Invalid request" };
   }
@@ -114,7 +126,7 @@ export async function resetUserPassword(
   _prev: UserActionState,
   formData: FormData
 ): Promise<UserActionState> {
-  const me = await requireRole("admin");
+  const me = await requireRole("admin", "coordinator");
 
   const userId = String(formData.get("user_id") ?? "");
   if (!userId) return { error: "Invalid request" };
@@ -123,6 +135,22 @@ export async function resetUserPassword(
   }
 
   const admin = createAdminClient();
+  if (me.role === "coordinator") {
+    const { data: target, error: targetError } = await admin
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .maybeSingle();
+    if (targetError) return { error: targetError.message };
+    if (!target) return { error: "User not found" };
+    if (target.role === "admin" || target.role === "head_of_department") {
+      return {
+        error:
+          "Coordinators cannot reset Admin or Head of Department passwords",
+      };
+    }
+  }
+
   const tempPassword = generateTempPassword();
   const { error } = await admin.auth.admin.updateUserById(userId, {
     password: tempPassword,
