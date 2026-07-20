@@ -176,15 +176,19 @@ export async function saveReport(
   let id = reportId;
 
   if (id) {
-    // RLS restricts this to the author while draft/rejected (or admin).
+    // Keep the report editable while replacing its child rows and uploading
+    // attachments. Moving it to submitted first would make can_edit_report()
+    // false and cause the child writes to be rejected by RLS.
     const { data: updated, error } = await supabase
       .from("reports")
       .update({
         title: parsed.data.title,
         period_month: parsed.data.period_month,
         period_year: parsed.data.period_year,
-        status: intent,
+        status: "draft",
         content,
+        reviewed_by: null,
+        reviewed_at: null,
       })
       .eq("id", id)
       .select("id")
@@ -208,7 +212,7 @@ export async function saveReport(
         title: parsed.data.title,
         period_month: parsed.data.period_month,
         period_year: parsed.data.period_year,
-        status: intent,
+        status: "draft",
         content,
       })
       .select("id")
@@ -230,6 +234,26 @@ export async function saveReport(
   if (uploadError) {
     // The report itself was saved; surface the attachment problem.
     return { error: `Report saved, but: ${uploadError}` };
+  }
+
+  if (intent === "submitted") {
+    const { data: submitted, error } = await supabase
+      .from("reports")
+      .update({ status: "submitted" })
+      .eq("id", id)
+      .eq("status", "draft")
+      .select("id")
+      .maybeSingle();
+    if (error) {
+      return {
+        error: `Report saved as a draft, but could not be submitted: ${error.message}`,
+      };
+    }
+    if (!submitted) {
+      return {
+        error: "Report saved as a draft, but it could no longer be submitted",
+      };
+    }
   }
 
   revalidatePath("/reports");
