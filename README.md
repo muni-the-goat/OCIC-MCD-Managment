@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MCD Management
 
-## Getting Started
+Internal office report tracker. Staff submit **budget reports** (full-year actual expenses by month) and **monthly reports** (structured sections) with file attachments, flowing through a **draft → submitted → reviewed/rejected** workflow with **Admin / Manager / Staff** roles.
 
-First, run the development server:
+Built with Next.js 16 (App Router) + Supabase (Auth, Postgres with Row Level Security, Storage) + Tailwind v4 + shadcn/ui.
+
+## Setup
+
+### 1. Create a Supabase project
+
+1. Sign up at [supabase.com](https://supabase.com) (free tier is fine) and create a new project.
+2. Go to **Authentication → Sign In / Providers → Email** and turn off **Allow new users to sign up**. Accounts for this internal app must be created by an administrator.
+3. In the dashboard, go to **SQL Editor** and run these migrations in order:
+   1. [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — initial tables, roles, RLS policies, private storage bucket, and profile trigger
+   2. [`supabase/migrations/0002_rename_approved_to_reviewed.sql`](supabase/migrations/0002_rename_approved_to_reviewed.sql) — renames the positive terminal status to `reviewed`
+   3. [`supabase/migrations/0003_budget_monthly_grid.sql`](supabase/migrations/0003_budget_monthly_grid.sql) — changes budget line items into the Jan–Dec actual-expense grid
+   4. [`supabase/migrations/0004_security_hardening.sql`](supabase/migrations/0004_security_hardening.sql) — prevents role injection and makes review decisions transactional
+
+### 2. Configure environment variables
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Fill in the values from **Project Settings → API Keys** in your Supabase dashboard:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `NEXT_PUBLIC_SUPABASE_URL` — the Project URL
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — the publishable key (`sb_publishable_...`)
+- `SUPABASE_SECRET_KEY` — the secret key (`sb_secret_...`; server-only, used for the admin user-management page)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Bootstrap the first admin
 
-## Learn More
+1. In the Supabase dashboard: **Authentication → Users → Add user** — enter your email + password and check **Auto Confirm User**.
+2. In the **SQL Editor**, run:
 
-To learn more about Next.js, take a look at the following resources:
+   ```sql
+   update public.profiles set role = 'admin' where email = 'you@example.com';
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Every other account can then be created from the app's **Users** page (admin only) — it creates the account with a temporary password to hand to the person, so no SMTP setup is needed.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 4. Run
 
-## Deploy on Vercel
+```bash
+npm install
+npm run dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Open http://localhost:3000 and sign in.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Roles
+
+| Role | Can do |
+|---|---|
+| **Staff** | Create/edit own drafts, submit for review, edit & resubmit rejected reports, comment on own reports |
+| **Manager** | Everything staff can, plus: see all non-draft reports, mark another author's submitted reports reviewed or rejected (comment required on reject) |
+| **Admin** | Everything, plus user management (invite, roles, password resets) and editing/deleting any report |
+
+Access control is enforced by Postgres Row Level Security, not just the UI — direct API calls with a user's JWT hit the same policies.
+
+## Project layout
+
+- `supabase/migrations/` — ordered database schema, workflow, budget-grid, and security migrations
+- `src/proxy.ts` — session refresh + auth redirects (Next 16 renamed middleware → proxy)
+- `src/lib/supabase/` — browser / server / service-role Supabase clients
+- `src/app/(app)/` — authenticated app (dashboard, reports, admin)
+- `src/app/(app)/reports/actions.ts` — report save/submit, review, comment, attachment server actions
+- `src/app/api/attachments/[id]/route.ts` — signed-URL download redirect
+
+## Notes
+
+- Attachment uploads go through server actions; the request body limit is raised to 20 MB in `next.config.ts` (individual files capped at 15 MB in the action).
+- The project folder living inside OneDrive can cause slow installs / file-lock errors — exclude it from sync if `npm` misbehaves.
