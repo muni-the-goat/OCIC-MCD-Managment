@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -64,6 +65,30 @@ function share(value: number, total: number) {
 
 function truncate(value: string, max = 13) {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
+// Twelve flat month labels need roughly 34px apiece; below that recharts starts
+// dropping every other tick, which hides half the year. Tilting them is the
+// trade a narrow card wants. Measure the card rather than keying off a viewport
+// breakpoint — it sits inside a grid whose width does not track the viewport.
+const FLAT_MONTH_LABEL_WIDTH = 470;
+
+function useTiltedMonthLabels<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [tilted, setTilted] = useState(false);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      setTilted(entry.contentRect.width < FLAT_MONTH_LABEL_WIDTH);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, tilted] as const;
 }
 
 interface SpendRow {
@@ -142,6 +167,9 @@ export function AnnualBudgetCharts({
   items: BudgetItem[];
   year: number;
 }) {
+  // Ahead of the empty-data return below: hooks cannot sit behind a condition.
+  const [monthAxisRef, tiltMonths] = useTiltedMonthLabels<HTMLDivElement>();
+
   const monthly = MONTH_KEYS.map((key, index) => ({
     month: MONTH_SHORT[index],
     full: MONTH_NAMES[index],
@@ -237,75 +265,87 @@ export function AnnualBudgetCharts({
       <div className="grid gap-4 lg:grid-cols-5">
         <section
           aria-label="Spend by month"
-          className="rounded-xl border p-4 lg:col-span-3"
+          // min-w-0: a grid item defaults to min-width:auto, which would let the
+          // chart's floor width widen the whole column (and the page) instead of
+          // being clamped so the inner box scrolls.
+          className="min-w-0 rounded-xl border p-4 lg:col-span-3"
         >
           <h4 className="font-label text-sm font-medium">Spend by month</h4>
           <p className="text-xs text-muted-foreground">
             Every reviewed line item, summed per month.
           </p>
-          <ChartContainer
-            config={chartConfig}
-            className="mt-4 aspect-auto h-64 w-full"
-          >
-            <BarChart
-              accessibilityLayer
-              data={monthly}
-              margin={{ top: 20, right: 12, left: 12, bottom: 0 }}
+          {/* A phone cannot fit twelve month labels, and dropping every other
+              one hides half the year. The plot keeps a floor width and scrolls
+              inside this box instead, so all twelve months stay readable
+              without the page itself ever scrolling sideways. */}
+          <div className="mt-4" ref={monthAxisRef}>
+            <ChartContainer
+              config={chartConfig}
+              className={`aspect-auto w-full ${tiltMonths ? "h-72" : "h-64"}`}
             >
-              <CartesianGrid vertical={false} stroke="var(--border)" />
-              <XAxis
-                dataKey="month"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                // Auto-thins to every other month once twelve labels stop
-                // fitting, which is what a phone-width card gets.
-                interval="preserveStartEnd"
-                minTickGap={4}
-                className="text-xs"
-              />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                tickMargin={4}
-                width={60}
-                className="text-xs tabular-nums"
-                tickFormatter={(value: number) =>
-                  value === 0 ? "$0" : compact.format(value)
-                }
-              />
-              <ChartTooltip
-                cursor={{ fill: "var(--muted)", opacity: 0.5 }}
-                isAnimationActive={false}
-                content={<SpendTooltip hideZero />}
-              />
-              <Bar
-                dataKey="amount"
-                fill={SERIES}
-                radius={[4, 4, 0, 0]}
-                isAnimationActive={false}
+              <BarChart
+                accessibilityLayer
+                data={monthly}
+                margin={{ top: 20, right: 12, left: 12, bottom: 0 }}
               >
-                {/* Only the peak is direct-labelled; the axis and tooltip carry the rest. */}
-                <LabelList
-                  dataKey="amount"
-                  position="top"
-                  offset={8}
-                  className="fill-foreground tabular-nums"
-                  fontSize={11}
-                  formatter={(value) =>
-                    Number(value) > 0 && Number(value) === peak.amount
-                      ? currency.format(Number(value))
-                      : ""
+                <CartesianGrid vertical={false} stroke="var(--border)" />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  // Every tick renders at both widths; only the angle changes,
+                  // so the whole year is always readable.
+                  interval={0}
+                  angle={tiltMonths ? -45 : 0}
+                  textAnchor={tiltMonths ? "end" : "middle"}
+                  height={tiltMonths ? 48 : 30}
+                  className="text-xs"
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={4}
+                  width={60}
+                  className="text-xs tabular-nums"
+                  tickFormatter={(value: number) =>
+                    value === 0 ? "$0" : compact.format(value)
                   }
                 />
-              </Bar>
-            </BarChart>
-          </ChartContainer>
+                <ChartTooltip
+                  cursor={{ fill: "var(--muted)", opacity: 0.5 }}
+                  isAnimationActive={false}
+                  content={<SpendTooltip hideZero />}
+                />
+                <Bar
+                  dataKey="amount"
+                  fill={SERIES}
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={36}
+                  isAnimationActive={false}
+                >
+                  {/* Only the peak is direct-labelled; the axis and tooltip carry the rest. */}
+                  <LabelList
+                    dataKey="amount"
+                    position="top"
+                    offset={8}
+                    className="fill-foreground tabular-nums"
+                    fontSize={11}
+                    formatter={(value) =>
+                      Number(value) > 0 && Number(value) === peak.amount
+                        ? currency.format(Number(value))
+                        : ""
+                    }
+                  />
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          </div>
         </section>
 
         <section
           aria-label="Spend by line item"
-          className="rounded-xl border p-4 lg:col-span-2"
+          className="min-w-0 rounded-xl border p-4 lg:col-span-2"
         >
           <h4 className="font-label text-sm font-medium">Biggest line items</h4>
           <p className="text-xs text-muted-foreground">
