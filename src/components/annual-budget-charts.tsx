@@ -46,12 +46,61 @@ const chartConfig = {
   amount: { label: "Spend", color: SERIES },
 } satisfies ChartConfig;
 
+// Cents stop earning their width once a total runs six figures, and the hero
+// figure is the one number that must not truncate on a phone.
+const heroMoney = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
+
+function heroValue(value: number) {
+  return value >= 100000 ? heroMoney.format(value) : currency.format(value);
+}
+
 function share(value: number, total: number) {
   return total > 0 ? Math.round((value / total) * 100) : 0;
 }
 
-function truncate(value: string, max = 14) {
+function truncate(value: string, max = 13) {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
+interface SpendRow {
+  full?: string;
+  name?: string;
+  section?: string;
+  amount?: number;
+}
+
+// Recharts clones this into `active`/`payload` props. Rendering nothing for an
+// empty month keeps a "$0.00" card from following the cursor across the ten
+// months of a part-finished year.
+function SpendTooltip({
+  hideZero,
+  ...props
+}: React.ComponentProps<typeof ChartTooltipContent> & { hideZero?: boolean }) {
+  const row = props.payload?.[0]?.payload as SpendRow | undefined;
+  if (!row || (hideZero && !Number(row.amount))) return null;
+
+  return (
+    <ChartTooltipContent
+      {...props}
+      labelFormatter={() =>
+        row.section ? `${row.section} · ${row.name}` : (row.full ?? "")
+      }
+      formatter={(value) => (
+        <div className="flex flex-1 items-center justify-between gap-4">
+          <span className="text-muted-foreground">
+            {row.section ? "Total" : "Spend"}
+          </span>
+          <span className="font-medium tabular-nums">
+            {currency.format(Number(value))}
+          </span>
+        </div>
+      )}
+    />
+  );
 }
 
 function Stat({
@@ -77,7 +126,11 @@ function Stat({
       >
         {value}
       </p>
-      <p className="mt-0.5 truncate text-xs text-muted-foreground">{caption}</p>
+      {/* Wraps rather than truncates: at two-up on a phone these captions are
+          the only place the supporting figure appears. */}
+      <p className="mt-0.5 text-xs text-balance text-muted-foreground">
+        {caption}
+      </p>
     </div>
   );
 }
@@ -153,7 +206,7 @@ export function AnnualBudgetCharts({
         <Stat
           hero
           label="Total spend"
-          value={currency.format(total)}
+          value={heroValue(total)}
           caption={`Reviewed expenses · FY ${year}`}
         />
         <Stat
@@ -197,7 +250,7 @@ export function AnnualBudgetCharts({
             <BarChart
               accessibilityLayer
               data={monthly}
-              margin={{ top: 20, right: 4, left: 4, bottom: 0 }}
+              margin={{ top: 20, right: 12, left: 12, bottom: 0 }}
             >
               <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis
@@ -205,13 +258,17 @@ export function AnnualBudgetCharts({
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
+                // Auto-thins to every other month once twelve labels stop
+                // fitting, which is what a phone-width card gets.
+                interval="preserveStartEnd"
+                minTickGap={4}
                 className="text-xs"
               />
               <YAxis
                 tickLine={false}
                 axisLine={false}
                 tickMargin={4}
-                width={52}
+                width={60}
                 className="text-xs tabular-nums"
                 tickFormatter={(value: number) =>
                   value === 0 ? "$0" : compact.format(value)
@@ -219,23 +276,15 @@ export function AnnualBudgetCharts({
               />
               <ChartTooltip
                 cursor={{ fill: "var(--muted)", opacity: 0.5 }}
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={(_, payload) =>
-                      payload?.[0]?.payload?.full ?? ""
-                    }
-                    formatter={(value) => (
-                      <div className="flex flex-1 items-center justify-between gap-4">
-                        <span className="text-muted-foreground">Spend</span>
-                        <span className="font-medium tabular-nums">
-                          {currency.format(Number(value))}
-                        </span>
-                      </div>
-                    )}
-                  />
-                }
+                isAnimationActive={false}
+                content={<SpendTooltip hideZero />}
               />
-              <Bar dataKey="amount" fill={SERIES} radius={[4, 4, 0, 0]}>
+              <Bar
+                dataKey="amount"
+                fill={SERIES}
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={false}
+              >
                 {/* Only the peak is direct-labelled; the axis and tooltip carry the rest. */}
                 <LabelList
                   dataKey="amount"
@@ -271,40 +320,38 @@ export function AnnualBudgetCharts({
               accessibilityLayer
               layout="vertical"
               data={ranked}
-              margin={{ top: 0, right: 56, left: 0, bottom: 0 }}
+              margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
             >
               <CartesianGrid horizontal={false} stroke="var(--border)" />
-              <XAxis type="number" dataKey="amount" hide />
+              {/* Headroom past the largest bar so its right-hand value label has
+                  somewhere to sit instead of running off the card. */}
+              <XAxis
+                type="number"
+                hide
+                domain={[0, (dataMax: number) => dataMax * 1.32]}
+              />
               <YAxis
                 type="category"
                 dataKey="name"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={6}
-                width={116}
+                width={104}
                 className="text-xs"
                 tickFormatter={(value: string) => truncate(value)}
               />
               <ChartTooltip
                 cursor={{ fill: "var(--muted)", opacity: 0.5 }}
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={(_, payload) => {
-                      const row = payload?.[0]?.payload;
-                      return row ? `${row.section} · ${row.name}` : "";
-                    }}
-                    formatter={(value) => (
-                      <div className="flex flex-1 items-center justify-between gap-4">
-                        <span className="text-muted-foreground">Total</span>
-                        <span className="font-medium tabular-nums">
-                          {currency.format(Number(value))}
-                        </span>
-                      </div>
-                    )}
-                  />
-                }
+                isAnimationActive={false}
+                content={<SpendTooltip />}
               />
-              <Bar dataKey="amount" fill={SERIES} radius={[0, 4, 4, 0]}>
+              <Bar
+                dataKey="amount"
+                fill={SERIES}
+                radius={[0, 4, 4, 0]}
+                maxBarSize={24}
+                isAnimationActive={false}
+              >
                 <LabelList
                   dataKey="amount"
                   position="right"
@@ -333,8 +380,12 @@ export function AnnualBudgetCharts({
         </ul>
       ) : null}
 
-      {/* Table twin: every plotted value stays reachable without colour or hover. */}
-      <table className="sr-only">
+      {/* Table twin: every plotted value stays reachable without colour or hover.
+          sr-only lives on a wrapping div, not the table — `overflow: hidden` does
+          not contain a display:table box, so the fourteen columns would widen the
+          document and give the whole page a horizontal scrollbar on a phone. */}
+      <div className="sr-only">
+      <table>
         <caption>
           Reviewed expenses by line item and month, FY {year}
         </caption>
@@ -374,6 +425,7 @@ export function AnnualBudgetCharts({
           </tr>
         </tfoot>
       </table>
+      </div>
     </div>
   );
 }
