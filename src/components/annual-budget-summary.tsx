@@ -1,5 +1,5 @@
+import { AnnualBudgetCharts } from "@/components/annual-budget-charts";
 import { AnnualBudgetFilters } from "@/components/annual-budget-filters";
-import { BudgetGrid } from "@/components/budget-grid";
 import {
   Card,
   CardContent,
@@ -250,12 +250,17 @@ export async function AnnualBudgetSummary({
                     Reviewed monthly expenses · FY {selectedYear}
                   </p>
                 </div>
-                <BudgetGrid items={group.items} />
+                <div className="p-4">
+                  <AnnualBudgetCharts
+                    items={group.items}
+                    year={selectedYear}
+                  />
+                </div>
               </section>
             ))}
           </div>
         ) : (
-          <BudgetGrid items={items} />
+          <AnnualBudgetCharts items={items} year={selectedYear} />
         )}
       </CardContent>
     </Card>
