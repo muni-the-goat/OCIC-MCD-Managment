@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -65,30 +64,6 @@ function share(value: number, total: number) {
 
 function truncate(value: string, max = 13) {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;
-}
-
-// Twelve flat month labels need roughly 34px apiece; below that recharts starts
-// dropping every other tick, which hides half the year. Tilting them is the
-// trade a narrow card wants. Measure the card rather than keying off a viewport
-// breakpoint — it sits inside a grid whose width does not track the viewport.
-const FLAT_MONTH_LABEL_WIDTH = 470;
-
-function useTiltedMonthLabels<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-  const [tilted, setTilted] = useState(false);
-
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-
-    const observer = new ResizeObserver(([entry]) => {
-      setTilted(entry.contentRect.width < FLAT_MONTH_LABEL_WIDTH);
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
-  return [ref, tilted] as const;
 }
 
 interface SpendRow {
@@ -167,9 +142,6 @@ export function AnnualBudgetCharts({
   items: BudgetItem[];
   year: number;
 }) {
-  // Ahead of the empty-data return below: hooks cannot sit behind a condition.
-  const [monthAxisRef, tiltMonths] = useTiltedMonthLabels<HTMLDivElement>();
-
   const monthly = MONTH_KEYS.map((key, index) => ({
     month: MONTH_SHORT[index],
     full: MONTH_NAMES[index],
@@ -278,10 +250,10 @@ export function AnnualBudgetCharts({
               one hides half the year. The plot keeps a floor width and scrolls
               inside this box instead, so all twelve months stay readable
               without the page itself ever scrolling sideways. */}
-          <div className="mt-4" ref={monthAxisRef}>
+          <div className="-mx-1 mt-4 overflow-x-auto px-1 pb-1">
             <ChartContainer
               config={chartConfig}
-              className={`aspect-auto w-full ${tiltMonths ? "h-72" : "h-64"}`}
+              className="aspect-auto h-64 w-full min-w-[480px]"
             >
               <BarChart
                 accessibilityLayer
@@ -294,12 +266,9 @@ export function AnnualBudgetCharts({
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  // Every tick renders at both widths; only the angle changes,
-                  // so the whole year is always readable.
+                  // The floor width guarantees room for all twelve, so render
+                  // every tick rather than letting recharts thin them.
                   interval={0}
-                  angle={tiltMonths ? -45 : 0}
-                  textAnchor={tiltMonths ? "end" : "middle"}
-                  height={tiltMonths ? 48 : 30}
                   className="text-xs"
                 />
                 <YAxis
