@@ -223,6 +223,17 @@ Sits at the top of the Annual budget tab, above the per-author grids. Modelled o
 - **It becomes the percentage column's denominator.** With an approval set the column header reads **% of budget** and answers the question the workbook asks — how much of what we were given have we spent. Without one it falls back to **% of year**, each month's share of the year's own spend, which is a different and much weaker fact. The header changes with it so the two can never be confused.
 - The **Total row** is the headline figure against an approval (22.73% of the year's money spent) where it was previously 100% by construction.
 - **`BudgetApprovalBar`** states the denominator above the matrix rather than leaving it to be inferred from a column header, and shows spent and remaining beside it. Overspend reads as "$X over" rather than as a negative remaining, which looks like a rendering fault.
+
+#### The consumption meter
+
+A ring, built as a **meter and not a two-slice donut**. The unspent portion is a recessive track in the surface's own ramp, not a second coloured segment, so the reader compares one arc against a limit instead of judging two wedges by area. A pie of two slices is the anti-pattern this replaces.
+
+- **Status colours, never the categorical `--series-N` palette.** Budget consumption is a state against a limit, not an identity. Painting it with series hues would claim "spent" and "remaining" are peer categories; one is a measure and the other is what remains of its limit.
+- Thresholds, from the single `WARN_AT` constant so the tick, the arc colour and the banner wording cannot disagree: **under 80% good · 80–100% warning · over 100% critical**.
+- **The 80% line is drawn on the track**, so the threshold is visible rather than a rule that exists only in prose.
+- **Over 100% the arc caps at full** and the overage is stated in words. An arc that laps itself reads as a smaller number than it is.
+- **The warning is a sentence with an icon, and that is not decoration.** `--status-warning` measures **1.83:1** against the light card — below the 3:1 a mark needs to carry meaning alone — so the ring can never be the only thing saying "you are close". Good (3.35:1) and critical (4.80:1) pass on their own; the banner exists for the one that does not. The figure in the hole clears 15:1 and is what a monochrome reader actually reads. Verified with the `dataviz` skill's `contrast()`, not by eye.
+- Do not re-colour the arc, move the threshold, or drop the banner without re-running that contrast check.
 - **Setting it is the Head of Department alone — including against the Admin.** `canSetBudgetApproval()` is the one capability in `roles.ts` an Admin does not have, and it is deliberate: approving a budget is financial authority, not administrative authority, and running the system is not the same as deciding what the office may spend. An Admin still reads the figure, and can still grant themselves the role if they genuinely need to change it — the point is that doing so is a visible act rather than a quiet one.
 - The write uses the service-role client, which bypasses RLS, so **the server action guard is the enforcement** — there is no second layer behind it. Do not add a UI path to this action without re-checking `canSetBudgetApproval()` inside the action itself.
 - The empty state says different things to the two audiences: the Head of Department is told to set it, everyone else is told who will.
