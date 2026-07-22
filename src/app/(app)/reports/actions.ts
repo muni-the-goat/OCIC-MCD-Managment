@@ -9,7 +9,12 @@ import {
   getProfile,
 } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { MONTH_NAMES, type BudgetPeriod } from "@/lib/types";
+import {
+  MONTH_NAMES,
+  TASK_TYPE_IDS,
+  type BudgetPeriod,
+  type ReportTask,
+} from "@/lib/types";
 
 export type ActionState = { error: string } | null;
 
@@ -71,6 +76,32 @@ function budgetRows(
     }
   }
   return rows;
+}
+
+// Tasks ride in the report's `content` jsonb, so the column itself enforces
+// nothing — this schema is the only thing standing between the form and the
+// dashboard's chart. An unknown type is coerced to "other" rather than rejected
+// so a stale browser tab cannot fail a whole save.
+const taskSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  type: z
+    .string()
+    .transform((value) =>
+      (TASK_TYPE_IDS as string[]).includes(value) ? value : "other"
+    ),
+});
+
+const MAX_TASKS = 200;
+
+function parseTasks(raw: FormDataEntryValue | null): ReportTask[] | null {
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(String(raw ?? "[]"));
+  } catch {
+    return null;
+  }
+  const result = z.array(taskSchema).max(MAX_TASKS).safeParse(parsedJson);
+  return result.success ? (result.data as ReportTask[]) : null;
 }
 
 const reportSchema = z.object({
@@ -215,17 +246,25 @@ export async function saveReport(
   }
 
   // Type-specific content
-  let content: Record<string, string> = {};
+  let content: Record<string, unknown> = {};
   let budgetSections: z.infer<typeof budgetSectionSchema>[] = [];
 
   if (parsed.data.type === "monthly") {
+    const tasks = parseTasks(formData.get("tasks"));
+    if (!tasks) {
+      return {
+        error: `Check the task list — each task needs a description, and there is a limit of ${MAX_TASKS}`,
+      };
+    }
+    const summary = String(formData.get("summary") ?? "").trim();
     content = {
-      summary: String(formData.get("summary") ?? "").trim(),
+      summary,
       accomplishments: String(formData.get("accomplishments") ?? "").trim(),
       challenges: String(formData.get("challenges") ?? "").trim(),
       next_month_plan: String(formData.get("next_month_plan") ?? "").trim(),
+      tasks,
     };
-    if (intent === "submitted" && !content.summary) {
+    if (intent === "submitted" && !summary) {
       return { error: "A summary is required before submitting" };
     }
   } else {

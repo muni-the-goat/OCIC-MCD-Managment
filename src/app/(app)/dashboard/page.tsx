@@ -19,7 +19,12 @@ import {
   AnnualBudgetSummary,
   AnnualBudgetSummarySkeleton,
 } from "@/components/annual-budget-summary";
+import { DashboardChartTabs } from "@/components/dashboard-chart-tabs";
 import { GaugeStatCard, StatusMix } from "@/components/dashboard-stats";
+import {
+  MonthlyTaskSummary,
+  MonthlyTaskSummarySkeleton,
+} from "@/components/monthly-task-summary";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,7 +72,12 @@ function Chip({ icon: Icon, children }: { icon: LucideIcon; children: React.Reac
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ budget_year?: string; budget_author?: string }>;
+  searchParams: Promise<{
+    budget_year?: string;
+    budget_author?: string;
+    task_year?: string;
+    task_author?: string;
+  }>;
 }) {
   const [profile, params] = await Promise.all([getProfile(), searchParams]);
   const supabase = await createClient();
@@ -180,16 +190,33 @@ export default async function DashboardPage({
         />
       </div>
 
-      {showAnnualBudget ? (
-        <Suspense fallback={<AnnualBudgetSummarySkeleton />}>
-          <AnnualBudgetSummary
-            userId={profile.id}
-            role={profile.role}
-            year={params.budget_year}
-            author={params.budget_author}
-          />
-        </Suspense>
-      ) : null}
+      {/* Each tab streams on its own — a slow budget aggregate must not hold up
+          the task mix, or the other way round. */}
+      <DashboardChartTabs
+        budget={
+          showAnnualBudget ? (
+            <Suspense fallback={<AnnualBudgetSummarySkeleton />}>
+              <AnnualBudgetSummary
+                userId={profile.id}
+                role={profile.role}
+                year={params.budget_year}
+                author={params.budget_author}
+              />
+            </Suspense>
+          ) : undefined
+        }
+        tasks={
+          <Suspense fallback={<MonthlyTaskSummarySkeleton />}>
+            <MonthlyTaskSummary
+              userId={profile.id}
+              role={profile.role}
+              year={params.task_year}
+              author={params.task_author}
+            />
+          </Suspense>
+        }
+      />
+
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="rounded-2xl lg:col-span-2">

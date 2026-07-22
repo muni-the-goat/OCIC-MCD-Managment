@@ -103,6 +103,21 @@
   --status-good: #0ca30c;
   --status-warning: #fab219;
   --status-critical: #d03b3b;
+
+  /* Categorical palette for the monthly task mix — one fixed hue per task type,
+     assigned by the type's position in TASK_TYPES and never cycled or reordered.
+     Distinct from --chart-N, which are single-series brand marks: these six were
+     validated as a set against the card surface (#ffffff light, #212721 dark)
+     for lightness band, chroma floor, protan/deutan separation and contrast.
+     Slots 2, 3 and 5 sit under 3:1 on white, so the chart must carry its values
+     in text as well — it ships direct slice labels, a legend with counts, and a
+     screen-reader table. Do not hand-edit a hex without re-validating the set. */
+  --task-1: #a42a28; /* red — the brand mark leads the ring */
+  --task-2: #eda100; /* yellow */
+  --task-3: #1baf7a; /* aqua */
+  --task-4: #2a78d6; /* blue */
+  --task-5: #e87ba4; /* magenta */
+  --task-6: #4a3aa7; /* violet */
 }
 
 .dark {
@@ -137,6 +152,15 @@
   --sidebar-accent-foreground: #edd060;
   --sidebar-border: rgba(255, 255, 255, 0.16);
   --sidebar-ring: #dab428;
+
+  /* Same six hues, re-stepped for the dark card surface rather than flipped —
+     validated as a set the same way. All six clear 3:1 here. */
+  --task-1: #c24a3e;
+  --task-2: #c98500;
+  --task-3: #199e70;
+  --task-4: #3987e5;
+  --task-5: #d55181;
+  --task-6: #9085e9;
 }
 
 @layer base {

@@ -18,12 +18,21 @@ export function AnnualBudgetFilters({
   authors,
   selectedAuthor,
   allAuthorsLabel = "All authors",
+  // Each dashboard tab keeps its own year/author pair in the URL, so switching
+  // tabs never silently re-filters the other one. The ids stay unique with it —
+  // both tabs' panels are in the DOM at once, mounted or not.
+  yearParam = "budget_year",
+  authorParam = "budget_author",
+  idPrefix = "annual-budget",
 }: {
   years: number[];
   selectedYear: number;
   authors: { id: string; label: string }[];
   selectedAuthor?: string;
   allAuthorsLabel?: string;
+  yearParam?: string;
+  authorParam?: string;
+  idPrefix?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -31,7 +40,7 @@ export function AnnualBudgetFilters({
 
   const setParam = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
-    if (key === "budget_author" && value === ALL_AUTHORS) {
+    if (key === authorParam && value === ALL_AUTHORS) {
       params.delete(key);
     } else {
       params.set(key, value);
@@ -42,12 +51,12 @@ export function AnnualBudgetFilters({
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div className="space-y-1.5">
-        <Label htmlFor="annual-budget-year">Year</Label>
+        <Label htmlFor={`${idPrefix}-year`}>Year</Label>
         <Select
           value={String(selectedYear)}
-          onValueChange={(value) => setParam("budget_year", value)}
+          onValueChange={(value) => setParam(yearParam, value)}
         >
-          <SelectTrigger id="annual-budget-year" className="w-28">
+          <SelectTrigger id={`${idPrefix}-year`} className="w-28">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -61,12 +70,12 @@ export function AnnualBudgetFilters({
       </div>
       {authors.length > 0 ? (
         <div className="space-y-1.5">
-          <Label htmlFor="annual-budget-author">Author</Label>
+          <Label htmlFor={`${idPrefix}-author`}>Author</Label>
           <Select
             value={selectedAuthor || ALL_AUTHORS}
-            onValueChange={(value) => setParam("budget_author", value)}
+            onValueChange={(value) => setParam(authorParam, value)}
           >
-            <SelectTrigger id="annual-budget-author" className="w-52">
+            <SelectTrigger id={`${idPrefix}-author`} className="w-52">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

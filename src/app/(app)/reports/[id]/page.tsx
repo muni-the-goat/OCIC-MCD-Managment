@@ -24,11 +24,14 @@ import { createClient } from "@/lib/supabase/server";
 import {
   reportPeriodLabel,
   reportTypeLabel,
+  taskTypeColor,
+  taskTypeLabel,
   type BudgetItem,
   type Profile,
   type Report,
   type ReportAttachment,
   type ReportComment,
+  type ReportTask,
 } from "@/lib/types";
 
 export const metadata = { title: "Report" };
@@ -93,6 +96,11 @@ export default async function ReportDetailPage({
   );
   const nameOf = (userId: string | null) =>
     (userId && people.get(userId)) || "Unknown";
+
+  // content is jsonb — a report written before tasks existed simply has no key.
+  const tasks = Array.isArray(report.content?.tasks)
+    ? (report.content.tasks as ReportTask[])
+    : [];
 
   const isAuthor = report.author_id === profile.id;
   const canEdit = isAuthor || profile.role === "admin";
@@ -173,6 +181,37 @@ export default async function ReportDetailPage({
             <CardTitle>Report</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div>
+              <h3 className="mb-1 text-sm font-semibold">
+                Tasks{tasks.length > 0 ? ` (${tasks.length})` : ""}
+              </h3>
+              {tasks.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No tasks were listed on this report.
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {tasks.map((task, index) => (
+                    <li
+                      key={index}
+                      className="flex items-start justify-between gap-3 text-sm"
+                    >
+                      <span className="min-w-0">{task.name}</span>
+                      {/* The swatch echoes the dashboard's ring, but the type
+                          name is spelled out beside it — colour never carries
+                          the meaning on its own. */}
+                      <span className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
+                        <span
+                          className="size-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: taskTypeColor(task.type) }}
+                        />
+                        {taskTypeLabel(task.type)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             {MONTHLY_SECTIONS.map(([key, label]) => (
               <div key={key}>
                 <h3 className="mb-1 text-sm font-semibold">{label}</h3>

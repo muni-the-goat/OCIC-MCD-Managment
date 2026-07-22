@@ -24,11 +24,45 @@ export function roleLabel(role: AppRole) {
     : role.charAt(0).toUpperCase() + role.slice(1);
 }
 
+// The task taxonomy the monthly-report pie chart slices by. Editing this list is
+// the single lever for the whole feature: it drives the form's type picker, the
+// chart's legend, and the colour each type is painted with. Order is meaningful —
+// slot N always takes --task-N, so a type keeps its colour no matter which types
+// happen to appear in a given month. Only ever append; renaming an id orphans the
+// tasks already saved under it.
+export const TASK_TYPES = [
+  { id: "website", label: "Website" },
+  { id: "social_media", label: "Social media" },
+  { id: "content_design", label: "Content & design" },
+  { id: "video_photo", label: "Video & photo" },
+  { id: "event_campaign", label: "Event & campaign" },
+  { id: "other", label: "Other" },
+] as const;
+export type TaskType = (typeof TASK_TYPES)[number]["id"];
+export const TASK_TYPE_IDS = TASK_TYPES.map((type) => type.id) as TaskType[];
+
+export interface ReportTask {
+  name: string;
+  type: TaskType;
+}
+
+export function taskTypeLabel(type: TaskType) {
+  return TASK_TYPES.find((entry) => entry.id === type)?.label ?? "Other";
+}
+
+// Colour is bound to the type's position in TASK_TYPES, never to its rank in a
+// chart — filtering a month down to three types must not repaint the survivors.
+export function taskTypeColor(type: TaskType) {
+  const slot = TASK_TYPE_IDS.indexOf(type);
+  return `var(--task-${(slot < 0 ? TASK_TYPE_IDS.length - 1 : slot) + 1})`;
+}
+
 export interface MonthlyContent {
   summary?: string;
   accomplishments?: string;
   challenges?: string;
   next_month_plan?: string;
+  tasks?: ReportTask[];
 }
 
 export interface Report {

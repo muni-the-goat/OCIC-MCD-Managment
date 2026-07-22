@@ -27,10 +27,14 @@ import {
   MONTH_KEYS,
   MONTH_NAMES,
   MONTH_SHORT,
+  TASK_TYPES,
+  TASK_TYPE_IDS,
   type BudgetHistoryReport,
   type BudgetItem,
   type Report,
+  type ReportTask,
   type ReportType,
+  type TaskType,
 } from "@/lib/types";
 
 interface EditItem {
@@ -49,6 +53,21 @@ const currency = new Intl.NumberFormat("en-US", {
 
 function emptyItem(): EditItem {
   return { name: "", amounts: Array(12).fill("") };
+}
+
+const DEFAULT_TASK_TYPE: TaskType = TASK_TYPES[0].id;
+
+// A report saved before the task list existed has no `tasks` key at all, and a
+// hand-edited one could hold anything — start from a single blank row either
+// way rather than trusting the shape.
+function tasksFromContent(tasks?: ReportTask[]): ReportTask[] {
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    return [{ name: "", type: DEFAULT_TASK_TYPE }];
+  }
+  return tasks.map((task) => ({
+    name: typeof task?.name === "string" ? task.name : "",
+    type: TASK_TYPE_IDS.includes(task?.type) ? task.type : "other",
+  }));
 }
 
 function num(raw: string): number {
@@ -147,6 +166,10 @@ export function ReportForm({
   const [budgetYear, setBudgetYear] = useState(initialBudgetYear);
   const isMonthlyBudget = type === "budget" && budgetPeriod === "monthly";
 
+  const [tasks, setTasks] = useState<ReportTask[]>(() =>
+    tasksFromContent(content.tasks)
+  );
+
   const [sections, setSections] = useState<EditSection[]>(() =>
     report
       ? sectionsFromItems(budgetItems ?? [])
@@ -203,6 +226,19 @@ export function ReportForm({
       for (let i = 0; i < 12; i++) totals[i] += num(item.amounts[i]);
     }
     return totals;
+  };
+
+  // Blank rows are the editor's idea of an empty slot, not data — the server
+  // drops them too, so the count here matches what the dashboard will chart.
+  const namedTasks = tasks.filter((task) => task.name.trim() !== "");
+  const tasksPayload = JSON.stringify(
+    namedTasks.map((task) => ({ name: task.name.trim(), type: task.type }))
+  );
+
+  const updateTask = (index: number, patch: Partial<ReportTask>) => {
+    setTasks((prev) =>
+      prev.map((task, i) => (i === index ? { ...task, ...patch } : task))
+    );
   };
 
   // Serialized payload for the server action.
@@ -283,7 +319,9 @@ export function ReportForm({
       {report ? <input type="hidden" name="report_id" value={report.id} /> : null}
       {type === "budget" ? (
         <input type="hidden" name="budget_sections" value={budgetPayload} />
-      ) : null}
+      ) : (
+        <input type="hidden" name="tasks" value={tasksPayload} />
+      )}
 
       {state?.error ? (
         <Alert variant="destructive">
@@ -451,6 +489,88 @@ export function ReportForm({
       </Card>
 
       {type === "monthly" ? (
+        <>
+        <Card className="max-w-3xl">
+          <CardHeader>
+            <CardTitle>Tasks</CardTitle>
+            <CardDescription>
+              List what you worked on this month and pick a type for each one.
+              The dashboard charts these — how many tasks you completed, and
+              what kind of work they were. Optional, and blank rows are ignored.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {tasks.map((task, index) => (
+              <div key={index} className="flex flex-wrap items-center gap-2">
+                <Input
+                  aria-label={`Task ${index + 1} description`}
+                  className="min-w-48 flex-1"
+                  maxLength={200}
+                  placeholder="e.g. Redesigned the careers page"
+                  value={task.name}
+                  onChange={(event) =>
+                    updateTask(index, { name: event.target.value })
+                  }
+                />
+                <Select
+                  value={task.type}
+                  onValueChange={(value) =>
+                    updateTask(index, { type: value as TaskType })
+                  }
+                >
+                  <SelectTrigger
+                    aria-label={`Task ${index + 1} type`}
+                    className="w-48"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TASK_TYPES.map((taskType) => (
+                      <SelectItem key={taskType.id} value={taskType.id}>
+                        {taskType.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Remove task ${index + 1}`}
+                  disabled={tasks.length === 1}
+                  onClick={() =>
+                    setTasks((prev) => prev.filter((_, i) => i !== index))
+                  }
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ))}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() =>
+                  setTasks((prev) => [
+                    ...prev,
+                    { name: "", type: DEFAULT_TASK_TYPE },
+                  ])
+                }
+              >
+                <Plus className="size-4" />
+                Add task
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                {namedTasks.length === 0
+                  ? "No tasks listed yet"
+                  : `${namedTasks.length} task${namedTasks.length === 1 ? "" : "s"} will be saved`}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="max-w-3xl">
           <CardHeader>
             <CardTitle>Report sections</CardTitle>
@@ -477,6 +597,7 @@ export function ReportForm({
             ))}
           </CardContent>
         </Card>
+        </>
       ) : (
         <Card>
           <CardHeader>
