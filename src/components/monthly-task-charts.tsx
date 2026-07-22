@@ -1,6 +1,16 @@
 "use client";
 
-import { Cell, Pie, PieChart } from "recharts";
+import {
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ReferenceDot,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
@@ -9,6 +19,7 @@ import {
 } from "@/components/ui/chart";
 import {
   MONTH_NAMES,
+  MONTH_SHORT,
   TASK_TYPES,
   taskTypeColor,
   type TaskType,
@@ -19,8 +30,12 @@ export interface TaskEntry {
   type: TaskType;
 }
 
+// The trend is one series, so identity already lives in the axis and the colour
+// stays recessive and on-brand — same treatment as the budget tab's bars.
+const SERIES = "var(--chart-1)";
+
 const chartConfig = {
-  count: { label: "Tasks" },
+  count: { label: "Tasks", color: SERIES },
 } satisfies ChartConfig;
 
 function share(value: number, total: number) {
@@ -37,6 +52,12 @@ interface SliceRow {
   count: number;
   fill: string;
   tasks: string[];
+}
+
+interface TrendRow {
+  month: string;
+  full: string;
+  count: number | null;
 }
 
 function TaskTooltip({
@@ -60,6 +81,43 @@ function TaskTooltip({
       )}
     />
   );
+}
+
+function TrendTooltip(
+  props: React.ComponentProps<typeof ChartTooltipContent>
+) {
+  const row = props.payload?.[0]?.payload as TrendRow | undefined;
+  if (!row) return null;
+
+  return (
+    <ChartTooltipContent
+      {...props}
+      labelFormatter={() => row.full}
+      formatter={() => (
+        <div className="flex flex-1 items-center justify-between gap-4">
+          {row.count === null ? (
+            <span className="text-muted-foreground">No reviewed report</span>
+          ) : (
+            <>
+              <span className="text-muted-foreground">Tasks</span>
+              <span className="font-medium tabular-nums">{row.count}</span>
+            </>
+          )}
+        </div>
+      )}
+    />
+  );
+}
+
+// The comparison the reader actually wants from a month-scoped card: is this
+// month normal? Rendered in muted ink with an arrow rather than in green or
+// red — more tasks is not self-evidently better, and status colours would
+// assert a judgement the data does not carry.
+function delta(current: number, previous: number | null | undefined, previousLabel: string) {
+  if (previous === null || previous === undefined) return null;
+  const change = current - previous;
+  if (change === 0) return `Level with ${previousLabel}`;
+  return `${change > 0 ? "↑" : "↓"} ${Math.abs(change)} vs ${previousLabel}`;
 }
 
 // The ring's own readout. Deliberately a step below the "Tasks completed" tile
@@ -109,17 +167,30 @@ function Stat({
 
 export function MonthlyTaskCharts({
   entries,
+  trend,
   reportCount,
   month,
   year,
 }: {
   entries: TaskEntry[];
+  // Twelve slots, Jan–Dec. `null` means no reviewed report for that month, and
+  // is drawn as a gap rather than as zero.
+  trend: (number | null)[];
   reportCount: number;
   month: number;
   year: number;
 }) {
   const total = entries.length;
   const period = `${MONTH_NAMES[month - 1]} ${year}`;
+
+  const trendRows: TrendRow[] = MONTH_SHORT.map((short, index) => ({
+    month: short,
+    full: `${MONTH_NAMES[index]} ${year}`,
+    count: trend[index] ?? null,
+  }));
+  const monthsWithData = trendRows.filter((row) => row.count !== null).length;
+  const previousLabel = MONTH_NAMES[month - 2] ?? "December";
+  const change = delta(total, month > 1 ? trend[month - 2] : null, previousLabel);
 
   // Built from TASK_TYPES rather than from the data, so a type always takes the
   // same colour slot and the ring never repaints when a type drops out.
@@ -154,7 +225,11 @@ export function MonthlyTaskCharts({
           hero
           label="Tasks completed"
           value={String(total)}
-          caption={`Across ${plural(reportCount, "reviewed report")} · ${period}`}
+          caption={
+            change
+              ? `${change} · across ${plural(reportCount, "reviewed report")}`
+              : `Across ${plural(reportCount, "reviewed report")} · ${period}`
+          }
         />
         <Stat
           label="Most common"
@@ -294,6 +369,115 @@ export function MonthlyTaskCharts({
           </div>
         </section>
       </div>
+
+      {/* Year-long context under the month-scoped detail above. This is not the
+          old Jan–Dec bar chart returning as the card's subject: the question it
+          answers is "is the month I am looking at a normal one", which is why
+          the selected month is marked on it and why it sits last. A line rather
+          than bars because the shape of the year is the point — bars would
+          invite comparing individual months, which the tooltip already does.
+          Below two months of data there is no shape to read, so the section
+          says so in words rather than drawing a lone dot in an empty frame and
+          leaving the reader to work out why nothing is there. */}
+      <section
+        aria-label="Task volume across the year"
+        className="min-w-0 rounded-xl border p-4"
+      >
+        <h4 className="font-label text-sm font-medium">Activity trend</h4>
+        <p className="text-xs text-muted-foreground">
+          {monthsWithData > 1
+            ? `Tasks per month across ${year}, with ${MONTH_NAMES[month - 1]} marked. Months without a reviewed report are left as gaps, not as zero.`
+            : `Tasks per month across ${year}.`}
+        </p>
+        {monthsWithData > 1 ? (
+          <>
+          {/* Twelve labels do not fit a phone and thinning them hides half the
+              year, so the plot keeps a floor width and scrolls inside this box
+              instead of widening the page. */}
+          <div className="-mx-1 mt-4 overflow-x-auto px-1 pb-1">
+            <ChartContainer
+              config={chartConfig}
+              className="aspect-auto h-48 w-full min-w-[480px]"
+            >
+              <LineChart
+                accessibilityLayer
+                data={trendRows}
+                margin={{ top: 20, right: 16, left: 12, bottom: 0 }}
+              >
+                <CartesianGrid vertical={false} stroke="var(--border)" />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  interval={0}
+                  className="text-xs"
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={4}
+                  width={32}
+                  allowDecimals={false}
+                  className="text-xs tabular-nums"
+                />
+                <ChartTooltip
+                  isAnimationActive={false}
+                  content={<TrendTooltip />}
+                />
+                <Line
+                  dataKey="count"
+                  // Straight segments, not a spline: these are twelve discrete
+                  // monthly totals, and a curve would draw values for points in
+                  // between that were never measured.
+                  type="linear"
+                  stroke={SERIES}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  // A month with no report is a gap in the line, not a dip to
+                  // zero through it.
+                  connectNulls={false}
+                  dot={{
+                    r: 4,
+                    fill: SERIES,
+                    // 2px surface ring so the markers stay legible where they
+                    // sit close together or cross the line.
+                    stroke: "var(--card)",
+                    strokeWidth: 2,
+                  }}
+                  activeDot={{ r: 6, fill: SERIES, stroke: "var(--card)", strokeWidth: 2 }}
+                  isAnimationActive={false}
+                />
+                {/* Marks the month the rest of the card is about. Carries no
+                    text label: the axis tick directly beneath it already reads
+                    "Apr", and the value is the hero figure at the top of the
+                    card, so a label here would be the third printing of a
+                    number the reader has already been given twice. */}
+                {trend[month - 1] !== null && trend[month - 1] !== undefined ? (
+                  <ReferenceDot
+                    x={MONTH_SHORT[month - 1]}
+                    y={trend[month - 1] as number}
+                    r={7}
+                    fill={SERIES}
+                    stroke="var(--card)"
+                    strokeWidth={2}
+                  />
+                ) : null}
+              </LineChart>
+            </ChartContainer>
+          </div>
+          </>
+        ) : (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            A trend needs at least two months with reviewed reports.{" "}
+            {monthsWithData === 1
+              ? `${MONTH_NAMES[month - 1]} is the only one in ${year} so far.`
+              : `None have been reviewed for ${year} yet.`}{" "}
+            The line appears here once a second month is reviewed.
+          </p>
+        )}
+      </section>
     </div>
   );
 }

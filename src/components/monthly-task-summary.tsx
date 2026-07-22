@@ -193,6 +193,20 @@ export async function MonthlyTaskSummary({
   );
   const entries = taskEntries(monthReports);
 
+  // The year's shape, for the trend line and the month-over-month delta. `null`
+  // where no reviewed report exists rather than 0 — a month nobody has written
+  // up yet is unknown, not a month in which no work was done, and a line drawn
+  // through it would state something the data does not support.
+  const trend = Array.from({ length: 12 }, (_, index) => {
+    const monthNumber = index + 1;
+    const reportsInMonth = reports.filter(
+      (report) => report.period_month === monthNumber
+    );
+    return reportsInMonth.length === 0
+      ? null
+      : taskEntries(reportsInMonth).length;
+  });
+
   return (
     <Card className="rounded-2xl">
       <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -235,6 +249,7 @@ export async function MonthlyTaskSummary({
         ) : (
           <MonthlyTaskCharts
             entries={entries}
+            trend={trend}
             reportCount={monthReports.length}
             month={selectedMonth}
             year={selectedYear}

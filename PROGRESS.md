@@ -161,7 +161,31 @@ The dashboard chart area became two tabs: the existing **Annual budget** summary
 
 **The two tabs deliberately work at different time scales.** The budget tab rolls twelve months into one fiscal-year view, because that is what an annual budget is. The monthly report tab shows **one month at a time**, because that is what a monthly report is — and because the Marketing Communication alignment will add several more charts to this card, each of which would otherwise be stretched across a year it does not describe. The month selector sits beside the year and author filters and lists only months that actually have a reviewed report behind them, so it never offers a dead end. With no explicit month in the URL, the card opens on the newest month that has a report rather than on the calendar month, which would show an empty card whenever the team is behind on write-ups.
 
-The card holds a **Task mix** donut and a **What was done** list of the month's tasks grouped by type. There is no per-month bar chart: with a single month selected it would be one bar, which is a stat, not a chart. The task list scrolls inside a fixed card height so the card cannot grow without limit as Phase 1's charts join it.
+The card holds a **Task mix** donut, a **What was done** list of the month's tasks grouped by type, and an **Activity trend** line chart. The task list scrolls inside a fixed card height so the card cannot grow without limit as Phase 1's charts join it.
+
+### Activity trend
+
+Twelve monthly task totals as a line, with the selected month marked by an enlarged dot. It is year-long by design and does not contradict the month scoping above: the question it answers is "is the month I am looking at a normal one", which is context for the selected month rather than a second subject.
+
+Four decisions in it are deliberate and should survive future edits:
+
+- **Gaps, not zeros.** A month with no reviewed report is `null`, and `connectNulls` is off, so the line breaks. A month nobody has written up is unknown, not a month in which no work was done, and drawing zero through it asserts something the data does not support.
+- **Straight segments, not a spline.** `type="linear"`. These are twelve discrete monthly aggregates; a curve would draw values between months that were never measured.
+- **No text label on the marked dot.** The axis tick beneath it already names the month and the value is the hero figure at the top of the card. A label would be the third printing of the same number.
+- **A written explanation below two months of data**, rather than a lone dot in an empty frame. The section keeps its heading and says what is missing and when the line will appear. With one month of reviewed reports — which is the current production state — this is what renders.
+
+The **Tasks completed** tile also carries a month-over-month delta (`↑ 3 vs March`). It is muted ink with an arrow rather than green/red: more tasks is not self-evidently better, and status colours would assert a judgement the data does not carry. The delta reuses the same previous-period lookup that Phase 2 needs for platform metrics.
+
+### Chart inventory
+
+The dashboard now uses four forms, each chosen for its job rather than for variety:
+
+| Chart | Form | Job |
+| --- | --- | --- |
+| Spend by month (budget tab) | vertical bars | compare monthly magnitudes |
+| Biggest line items (budget tab) | horizontal bars | rank, with long labels |
+| Task mix (monthly tab) | donut | part-to-whole, ≤ 6 segments |
+| Activity trend (monthly tab) | line | shape of the year |
 
 Monthly activity reports gained a structured task list, stored in the existing `reports.content` jsonb as `tasks: [{ name, type }]`. No migration was required.
 
@@ -330,7 +354,7 @@ Migrations `0001`–`0009` are confirmed applied in Supabase. Do not delete or r
 - `src/components/annual-budget-summary.tsx` — reviewed-only annual aggregation and role-specific author scope.
 - `src/components/summary-filters.tsx` — year, month, and author/Manager selects, shared by both tabs through the `yearParam`/`monthParam`/`authorParam`/`idPrefix` props. The month select only renders when a tab passes months.
 - `src/components/monthly-task-summary.tsx` — reviewed-only task aggregation, month resolution, and role-specific author scope.
-- `src/components/monthly-task-charts.tsx` — task mix donut and the month's task list.
+- `src/components/monthly-task-charts.tsx` — task mix donut, the month's task list, and the activity trend line.
 - `src/components/reports-table.tsx` — report list, accessible Admin selection controls, and bulk-delete confirmation.
 - `src/components/report-form.tsx` — activity/budget form, historical structure reuse, calculations, and serialization.
 - `src/app/(app)/reports/actions.ts` — save, submit, delete, review, comment, and attachment actions.
