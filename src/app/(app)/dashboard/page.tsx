@@ -76,6 +76,7 @@ export default async function DashboardPage({
     budget_year?: string;
     budget_author?: string;
     task_year?: string;
+    task_month?: string;
     task_author?: string;
   }>;
 }) {
@@ -211,6 +212,7 @@ export default async function DashboardPage({
               userId={profile.id}
               role={profile.role}
               year={params.task_year}
+              month={params.task_month}
               author={params.task_author}
             />
           </Suspense>

@@ -1,8 +1,8 @@
-import { AnnualBudgetFilters } from "@/components/annual-budget-filters";
 import {
   MonthlyTaskCharts,
   type TaskEntry,
 } from "@/components/monthly-task-charts";
+import { SummaryFilters } from "@/components/summary-filters";
 import {
   Card,
   CardContent,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import {
+  MONTH_NAMES,
   TASK_TYPE_IDS,
   type AppRole,
   type MonthlyContent,
@@ -41,6 +42,13 @@ function validUuid(value?: string) {
   );
 }
 
+function validMonth(value?: string) {
+  const month = Number(value);
+  return Number.isInteger(month) && month >= 1 && month <= 12
+    ? month
+    : undefined;
+}
+
 // `content` is jsonb, so a report written before tasks existed — or edited by
 // hand — can hold anything. Read it defensively and drop what does not fit the
 // taxonomy rather than letting an unknown type fall out of the chart's colours.
@@ -51,18 +59,11 @@ function taskEntries(reports: SourceReport[]): TaskEntry[] {
     const tasks = report.content?.tasks;
     if (!Array.isArray(tasks)) continue;
 
-    const month =
-      Number.isInteger(report.period_month) &&
-      report.period_month >= 1 &&
-      report.period_month <= 12
-        ? report.period_month
-        : 1;
-
     for (const task of tasks) {
-      const type = (task as { type?: string })?.type;
+      const { name, type } = (task ?? {}) as { name?: string; type?: string };
       if (typeof type !== "string") continue;
       entries.push({
-        month,
+        name: typeof name === "string" && name.trim() ? name.trim() : "Untitled",
         type: (TASK_TYPE_IDS.includes(type as TaskType)
           ? type
           : "other") as TaskType,
@@ -77,11 +78,13 @@ export async function MonthlyTaskSummary({
   userId,
   role,
   year,
+  month,
   author,
 }: {
   userId: string;
   role: AppRole;
   year?: string;
+  month?: string;
   author?: string;
 }) {
   const supabase = await createClient();
@@ -163,7 +166,32 @@ export async function MonthlyTaskSummary({
     ])
   ).sort((a, b) => b - a);
   const reports = (reportsResult.data ?? []) as unknown as SourceReport[];
-  const entries = taskEntries(reports);
+
+  // The whole year is fetched in one query and narrowed here, which is what
+  // makes the month list free: offering a month with no report behind it would
+  // be a dead end, so only months that actually have one are listed.
+  const now = new Date();
+  const currentMonth =
+    selectedYear === now.getFullYear() ? now.getMonth() + 1 : 12;
+  const months = Array.from(
+    new Set(reports.map((report) => report.period_month))
+  )
+    .filter((value) => value >= 1 && value <= 12)
+    .sort((a, b) => a - b);
+  const requestedMonth = validMonth(month);
+  // An explicit month is honoured even when empty, so the picker never fights
+  // the reader. Without one, land on the newest month that has a report — an
+  // empty card in July helps nobody when April is the last month written up.
+  const selectedMonth =
+    requestedMonth ?? months[months.length - 1] ?? currentMonth;
+  const monthOptions = months.includes(selectedMonth)
+    ? months
+    : [...months, selectedMonth].sort((a, b) => a - b);
+
+  const monthReports = reports.filter(
+    (report) => report.period_month === selectedMonth
+  );
+  const entries = taskEntries(monthReports);
 
   return (
     <Card className="rounded-2xl">
@@ -172,22 +200,28 @@ export async function MonthlyTaskSummary({
           <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Reviewed activity
           </p>
-          <CardTitle>Monthly report summary · FY {selectedYear}</CardTitle>
+          <CardTitle>
+            Monthly report summary · {MONTH_NAMES[selectedMonth - 1]}{" "}
+            {selectedYear}
+          </CardTitle>
           <CardDescription>
             {isAdmin
-              ? "How many tasks were completed across the office, and what kind of work they were."
+              ? "How many tasks were completed across the office this month, and what kind of work they were."
               : isHeadOfDepartment
-                ? "How many tasks Managers completed, and what kind of work they were."
-                : "How many tasks you completed, and what kind of work they were."}
+                ? "How many tasks Managers completed this month, and what kind of work they were."
+                : "How many tasks you completed this month, and what kind of work they were."}
           </CardDescription>
         </div>
-        <AnnualBudgetFilters
+        <SummaryFilters
           years={years}
           selectedYear={selectedYear}
+          months={monthOptions}
+          selectedMonth={selectedMonth}
           authors={authors}
           selectedAuthor={selectedAuthor}
           allAuthorsLabel={isHeadOfDepartment ? "All managers" : "All authors"}
           yearParam="task_year"
+          monthParam="task_month"
           authorParam="task_author"
           idPrefix="monthly-task"
         />
@@ -201,7 +235,8 @@ export async function MonthlyTaskSummary({
         ) : (
           <MonthlyTaskCharts
             entries={entries}
-            reportCount={reports.length}
+            reportCount={monthReports.length}
+            month={selectedMonth}
             year={selectedYear}
           />
         )}

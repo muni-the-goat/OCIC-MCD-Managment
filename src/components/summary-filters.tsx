@@ -9,28 +9,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MONTH_NAMES } from "@/lib/types";
 
 const ALL_AUTHORS = "all";
 
-export function AnnualBudgetFilters({
+// Shared by both dashboard summaries. The annual budget tab shows year and
+// author; the monthly report tab adds a month, because one activity report
+// covers a single month and its charts should not be stretched across a year.
+export function SummaryFilters({
   years,
   selectedYear,
+  months,
+  selectedMonth,
   authors,
   selectedAuthor,
   allAuthorsLabel = "All authors",
-  // Each dashboard tab keeps its own year/author pair in the URL, so switching
-  // tabs never silently re-filters the other one. The ids stay unique with it —
-  // both tabs' panels are in the DOM at once, mounted or not.
+  // Each tab keeps its own params in the URL, so switching tabs never silently
+  // re-filters the other. The ids stay unique with them.
   yearParam = "budget_year",
+  monthParam = "budget_month",
   authorParam = "budget_author",
   idPrefix = "annual-budget",
 }: {
   years: number[];
   selectedYear: number;
+  months?: number[];
+  selectedMonth?: number;
   authors: { id: string; label: string }[];
   selectedAuthor?: string;
   allAuthorsLabel?: string;
   yearParam?: string;
+  monthParam?: string;
   authorParam?: string;
   idPrefix?: string;
 }) {
@@ -45,6 +54,9 @@ export function AnnualBudgetFilters({
     } else {
       params.set(key, value);
     }
+    // Changing the year can land on a month that year has no report for, so the
+    // month is cleared and left for the server to re-resolve to a real one.
+    if (key === yearParam) params.delete(monthParam);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
@@ -68,6 +80,26 @@ export function AnnualBudgetFilters({
           </SelectContent>
         </Select>
       </div>
+      {months && selectedMonth ? (
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-month`}>Month</Label>
+          <Select
+            value={String(selectedMonth)}
+            onValueChange={(value) => setParam(monthParam, value)}
+          >
+            <SelectTrigger id={`${idPrefix}-month`} className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {months.map((month) => (
+                <SelectItem key={month} value={String(month)}>
+                  {MONTH_NAMES[month - 1]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
       {authors.length > 0 ? (
         <div className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-author`}>Author</Label>

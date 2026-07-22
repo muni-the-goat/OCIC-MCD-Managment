@@ -157,7 +157,11 @@ Aggregation behavior:
 
 On branch `feat/monthly-report-tab`, not yet merged.
 
-The dashboard chart area became two tabs: the existing **Annual budget** summary and a new **Monthly report** summary. Each tab streams behind its own Suspense boundary and keeps its own year/author filters in the URL (`task_year`, `task_author`) so switching tabs never re-filters the other. A user without annual-budget access sees the monthly card alone with no tab rail.
+The dashboard chart area became two tabs: the existing **Annual budget** summary and a new **Monthly report** summary. Each tab streams behind its own Suspense boundary and keeps its own filters in the URL (`task_year`, `task_month`, `task_author`) so switching tabs never re-filters the other. A user without annual-budget access sees the monthly card alone with no tab rail.
+
+**The two tabs deliberately work at different time scales.** The budget tab rolls twelve months into one fiscal-year view, because that is what an annual budget is. The monthly report tab shows **one month at a time**, because that is what a monthly report is — and because the Marketing Communication alignment will add several more charts to this card, each of which would otherwise be stretched across a year it does not describe. The month selector sits beside the year and author filters and lists only months that actually have a reviewed report behind them, so it never offers a dead end. With no explicit month in the URL, the card opens on the newest month that has a report rather than on the calendar month, which would show an empty card whenever the team is behind on write-ups.
+
+The card holds a **Task mix** donut and a **What was done** list of the month's tasks grouped by type. There is no per-month bar chart: with a single month selected it would be one bar, which is a stat, not a chart. The task list scrolls inside a fixed card height so the card cannot grow without limit as Phase 1's charts join it.
 
 Monthly activity reports gained a structured task list, stored in the existing `reports.content` jsonb as `tasks: [{ name, type }]`. No migration was required.
 
@@ -172,7 +176,7 @@ The chart counts **reviewed** monthly activity reports only, scoped exactly like
 
 `--chart-1` through `--chart-5` are single-series brand marks and fail as a categorical set — two of them are near-grey and the gold sits outside the usable lightness band. Six new tokens `--task-1` through `--task-6` were added to `globals.css` for both themes and validated as a set for lightness band, chroma floor, protanopia/deuteranopia separation, normal-vision separation, and contrast against the card surface.
 
-Three of the light-mode hues sit below 3:1 on white. That is permitted only because the values are also carried in text: the legend prints each count and percentage, and a screen-reader table repeats every plotted value. **Do not hand-edit one of these hexes without re-validating the whole set**, and do not remove the legend counts or the table.
+Three of the light-mode hues sit below 3:1 on white. That is permitted only because the values are also carried in text: the legend beside the ring prints each count and percentage as ordinary visible text, not as a hidden screen-reader twin. **Do not hand-edit one of these hexes without re-validating the whole set**, and do not remove the legend counts.
 
 ## Marketing Communication report alignment
 
@@ -324,9 +328,9 @@ Migrations `0001`–`0009` are confirmed applied in Supabase. Do not delete or r
 - `src/app/(app)/dashboard/page.tsx` — role-aware dashboard and streamed summary boundaries.
 - `src/components/dashboard-chart-tabs.tsx` — annual budget / monthly report tab rail; both panels are rendered on the server and passed through as props.
 - `src/components/annual-budget-summary.tsx` — reviewed-only annual aggregation and role-specific author scope.
-- `src/components/annual-budget-filters.tsx` — year and author/Manager filters, shared by both tabs through the `yearParam`/`authorParam`/`idPrefix` props.
-- `src/components/monthly-task-summary.tsx` — reviewed-only task aggregation and role-specific author scope.
-- `src/components/monthly-task-charts.tsx` — task mix donut, per-month column chart, and screen-reader table.
+- `src/components/summary-filters.tsx` — year, month, and author/Manager selects, shared by both tabs through the `yearParam`/`monthParam`/`authorParam`/`idPrefix` props. The month select only renders when a tab passes months.
+- `src/components/monthly-task-summary.tsx` — reviewed-only task aggregation, month resolution, and role-specific author scope.
+- `src/components/monthly-task-charts.tsx` — task mix donut and the month's task list.
 - `src/components/reports-table.tsx` — report list, accessible Admin selection controls, and bulk-delete confirmation.
 - `src/components/report-form.tsx` — activity/budget form, historical structure reuse, calculations, and serialization.
 - `src/app/(app)/reports/actions.ts` — save, submit, delete, review, comment, and attachment actions.

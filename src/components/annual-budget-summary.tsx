@@ -1,5 +1,5 @@
 import { AnnualBudgetCharts } from "@/components/annual-budget-charts";
-import { AnnualBudgetFilters } from "@/components/annual-budget-filters";
+import { SummaryFilters } from "@/components/summary-filters";
 import {
   Card,
   CardContent,
@@ -210,7 +210,7 @@ export async function AnnualBudgetSummary({
                 : "Automatically combines only your reviewed monthly budget reports."}
           </CardDescription>
         </div>
-        <AnnualBudgetFilters
+        <SummaryFilters
           years={years}
           selectedYear={selectedYear}
           authors={authors}
