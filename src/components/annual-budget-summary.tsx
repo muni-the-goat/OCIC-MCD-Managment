@@ -8,7 +8,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DepartmentBadge } from "@/components/department-badge";
-import { annualBudgetScope, canViewAnnualBudget } from "@/lib/auth";
+import {
+  DepartmentMonthMatrix,
+  type DepartmentMatrixItem,
+} from "@/components/department-month-matrix";
+import {
+  annualBudgetScope,
+  canViewAnnualBudget,
+  canViewDepartmentMatrix,
+} from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   MONTH_KEYS,
@@ -192,6 +200,17 @@ export async function AnnualBudgetSummary({
     }
   }
 
+  // The matrix is built from the items already fetched above, not from a second
+  // query — which is also what guarantees it reconciles with the grids beneath
+  // it. Same scope, same year, same author filter, one source of numbers.
+  const showMatrix = canViewDepartmentMatrix(role);
+  const matrixItems: DepartmentMatrixItem[] = showMatrix
+    ? sourceItems.map((item) => ({
+        ...item,
+        department: authorProfiles.get(item.report.author_id)?.department ?? null,
+      }))
+    : [];
+
   const authorGroups = [...groupedSourceItems.entries()]
     .map(([authorId, authorItems]) => ({
       id: authorId,
@@ -239,45 +258,104 @@ export async function AnnualBudgetSummary({
             No reviewed monthly budget reports are available for this
             selection.
           </p>
-        ) : showAuthorGroups ? (
+        ) : (
           <div className="space-y-6">
-            {authorGroups.map((group) => (
+            {showMatrix ? (
               <section
-                key={group.id}
-                aria-labelledby={`annual-budget-author-${group.id}`}
-                className="overflow-hidden rounded-lg border"
+                aria-labelledby="annual-budget-department-matrix"
+                className="space-y-3"
               >
-                <div className="border-b bg-muted/30 px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <h3
-                      id={`annual-budget-author-${group.id}`}
-                      className="font-semibold"
-                    >
-                      {group.label}
-                    </h3>
-                    {/* Beside the name rather than in the sub-line below: with
-                        several authors stacked this is the fastest way to tell
-                        whose figures these are when two share a first name. */}
-                    <DepartmentBadge department={group.department} />
-                  </div>
+                <div className="space-y-1">
+                  <h3
+                    id="annual-budget-department-matrix"
+                    className="font-heading text-base font-semibold"
+                  >
+                    Spend by department and month
+                  </h3>
                   <p className="text-xs text-muted-foreground">
-                    Reviewed monthly expenses · FY {selectedYear}
+                    Every reviewed monthly budget for FY {selectedYear}, placed
+                    in the department of the person who filed it.
+                    {showAuthorGroups
+                      ? " Totals here match the per-author breakdowns below."
+                      : ""}
                   </p>
                 </div>
-                <div className="p-4">
-                  <AnnualBudgetCharts
-                    items={group.items}
-                    year={selectedYear}
-                  />
-                </div>
+                <DepartmentMonthMatrix
+                  items={matrixItems}
+                  year={selectedYear}
+                />
               </section>
-            ))}
+            ) : null}
+            {showAuthorGroups ? (
+              <AuthorGroups
+                groups={authorGroups}
+                year={selectedYear}
+                separated={showMatrix}
+              />
+            ) : (
+              <AnnualBudgetCharts items={items} year={selectedYear} />
+            )}
           </div>
-        ) : (
-          <AnnualBudgetCharts items={items} year={selectedYear} />
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function AuthorGroups({
+  groups,
+  year,
+  separated,
+}: {
+  groups: {
+    id: string;
+    label: string;
+    department: Department | null;
+    items: BudgetItem[];
+  }[];
+  year: number;
+  // The matrix above is already an office-wide roll-up, so the per-author grids
+  // need a heading that says what changed, not just more cards.
+  separated: boolean;
+}) {
+  return (
+    <div className="space-y-3">
+      {separated ? (
+        <h3 className="font-heading text-base font-semibold">
+          Each author&apos;s expenses
+        </h3>
+      ) : null}
+      <div className="space-y-6">
+        {groups.map((group) => (
+          <section
+            key={group.id}
+            aria-labelledby={`annual-budget-author-${group.id}`}
+            className="overflow-hidden rounded-lg border"
+          >
+            <div className="border-b bg-muted/30 px-4 py-3">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h4
+                  id={`annual-budget-author-${group.id}`}
+                  className="font-semibold"
+                >
+                  {group.label}
+                </h4>
+                {/* Beside the name rather than in the sub-line below: with
+                    several authors stacked this is the fastest way to tell
+                    whose figures these are when two share a first name. */}
+                <DepartmentBadge department={group.department} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Reviewed monthly expenses · FY {year}
+              </p>
+            </div>
+            <div className="p-4">
+              <AnnualBudgetCharts items={group.items} year={year} />
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
   );
 }
 

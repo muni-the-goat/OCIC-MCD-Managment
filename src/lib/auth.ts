@@ -69,6 +69,16 @@ export function canViewAnnualBudget(role: AppRole) {
   );
 }
 
+// The department × month matrix that sits above the per-author budget grids.
+// Narrower than canViewAnnualBudget() on purpose: it is an office-wide
+// cross-department roll-up, which is a Head of Department's and an Admin's view
+// of the org. A Manager sees only their own figures, so a matrix would be one
+// column, and a Coordinator's budget access is for oversight of the individual
+// reports rather than for reading the org chart off the spend.
+export function canViewDepartmentMatrix(role: AppRole) {
+  return role === "admin" || role === "head_of_department";
+}
+
 // How wide the annual budget summary reaches. One function rather than a pair of
 // role booleans because the query scope, the author filter and the card's own
 // description all have to agree, and they drifted apart the last time each

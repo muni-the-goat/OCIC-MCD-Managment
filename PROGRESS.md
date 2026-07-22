@@ -64,6 +64,7 @@ Reports support comments and private file attachments. Reviewed monthly budgets 
 
 ### Head of Department
 
+- Sees the department × month spend matrix at the top of the Annual budget tab, scoped to the Manager-authored reports they already see.
 - Can see non-draft reports across the office.
 - Can mark another author's submitted report reviewed.
 - Can reject another author's submitted report with a required comment.
@@ -91,6 +92,7 @@ The split between "can see someone else's report" and "can decide on one" is why
 ### Admin
 
 - Has unrestricted report and user-management authority.
+- Sees the department × month spend matrix at the top of the Annual budget tab, across every author.
 - Can invite users, assign roles and departments, reset passwords, and delete users.
 - Is the only role that can set a department, including their own.
 - Can edit or delete reports according to the Admin policies.
@@ -161,6 +163,22 @@ Aggregation behavior:
 - Selecting one author keeps the focused single-grid summary.
 - Staff dashboards do not render or query the annual summary.
 - The summary is streamed behind a Suspense loading skeleton so it does not block the rest of the dashboard.
+
+### Department × month matrix
+
+Sits at the top of the Annual budget tab, above the per-author grids. Modelled on the spreadsheet the team keeps today: months down, departments across, a subtotal per department and per month, and each month's share.
+
+- **Admin and Head of Department only** — `canViewDepartmentMatrix()`, deliberately narrower than `canViewAnnualBudget()`. A Manager sees only their own figures, so their matrix would be a single column. A Coordinator's budget access exists for oversight of individual reports, not for reading the org chart off the spend.
+- **No extra query.** It is aggregated from the `sourceItems` the summary already fetched, with the department resolved through the author list it already has. That is also what guarantees it reconciles with the grids below it — same scope, same year, same author filter, one set of numbers. If it ever disagrees with the totals underneath, the aggregation is wrong, not the data.
+- **A department is the department of the person who filed the report.** There is no department on `reports` itself; it is read from `profiles.department` through `author_id`. Reassigning someone therefore moves their whole history to the new column, which is correct for "which team spends what" and wrong for "what did the old team spend" — the second question needs a department stamped on the report at submission time, and nothing asks it yet.
+- **Reports by an author with no department get an Unassigned column.** Dropping them would leave a table whose department columns do not add up to its Total, which is worse than an ugly column.
+- **Empty department columns are dropped; empty month rows are kept.** An all-zero column is a wider table that says nothing. An all-zero month is the shape of the year, and hiding it would hide that nothing was reported.
+- **One department means no Total column**, since it would be identical to the single department column all the way down and read as a rendering fault.
+- Amounts come from `m01`–`m12` directly rather than from `reports.period_month`, so the month split does not depend on the report's period field.
+- A table, not a chart, on purpose: the question is "what did Multimedia spend in April", which is a cell lookup, and the month shape and section ranking are already charted directly beneath it.
+- The current month is tinted ivory rather than red — the Total row already owns the brand red, and two red rows in one table read as two instances of the same thing.
+
+**Not built: the approved-budget figure.** The source spreadsheet carries `Budget Approval: $150,000.00` and expresses each month as a percentage of it (25.36% of budget spent year to date). Nothing in the schema stores an approved budget — reports record actual spend only — so the matrix's percentage column is each month's **share of the year's total spend** instead, and is labelled "% of year" so it cannot be misread. Adding the spreadsheet's version needs a stored allocation (a `budget_allocations` table keyed by year, and probably by department), an Admin screen to set it, and a migration.
 
 ## Monthly activity report — task mix
 
@@ -429,6 +447,7 @@ Department is otherwise still an attribute of a person — **no query filters on
 - `src/components/monthly-task-charts.tsx` — task mix donut, the month's task list, and the activity trend line.
 - `src/components/reports-table.tsx` — report list, accessible Admin selection controls, and bulk-delete confirmation.
 - `src/components/department-badge.tsx` — the one department chip, used everywhere a department appears.
+- `src/components/department-month-matrix.tsx` — the department × month spend table at the top of the Annual budget tab.
 - `src/components/report-form.tsx` — activity/budget form, historical structure reuse, calculations, and serialization.
 - `src/app/(app)/reports/actions.ts` — save, submit, delete, review, comment, and attachment actions.
 - `src/app/(app)/reports/[id]/page.tsx` — detail view and review-control visibility.
@@ -436,7 +455,7 @@ Department is otherwise still an attribute of a person — **no query filters on
 - `src/app/(app)/admin/users/actions.ts` — invite, role change, department change, password reset, and deletion authorization.
 - `src/lib/login-rules.ts` — the office-domain rule and the post-login redirect check, shared by the login page, the login action, the invite action, and the proxy.
 - `src/lib/auth.ts` — centralized role guards and permission helpers, including `isReviewer()` / `seesOtherAuthors()` (deliberately different questions) and `annualBudgetScope()`.
-- `src/lib/types.ts` — roles, reports, budget periods, month keys, the `TASK_TYPES` taxonomy, and shared data types.
+- `src/lib/types.ts` — roles, reports, budget periods, month keys, the `TASK_TYPES` taxonomy, the `DEPARTMENTS` list (with the `short` labels the matrix headers use), and shared data types.
 - `src/app/globals.css` — brand theme, the validated `--series-1…6` / `--series-neutral` chart palette, and the `--department*` chip tokens, all defined for both themes. The stock `--chart-N` slots remain for the generated components but no chart draws with them.
 - `src/lib/supabase/` — browser, authenticated server, and secret Admin clients.
 - `src/proxy.ts` — Supabase session refresh and login redirects.
@@ -464,13 +483,15 @@ These are production acceptance checks, not unfinished implementation:
 8. Confirm Admin can select one, several, or all visible reports and delete them after confirmation.
 9. Confirm Staff do not see the annual summary, and that neither Staff nor Coordinator see bulk-delete controls.
 10. Confirm a Coordinator can reset an eligible user's password but cannot invite, change roles, delete users, or reset Admin/HoD passwords.
-10a. After `0012`, confirm a Coordinator sees every non-draft budget report on the Reports page and every author in the annual summary, sees no one else's monthly activity report, sees no drafts, and has no Edit, Delete, Mark reviewed, or Reject control on a report they did not author.
-11. Confirm a reviewed monthly budget enters the correct annual-summary month while draft, submitted, and rejected budgets stay excluded.
-12. Confirm a new monthly budget reuses the nearest earlier section/item structure but leaves current amounts empty.
+11. Confirm a Coordinator sees every non-draft budget report on the Reports page and every author in the annual summary, sees no one else's monthly activity report, sees no drafts, and has no Edit, Delete, Mark reviewed, or Reject control on a report they did not author.
+12. Confirm a reviewed monthly budget enters the correct annual-summary month while draft, submitted, and rejected budgets stay excluded.
+13. Confirm a new monthly budget reuses the nearest earlier section/item structure but leaves current amounts empty.
+14. Confirm the department × month matrix appears for Admin and Head of Department only, that its Total reconciles with the per-author grids below it, and that reports by an author with no department land in the Unassigned column rather than vanishing.
 
 ## Known limitations and future options
 
-- `profiles.department` is **displayed but never queried**. Every surface that names an author now prints their department beside it, and no query filters, scopes, or groups by it. Annual budget visibility still uses the Manager author account as the department boundary. Wiring it into queries — a Head of Department seeing their own department rather than all Managers, a department filter on the dashboard summaries, department subtotals in the annual budget — is the obvious next step and needs no further schema work.
+- `profiles.department` is **displayed and aggregated, but still never used for access control**. Every surface that names an author prints their department, and the department × month matrix groups spend by it — but no RLS policy, report query, or visibility rule reads it. Annual budget visibility still uses the Manager author account as the department boundary, and a Head of Department still sees "all Managers" rather than "my department". That, and a department filter on the dashboard summaries, are the remaining steps; neither needs further schema work.
+- The matrix reads a department off the author's **current** profile, so reassigning someone moves their whole spend history to the new column. Correct for "which team spends what", wrong for "what did the old team spend". Fixing the second question means stamping the department onto the report at submission time, which is a schema change and is not worth making until someone actually asks it.
 - The author filter dropdowns on both dashboard tabs still list names only. Adding the department would disambiguate two people who share a first name, but it risks truncating inside the select's width and wants a two-line item rather than a longer single line.
 - Annual aggregation matches normalized text names; it does not use permanent line-item IDs. Historical structure reuse reduces spelling drift, but a future canonical expense-category table would provide stronger guarantees.
 - One pre-existing July 2026 author/period contains three reviewed reports. The uniqueness trigger deliberately preserves them. After deciding which record is canonical, the duplicates can be reconciled and the trigger can later be upgraded to a partial unique index.

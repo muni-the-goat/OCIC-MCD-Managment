@@ -16,15 +16,23 @@ export type ReportStatus = "draft" | "submitted" | "reviewed" | "rejected";
 // Unlike TASK_TYPES, the order here is presentational only: nothing resolves a
 // department by index — departmentLabel() looks up by id — so a new entry can
 // sit wherever it reads best. Admin/HR stays last as the non-marketing bucket.
+// `short` exists for one job: column headers in the department × month matrix,
+// where eight full names make a table nobody can fit on a laptop. That table
+// also carries the full label in a title attribute. Never use `short` anywhere
+// the department stands on its own — "Brand" and "Product" are not names.
 export const DEPARTMENTS = [
-  { id: "digital_marketing", label: "Digital Marketing" },
-  { id: "multimedia", label: "Multimedia" },
-  { id: "brand_marketing", label: "Brand Marketing" },
-  { id: "product_marketing", label: "Product Marketing" },
-  { id: "kti_marketing", label: "KTI Marketing" },
-  { id: "partnership_marketing", label: "Partnership Marketing" },
-  { id: "event_marketing", label: "Event Marketing" },
-  { id: "admin_hr", label: "Admin/HR" },
+  { id: "digital_marketing", label: "Digital Marketing", short: "Digital" },
+  { id: "multimedia", label: "Multimedia", short: "Multimedia" },
+  { id: "brand_marketing", label: "Brand Marketing", short: "Brand" },
+  { id: "product_marketing", label: "Product Marketing", short: "Product" },
+  { id: "kti_marketing", label: "KTI Marketing", short: "KTI" },
+  {
+    id: "partnership_marketing",
+    label: "Partnership Marketing",
+    short: "Partnership",
+  },
+  { id: "event_marketing", label: "Event Marketing", short: "Event" },
+  { id: "admin_hr", label: "Admin/HR", short: "Admin/HR" },
 ] as const;
 export type Department = (typeof DEPARTMENTS)[number]["id"];
 export const DEPARTMENT_IDS = DEPARTMENTS.map(
