@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
+import { ALLOWED_EMAIL_DOMAIN, isAllowedEmail } from "@/lib/login-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type UserActionState =
@@ -19,7 +20,11 @@ function generateTempPassword() {
 }
 
 const inviteSchema = z.object({
-  email: z.email("Enter a valid email address"),
+  // An address outside the office domain would be rejected at login, so refuse
+  // to create the account in the first place.
+  email: z
+    .email("Enter a valid email address")
+    .refine(isAllowedEmail, `The email must end with ${ALLOWED_EMAIL_DOMAIN}`),
   full_name: z.string().trim().min(1, "Full name is required").max(120),
   role: z.enum([
     "admin",

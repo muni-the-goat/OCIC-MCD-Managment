@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { safeNextPath } from "@/lib/login-rules";
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -36,7 +37,8 @@ export async function proxy(request: NextRequest) {
   if (!user && !isLoginPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname)}`;
+    const next = pathname === "/" ? null : safeNextPath(pathname);
+    url.search = next ? `?next=${encodeURIComponent(next)}` : "";
     return NextResponse.redirect(url);
   }
 

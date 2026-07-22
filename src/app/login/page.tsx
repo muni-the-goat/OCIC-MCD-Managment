@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { OcicLogo } from "@/components/ocic-logo";
+import { ALLOWED_EMAIL_DOMAIN, safeNextPath } from "@/lib/login-rules";
 import { login } from "./actions";
 
 export default async function LoginPage({
@@ -17,7 +18,9 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const { error, next } = await searchParams;
+  const { error, next: rawNext } = await searchParams;
+  // Validate here too, so an attacker-supplied destination never reaches the DOM.
+  const next = safeNextPath(rawNext);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background p-4">
@@ -46,7 +49,7 @@ export default async function LoginPage({
                 type="email"
                 autoComplete="email"
                 required
-                placeholder="you@office.com"
+                placeholder={`you${ALLOWED_EMAIL_DOMAIN}`}
               />
             </div>
             <div className="space-y-2">
