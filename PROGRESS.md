@@ -2,16 +2,11 @@
 
 ## Current status
 
-The main reporting workflow is implemented, production-build verified, and pushed to GitHub `main` through commit `8131c6e` (`feat: scroll the month chart sideways on narrow screens`). Vercel is connected to the repository for automatic deployments.
+The main reporting workflow is implemented, production-build verified, and pushed to GitHub `main`. Vercel is connected to the repository for automatic deployments.
 
-Two commits sit on the unmerged branch `feat/monthly-report-tab` (pull request #1) and are **not yet on `main`, so they are not deployed**:
+The monthly report tab, the office-domain sign-in restriction, and departments were developed on `feat/monthly-report-tab` (pull request #1) and merged to `main`.
 
-- `73c5e9c` — office-domain sign-in restriction.
-- `6555dbb` — monthly report tab and task mix chart (see below).
-
-Supabase migrations `0001` through `0009` have been applied to the production project.
-
-> **`0010_profile_department.sql` has NOT been applied.** It is the first migration since `0009` and must be run before the branch is deployed — the Users page selects `profiles.department`, which does not exist in production yet. Run it in the Supabase SQL editor or via `supabase db push`.
+Supabase migrations `0001` through `0010` have been applied to the production project.
 
 No migration is required for the Marketing Communication alignment described below: report content rides in the existing `reports.content` jsonb column.
 
@@ -367,9 +362,9 @@ The Users page uses the server-only Supabase secret client for Auth Admin operat
 7. `0007_coordinator_and_admin_review.sql` — adds Coordinator and expands positive approval to Admin and HoD.
 8. `0008_admin_self_review.sql` — permits Admin self-review while preserving self-review restrictions for HoD and Manager.
 9. `0009_monthly_budget_uniqueness_and_revisions.sql` — permits authors to revise submitted/reviewed reports and blocks new duplicate monthly budgets per author/month/year without deleting existing duplicates.
-10. `0010_profile_department.sql` — adds `profiles.department`, the `user_department()` helper, and a self-update policy that pins department the way it already pins role. **Not yet applied.**
+10. `0010_profile_department.sql` — adds `profiles.department`, the `user_department()` helper, and a self-update policy that pins department the way it already pins role.
 
-Migrations `0001`–`0009` are confirmed applied in Supabase; `0010` is pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0010` are confirmed applied in Supabase. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
@@ -409,10 +404,9 @@ Department is currently an attribute of a person and nothing more — no report,
 ## Deployment state
 
 - GitHub repository: `muni-the-goat/OCIC-MCD-Managment`
-- Deployed branch: `main`, latest commit `8131c6e`
-- Open branch: `feat/monthly-report-tab` (pull request #1), two commits ahead of `main`, awaiting merge
+- Deployed branch: `main`
 - Hosting: Vercel, connected for automatic deployment from GitHub
-- Database: Supabase, migrations `0001`–`0009` applied
+- Database: Supabase, migrations `0001`–`0010` applied
 - Supabase region: Northeast Asia (Seoul)
 
 ## Remaining validation checklist
