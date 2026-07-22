@@ -2,9 +2,14 @@
 
 ## Current status
 
-The main reporting workflow is implemented, production-build verified, and pushed to GitHub `main` through commit `13194b3` (`feat: enforce monthly budget revisions`). Vercel is connected to the repository for automatic deployments. The admin bulk-report deletion and named all-author annual summaries described below are the current local changes and have not yet been pushed.
+The main reporting workflow is implemented, production-build verified, and pushed to GitHub `main` through commit `8131c6e` (`feat: scroll the month chart sideways on narrow screens`). Vercel is connected to the repository for automatic deployments.
 
-Supabase migrations `0001` through `0009` have been applied to the production project. No additional migration is required for the current UI/server-action changes.
+Two commits sit on the unmerged branch `feat/monthly-report-tab` (pull request #1) and are **not yet on `main`, so they are not deployed**:
+
+- `73c5e9c` — office-domain sign-in restriction.
+- `6555dbb` — monthly report tab and task mix chart (see below).
+
+Supabase migrations `0001` through `0009` have been applied to the production project. No additional migration is required for the current UI/server-action changes, nor for either phase of the Marketing Communication alignment described below — report content rides in the existing `reports.content` jsonb column.
 
 Latest verification completed successfully:
 
@@ -18,7 +23,7 @@ Latest verification completed successfully:
 MCD Management is an internal office report tracker. Users create two kinds of reports:
 
 1. **Monthly budget report** — actual expenses for one selected month, grouped into freeform sections and line items.
-2. **Monthly activity report** — summary, accomplishments, challenges, and next-month plan.
+2. **Monthly activity report** — a task list, plus summary, accomplishments, challenges, and next-month plan.
 
 Every report follows this lifecycle:
 
@@ -148,6 +153,76 @@ Aggregation behavior:
 - Staff and Coordinator dashboards do not render or query the annual summary.
 - The summary is streamed behind a Suspense loading skeleton so it does not block the rest of the dashboard.
 
+## Monthly activity report — task mix
+
+On branch `feat/monthly-report-tab`, not yet merged.
+
+The dashboard chart area became two tabs: the existing **Annual budget** summary and a new **Monthly report** summary. Each tab streams behind its own Suspense boundary and keeps its own year/author filters in the URL (`task_year`, `task_author`) so switching tabs never re-filters the other. A user without annual-budget access sees the monthly card alone with no tab rail.
+
+Monthly activity reports gained a structured task list, stored in the existing `reports.content` jsonb as `tasks: [{ name, type }]`. No migration was required.
+
+- The taxonomy is one array, `TASK_TYPES` in `src/lib/types.ts`, which drives the form's type picker, the chart legend, and the colour each type is painted with. Appending to it is the supported way to extend the list; renaming an `id` orphans tasks already saved under it.
+- Colour binds to a type's position in that array, never to its rank in a chart, so filtering never repaints the remaining types.
+- The Server Action validates the list with zod and coerces an unrecognised type to `other` rather than failing the whole save, so a stale browser tab cannot block a report.
+- Reads are defensive: a report written before this feature has no `tasks` key and counts as zero tasks.
+
+The chart counts **reviewed** monthly activity reports only, scoped exactly like the budget tab (Admin sees everyone, Head of Department sees Managers, everyone else sees only their own).
+
+### Chart colour tokens
+
+`--chart-1` through `--chart-5` are single-series brand marks and fail as a categorical set — two of them are near-grey and the gold sits outside the usable lightness band. Six new tokens `--task-1` through `--task-6` were added to `globals.css` for both themes and validated as a set for lightness band, chroma floor, protanopia/deuteranopia separation, normal-vision separation, and contrast against the card surface.
+
+Three of the light-mode hues sit below 3:1 on white. That is permitted only because the values are also carried in text: the legend prints each count and percentage, and a screen-reader table repeats every plotted value. **Do not hand-edit one of these hexes without re-validating the whole set**, and do not remove the legend counts or the table.
+
+## Marketing Communication report alignment
+
+Planned, not started. Scope was derived from a real departmental report, `April2026-Marcom-KTI` (Marketing Communication-KTI, 1–30 April 2026), which is the format the team actually produces today.
+
+### What that report contains
+
+| Report section | Application today | Gap |
+| --- | --- | --- |
+| 1.1.1 Content creation pie (Reel/video, Photo Album, Story) | none | content log, counted by format |
+| 1.1.2 Content published per platform | none | same log, grouped by platform |
+| 1.1.3 Media engagement (local/international outlets) | none | two tag lists |
+| 1.2 Achievements narrative | Summary field | none |
+| 1.2.1–1.2.3 Facebook/Instagram/TikTok performance | none | per-platform metric entry |
+| 2 Other tasks | task list (above) | none |
+| 3 Problems (coordination; equipment and manpower) | Challenges field | split into named categories |
+| 4 Budget spent | monthly budget report | link the two records |
+| 5.1 Team management feedback | Challenges field | own field |
+| 5.2 Next month goals | Next month plan field | none |
+| 5.3 General feedback and discussion points | none | own field |
+
+The shipped task list corresponds to section 2 of that report, not to the section 1.1.1 pie. Those are two different countable things: 1.1.1 counts content pieces by **format**, while section 2 lists non-content work by **task type**. Both belong in the application, as separate lists.
+
+### Phase 1 — content log and report structure
+
+The mechanical part of the report, and the part that removes the most manual chart-building.
+
+1. **Content log.** A repeating row on the monthly activity form: content title, format, and the platforms it was published to. Stored in `content.content_items` alongside `tasks`. Formats follow the same fixed-array pattern as `TASK_TYPES` (Reel/video, Photo album, Story, and room to append), so the taxonomy stays editable in one place.
+2. **Content creation chart.** A donut of pieces by format — the direct equivalent of report section 1.1.1 — reusing the existing `--task-N` palette and the legend/table treatment already built for the task mix.
+3. **Content published chart.** A grouped bar of pieces per platform, split by format, matching report section 1.1.2. Platform is the axis; format is the series, capped at the validated palette.
+4. **Media engagement.** Two tag lists, local and international, entered as free text and rendered as chips on the report detail page.
+5. **Report structure.** Split the single Challenges textarea into the categories the real report uses — Coordination, Equipment and manpower, Team management feedback — and add General feedback and discussion points. Existing reports keep their current Challenges text; the new fields start empty.
+6. **Budget link.** Show the author's monthly budget report for the same period on the activity report, so section 4 stops being retyped.
+
+Phase 1 needs no migration and no third-party integration.
+
+### Phase 2 — platform performance
+
+Deliberately deferred until Phase 1 has been used for a month, because this is where the data-entry burden lands.
+
+1. **Metric entry.** Per-platform metric sets, defined per platform rather than shared — the real report already uses different metrics for TikTok (total reach, profile views, shares) than for Facebook (link clicks, visit rate). Roughly twenty numbers per month, copied by hand from the Meta and TikTok dashboards.
+2. **Automatic period comparison.** Only the current month's figures are entered. The previous month's reviewed activity report is already in the database, so the application computes the previous value and the percentage change itself. This removes about two thirds of the numbers the team currently types, and removes the arithmetic errors with them.
+3. **Presentation — do not copy the source charts.** The report's existing performance charts plot views (123,167) on the same axis as engagement rate (5.02) and percentage change (−28.8%). Every small metric collapses onto the baseline, and real results are hidden: April's Facebook link clicks rose 372% and its visit rate 221%, and neither is legible in the chart meant to show them. Render each platform as a row of comparison tiles instead — metric name, current value, previous value, signed change with direction colour. Same data, no scale collision, and the movements the narrative talks about become visible. A single-axis chart per metric group is acceptable; one chart carrying counts, rates, and percentages together is not.
+
+### Known constraints for both phases
+
+- Automatic metric collection would require Meta Graph API and TikTok Business API integrations, each needing app review and stored tokens. Neither phase assumes it; entry stays manual but becomes structured and automatically diffed.
+- The source spreadsheet behind the April report has not been reviewed. Metric names in Phase 2 should be confirmed against it rather than transcribed from the rendered PDF, where several axis labels are truncated.
+- The current report is authored by a team ("Heng Sokchea, Duong Senghon") while the application models a single `author_id`. This is the same gap already recorded under Known limitations for departments, and Phase 1 does not resolve it.
+
 ## Review workflow and enforcement
 
 Review controls only appear when the report is `submitted` and the current role/ownership combination is permitted.
@@ -206,9 +281,12 @@ Migrations `0001`–`0009` are confirmed applied in Supabase. Do not delete or r
 
 ## Main code locations
 
-- `src/app/(app)/dashboard/page.tsx` — role-aware dashboard and streamed annual-summary boundary.
+- `src/app/(app)/dashboard/page.tsx` — role-aware dashboard and streamed summary boundaries.
+- `src/components/dashboard-chart-tabs.tsx` — annual budget / monthly report tab rail; both panels are rendered on the server and passed through as props.
 - `src/components/annual-budget-summary.tsx` — reviewed-only annual aggregation and role-specific author scope.
-- `src/components/annual-budget-filters.tsx` — year and author/Manager filters.
+- `src/components/annual-budget-filters.tsx` — year and author/Manager filters, shared by both tabs through the `yearParam`/`authorParam`/`idPrefix` props.
+- `src/components/monthly-task-summary.tsx` — reviewed-only task aggregation and role-specific author scope.
+- `src/components/monthly-task-charts.tsx` — task mix donut, per-month column chart, and screen-reader table.
 - `src/components/reports-table.tsx` — report list, accessible Admin selection controls, and bulk-delete confirmation.
 - `src/components/report-form.tsx` — activity/budget form, historical structure reuse, calculations, and serialization.
 - `src/app/(app)/reports/actions.ts` — save, submit, delete, review, comment, and attachment actions.
@@ -216,7 +294,8 @@ Migrations `0001`–`0009` are confirmed applied in Supabase. Do not delete or r
 - `src/app/(app)/admin/users/page.tsx` — Admin/Coordinator user list with role-specific controls.
 - `src/app/(app)/admin/users/actions.ts` — invite, role change, password reset, and deletion authorization.
 - `src/lib/auth.ts` — centralized role guards and permission helpers.
-- `src/lib/types.ts` — roles, reports, budget periods, month keys, and shared data types.
+- `src/lib/types.ts` — roles, reports, budget periods, month keys, the `TASK_TYPES` taxonomy, and shared data types.
+- `src/app/globals.css` — brand theme, `--chart-N` single-series marks, and the validated `--task-N` categorical palette.
 - `src/lib/supabase/` — browser, authenticated server, and secret Admin clients.
 - `src/proxy.ts` — Supabase session refresh and login redirects.
 - `supabase/migrations/` — ordered schema and security history.
@@ -224,8 +303,8 @@ Migrations `0001`–`0009` are confirmed applied in Supabase. Do not delete or r
 ## Deployment state
 
 - GitHub repository: `muni-the-goat/OCIC-MCD-Managment`
-- Active branch: `main`
-- Latest pushed commit: `13194b3`
+- Deployed branch: `main`, latest commit `8131c6e`
+- Open branch: `feat/monthly-report-tab` (pull request #1), two commits ahead of `main`, awaiting merge
 - Hosting: Vercel, connected for automatic deployment from GitHub
 - Database: Supabase, migrations `0001`–`0009` applied
 - Supabase region: Northeast Asia (Seoul)
@@ -254,7 +333,8 @@ These are production acceptance checks, not unfinished implementation:
 - One pre-existing July 2026 author/period contains three reviewed reports. The uniqueness trigger deliberately preserves them. After deciding which record is canonical, the duplicates can be reconciled and the trigger can later be upgraded to a partial unique index.
 - Supabase is hosted in Seoul while users are primarily closer to Southeast Asia, which can add network latency. Moving regions requires creating a new project and migrating data/configuration.
 - The project is stored inside OneDrive, which can slow local dependency operations or cause file locks.
-- Possible future phases: departments/teams, canonical budget categories, notifications, analytics, audit logs, and Excel/PDF export.
+- The next planned work is the two-phase Marketing Communication alignment described above.
+- Possible future phases beyond it: departments/teams, canonical budget categories, notifications, audit logs, and Excel/PDF export. Export is worth reconsidering once Phase 1 lands, because the team still hand-assembles the PDF that the application would then hold all the data for.
 
 ## Local environment notes
 
