@@ -217,11 +217,51 @@ Deliberately deferred until Phase 1 has been used for a month, because this is w
 2. **Automatic period comparison.** Only the current month's figures are entered. The previous month's reviewed activity report is already in the database, so the application computes the previous value and the percentage change itself. This removes about two thirds of the numbers the team currently types, and removes the arithmetic errors with them.
 3. **Presentation — do not copy the source charts.** The report's existing performance charts plot views (123,167) on the same axis as engagement rate (5.02) and percentage change (−28.8%). Every small metric collapses onto the baseline, and real results are hidden: April's Facebook link clicks rose 372% and its visit rate 221%, and neither is legible in the chart meant to show them. Render each platform as a row of comparison tiles instead — metric name, current value, previous value, signed change with direction colour. Same data, no scale collision, and the movements the narrative talks about become visible. A single-axis chart per metric group is acceptable; one chart carrying counts, rates, and percentages together is not.
 
-### Known constraints for both phases
+### Known constraints for Phases 1 and 2
 
 - Automatic metric collection would require Meta Graph API and TikTok Business API integrations, each needing app review and stored tokens. Neither phase assumes it; entry stays manual but becomes structured and automatically diffed.
 - The source spreadsheet behind the April report has not been reviewed. Metric names in Phase 2 should be confirmed against it rather than transcribed from the rendered PDF, where several axis labels are truncated.
 - The current report is authored by a team ("Heng Sokchea, Duong Senghon") while the application models a single `author_id`. This is the same gap already recorded under Known limitations for departments, and Phase 1 does not resolve it.
+
+## Phase 3 — chart cross-filtering (future build)
+
+Not started. Independent of Phases 1 and 2; it can be built before, between, or after them, and would automatically extend to whatever charts Phase 1 adds.
+
+### What the charts do today
+
+Every chart in both dashboard tabs is read-only. There is no click handler anywhere in `monthly-task-charts.tsx` or `annual-budget-charts.tsx`.
+
+- Hovering a donut slice or a bar shows a tooltip with the label and value.
+- The bar charts pass `accessibilityLayer`, so they can be tabbed into and arrowed through from the keyboard.
+- The donut has no such layer. Its legend list is the keyboard and screen-reader readout instead, and prints every count and percentage.
+
+### Proposal
+
+Selecting a task type filters the other charts in the same card: choosing **Video & photo** narrows the per-month column chart, the four stat tiles, and the ring to that type alone. The same pattern applies to the budget tab, where selecting a line item in **Biggest line items** would narrow **Spend by month**.
+
+No new query and no server round trip. `MonthlyTaskCharts` already receives every entry and does its grouping in the browser, so the filter is local component state over data that is already loaded.
+
+### Build the control on the legend rows, not the slices
+
+Clicking the slices is the obvious design and the wrong one to build first, for three reasons:
+
+1. On touch, a tap already means "show the tooltip". Tap-to-filter collides with it.
+2. SVG arc paths are not keyboard-reachable, so a slice-only control is mouse-only and fails the accessibility bar the rest of these charts already meet.
+3. A five-percent slice is roughly a fifteen-pixel target.
+
+The legend rows are already present, already name the type in text, and become native `<button>` elements at no layout cost — keyboard-reachable, generously sized, and with room for a visible selected state. Wire those as the control, then add the slices as a mouse shortcut on top.
+
+Whatever is built must keep a clear, visible way to return to the unfiltered view. A filtered chart that looks like an unfiltered one is worse than no filter.
+
+### Scope boundary
+
+Filtering stops at the card. The **Pending review** list, **Status mix**, and the three gauge tiles all count *reports*, while the task charts count *tasks*, and a single report contains several task types. "Show only Video & photo" has no coherent answer for a card whose unit is the report, so those must not be wired into the filter.
+
+### Constraint for whoever builds this
+
+Colour follows the entity, never its rank. Filtering the ring down to three types must not repaint the survivors. This already holds — `taskTypeColor()` resolves a type's colour from its index in `TASK_TYPES`, not from its position in the chart — and must not be replaced with rank-based assignment when the filtering is added.
+
+Estimated at a few hours, most of it in the selected and cleared states and keyboard behaviour rather than in the filtering itself.
 
 ## Review workflow and enforcement
 
@@ -333,7 +373,7 @@ These are production acceptance checks, not unfinished implementation:
 - One pre-existing July 2026 author/period contains three reviewed reports. The uniqueness trigger deliberately preserves them. After deciding which record is canonical, the duplicates can be reconciled and the trigger can later be upgraded to a partial unique index.
 - Supabase is hosted in Seoul while users are primarily closer to Southeast Asia, which can add network latency. Moving regions requires creating a new project and migrating data/configuration.
 - The project is stored inside OneDrive, which can slow local dependency operations or cause file locks.
-- The next planned work is the two-phase Marketing Communication alignment described above.
+- The next planned work is the Marketing Communication alignment (Phases 1 and 2) and chart cross-filtering (Phase 3), all described above.
 - Possible future phases beyond it: departments/teams, canonical budget categories, notifications, audit logs, and Excel/PDF export. Export is worth reconsidering once Phase 1 lands, because the team still hand-assembles the PDF that the application would then hold all the data for.
 
 ## Local environment notes
