@@ -5,6 +5,20 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { ALLOWED_EMAIL_DOMAIN, isAllowedEmail } from "@/lib/login-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { DEPARTMENT_IDS, type Department } from "@/lib/types";
+
+const UNASSIGNED = "unassigned";
+
+// The select submits a sentinel rather than an empty string, because an empty
+// string would fail the database's check constraint instead of clearing it.
+const departmentSchema = z
+  .string()
+  .transform((value) => (value === UNASSIGNED ? null : value))
+  .refine(
+    (value) => value === null || (DEPARTMENT_IDS as string[]).includes(value),
+    "Choose a department from the list"
+  )
+  .transform((value) => value as Department | null);
 
 export type UserActionState =
   | { error: string }
@@ -33,6 +47,7 @@ const inviteSchema = z.object({
     "manager",
     "staff",
   ]),
+  department: departmentSchema,
 });
 
 export async function inviteUser(
@@ -45,6 +60,7 @@ export async function inviteUser(
     email: String(formData.get("email") ?? "").trim(),
     full_name: formData.get("full_name"),
     role: formData.get("role"),
+    department: String(formData.get("department") ?? UNASSIGNED),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -65,11 +81,12 @@ export async function inviteUser(
   });
   if (error) return { error: error.message };
 
-  // Every profile is created as staff by the database trigger. Assign the
-  // requested role only here, behind the service-role client and admin guard.
+  // Every profile is created as staff with no department by the database
+  // trigger. Assign both only here, behind the service-role client and the
+  // admin guard.
   const { data: updatedProfile, error: roleError } = await admin
     .from("profiles")
-    .update({ role: parsed.data.role })
+    .update({ role: parsed.data.role, department: parsed.data.department })
     .eq("id", data.user.id)
     .select("id")
     .maybeSingle();
@@ -125,6 +142,36 @@ export async function updateUserRole(
 
   revalidatePath("/admin/users");
   return { success: "Role updated" };
+}
+
+export async function updateUserDepartment(
+  _prev: UserActionState,
+  formData: FormData
+): Promise<UserActionState> {
+  // Admin only, like the role. Unlike the role, an Admin may set their own —
+  // an Admin belongs to a department the same as anyone else, and doing so
+  // grants no privilege, so there is nothing to guard against here.
+  await requireRole("admin");
+
+  const userId = String(formData.get("user_id") ?? "");
+  if (!userId) return { error: "Invalid request" };
+
+  const parsed = departmentSchema.safeParse(
+    String(formData.get("department") ?? UNASSIGNED)
+  );
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid request" };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("profiles")
+    .update({ department: parsed.data })
+    .eq("id", userId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/users");
+  return { success: "Department updated" };
 }
 
 export async function resetUserPassword(

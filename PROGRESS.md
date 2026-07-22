@@ -9,7 +9,11 @@ Two commits sit on the unmerged branch `feat/monthly-report-tab` (pull request #
 - `73c5e9c` — office-domain sign-in restriction.
 - `6555dbb` — monthly report tab and task mix chart (see below).
 
-Supabase migrations `0001` through `0009` have been applied to the production project. No additional migration is required for the current UI/server-action changes, nor for either phase of the Marketing Communication alignment described below — report content rides in the existing `reports.content` jsonb column.
+Supabase migrations `0001` through `0009` have been applied to the production project.
+
+> **`0010_profile_department.sql` has NOT been applied.** It is the first migration since `0009` and must be run before the branch is deployed — the Users page selects `profiles.department`, which does not exist in production yet. Run it in the Supabase SQL editor or via `supabase db push`.
+
+No migration is required for the Marketing Communication alignment described below: report content rides in the existing `reports.content` jsonb column.
 
 Latest verification completed successfully:
 
@@ -77,14 +81,15 @@ The current schema does not have a separate department table or `department_id`.
 - Has normal report-author capabilities.
 - Can open the Users page and view the user list.
 - Can reset passwords for Staff, Manager, and Coordinator accounts.
-- Cannot invite users, change roles, or delete accounts.
+- Cannot invite users, change roles or departments, or delete accounts. Departments render as plain labels on their Users page, not as controls.
 - Cannot reset Admin or Head of Department passwords, preventing privilege escalation.
 - Cannot review reports or access the annual budget summary.
 
 ### Admin
 
 - Has unrestricted report and user-management authority.
-- Can invite users, assign roles, reset passwords, and delete users.
+- Can invite users, assign roles and departments, reset passwords, and delete users.
+- Is the only role that can set a department, including their own.
 - Can edit or delete reports according to the Admin policies.
 - Can select one or more reports on the Reports page and permanently delete them together after confirmation.
 - Can mark any submitted report reviewed or rejected, including a report authored by the same Admin account.
@@ -362,8 +367,23 @@ The Users page uses the server-only Supabase secret client for Auth Admin operat
 7. `0007_coordinator_and_admin_review.sql` — adds Coordinator and expands positive approval to Admin and HoD.
 8. `0008_admin_self_review.sql` — permits Admin self-review while preserving self-review restrictions for HoD and Manager.
 9. `0009_monthly_budget_uniqueness_and_revisions.sql` — permits authors to revise submitted/reviewed reports and blocks new duplicate monthly budgets per author/month/year without deleting existing duplicates.
+10. `0010_profile_department.sql` — adds `profiles.department`, the `user_department()` helper, and a self-update policy that pins department the way it already pins role. **Not yet applied.**
 
-Migrations `0001`–`0009` are confirmed applied in Supabase. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0009` are confirmed applied in Supabase; `0010` is pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+
+## Departments
+
+Seven departments, stored on `profiles.department`:
+
+Digital Marketing · Multimedia · Brand Marketing · Product Marketing · KTI Marketing · Partnership Marketing · Admin/HR
+
+- **Text column with a check constraint, not an enum.** Departments are a business list that will change more often than `app_role`, and `alter type … add value` cannot always run inside a transaction block, which makes enum growth awkward under migration tooling. Widening a check constraint is a plain transactional statement.
+- **The list lives in two places** — the constraint in `0010` and `DEPARTMENTS` in `src/lib/types.ts`. Adding one means a new migration widening the constraint *and* a line in that array. The ids are stored values, so renaming one orphans every profile holding it; only append.
+- **Nullable, no default.** Accounts that predate the column genuinely have no department, and back-filling everyone into one would be inventing data. Those rows read "Unassigned" until an Admin sets them.
+- **Assignment is Admin-only**, enforced in three layers like the role: the Coordinator sees a plain label instead of a control, `updateUserDepartment` calls `requireRole("admin")`, and the RLS self-update policy pins `department` so a user cannot change their own through the API. The comparison uses `is not distinct from` rather than `=` so a NULL department compares correctly instead of making the predicate NULL and failing every self-update.
+- Unlike the role, **an Admin may set their own department.** It grants no privilege, and an Admin belongs to a department the same as anyone else.
+
+Department is currently an attribute of a person and nothing more — no report, budget, or dashboard query filters on it yet. See Known limitations.
 
 ## Main code locations
 
@@ -414,7 +434,7 @@ These are production acceptance checks, not unfinished implementation:
 
 ## Known limitations and future options
 
-- There is no department entity or Manager-to-department mapping yet. Annual visibility currently uses the Manager author account as the department boundary.
+- `profiles.department` records which department a person belongs to, but **nothing reads it yet**. Annual budget visibility still uses the Manager author account as the department boundary, and no report, budget, or dashboard query filters by department. Wiring it up — a Head of Department seeing their own department rather than all Managers, a department filter on the dashboard summaries, department subtotals in the annual budget — is the obvious next step and needs no further schema work.
 - Annual aggregation matches normalized text names; it does not use permanent line-item IDs. Historical structure reuse reduces spelling drift, but a future canonical expense-category table would provide stronger guarantees.
 - One pre-existing July 2026 author/period contains three reviewed reports. The uniqueness trigger deliberately preserves them. After deciding which record is canonical, the duplicates can be reconciled and the trigger can later be upgraded to a partial unique index.
 - Supabase is hosted in Seoul while users are primarily closer to Southeast Asia, which can add network latency. Moving regions requires creating a new project and migrating data/configuration.

@@ -1,6 +1,7 @@
 import { InviteUserDialog } from "@/components/invite-user-dialog";
 import {
   DeleteUserButton,
+  DepartmentSelect,
   ResetPasswordButton,
   RoleSelect,
 } from "@/components/user-row-actions";
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { Profile } from "@/lib/types";
+import { departmentLabel, type Profile } from "@/lib/types";
 
 export const metadata = { title: "Users" };
 
@@ -51,6 +52,7 @@ export default async function AdminUsersPage() {
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Department</TableHead>
               <TableHead>Joined</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -75,6 +77,24 @@ export default async function AdminUsersPage() {
                       role={user.role}
                       disabled={isMe || !isAdmin}
                     />
+                  </TableCell>
+                  <TableCell>
+                    {/* A Coordinator can see the table but assigns nothing, so
+                        they get the label rather than a dead control. */}
+                    {isAdmin ? (
+                      <DepartmentSelect
+                        userId={user.id}
+                        department={user.department}
+                      />
+                    ) : (
+                      <span
+                        className={
+                          user.department ? undefined : "text-muted-foreground"
+                        }
+                      >
+                        {departmentLabel(user.department)}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {new Date(user.created_at).toLocaleDateString()}

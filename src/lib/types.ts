@@ -8,11 +8,36 @@ export type ReportType = "budget" | "monthly";
 export type BudgetPeriod = "annual" | "monthly";
 export type ReportStatus = "draft" | "submitted" | "reviewed" | "rejected";
 
+// Mirrors the check constraint in migration 0010 — change both together.
+// Appending a department needs a new migration widening that constraint; the
+// ids are stored values, so renaming one orphans every profile holding it.
+export const DEPARTMENTS = [
+  { id: "digital_marketing", label: "Digital Marketing" },
+  { id: "multimedia", label: "Multimedia" },
+  { id: "brand_marketing", label: "Brand Marketing" },
+  { id: "product_marketing", label: "Product Marketing" },
+  { id: "kti_marketing", label: "KTI Marketing" },
+  { id: "partnership_marketing", label: "Partnership Marketing" },
+  { id: "admin_hr", label: "Admin/HR" },
+] as const;
+export type Department = (typeof DEPARTMENTS)[number]["id"];
+export const DEPARTMENT_IDS = DEPARTMENTS.map(
+  (department) => department.id
+) as Department[];
+
+export function departmentLabel(department: Department | null | undefined) {
+  return (
+    DEPARTMENTS.find((entry) => entry.id === department)?.label ?? "Unassigned"
+  );
+}
+
 export interface Profile {
   id: string;
   email: string;
   full_name: string;
   role: AppRole;
+  // Null until an Admin assigns one; accounts predate the department column.
+  department: Department | null;
   created_at: string;
 }
 

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   deleteUser,
   resetUserPassword,
+  updateUserDepartment,
   updateUserRole,
   type UserActionState,
 } from "@/app/(app)/admin/users/actions";
@@ -25,7 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { AppRole } from "@/lib/types";
+import { DEPARTMENTS, type AppRole, type Department } from "@/lib/types";
+
+// Radix Select forbids an empty-string item value, and the server needs to tell
+// "clear the department" apart from "field missing", so both ends agree on a
+// sentinel instead.
+const UNASSIGNED = "unassigned";
 
 function useActionToasts(
   state: UserActionState,
@@ -76,6 +82,47 @@ export function RoleSelect({
         <SelectItem value="head_of_department">Head of Department</SelectItem>
         <SelectItem value="coordinator">Coordinator</SelectItem>
         <SelectItem value="admin">Admin</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+export function DepartmentSelect({
+  userId,
+  department,
+  disabled,
+}: {
+  userId: string;
+  department: Department | null;
+  disabled?: boolean;
+}) {
+  const [state, formAction] = useActionState<UserActionState, FormData>(
+    updateUserDepartment,
+    null
+  );
+  useActionToasts(state);
+
+  return (
+    <Select
+      value={department ?? UNASSIGNED}
+      disabled={disabled}
+      onValueChange={(next) => {
+        const formData = new FormData();
+        formData.set("user_id", userId);
+        formData.set("department", next);
+        formAction(formData);
+      }}
+    >
+      <SelectTrigger className="w-52" size="sm">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+        {DEPARTMENTS.map((entry) => (
+          <SelectItem key={entry.id} value={entry.id}>
+            {entry.label}
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   );

@@ -25,6 +25,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DEPARTMENTS } from "@/lib/types";
+
+// Matches the sentinel the server action expects; Radix Select cannot carry an
+// empty-string value.
+const UNASSIGNED = "unassigned";
 
 export function InviteUserDialog() {
   const [open, setOpen] = useState(false);
@@ -95,6 +100,22 @@ export function InviteUserDialog() {
                   </SelectItem>
                   <SelectItem value="coordinator">Coordinator</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-department">Department</Label>
+              <Select name="department" defaultValue={UNASSIGNED}>
+                <SelectTrigger id="invite-department">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                  {DEPARTMENTS.map((department) => (
+                    <SelectItem key={department.id} value={department.id}>
+                      {department.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
