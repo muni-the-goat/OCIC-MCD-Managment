@@ -7,7 +7,6 @@ import {
   LineChart,
   Pie,
   PieChart,
-  ReferenceDot,
   XAxis,
   YAxis,
 } from "recharts";
@@ -189,6 +188,38 @@ export function MonthlyTaskCharts({
     count: trend[index] ?? null,
   }));
   const monthsWithData = trendRows.filter((row) => row.count !== null).length;
+
+  // The selected month wears a larger marker; the rest are plain points. Both
+  // carry a 2px ring in the surface colour so they stay legible where the line
+  // passes close to them. Months with no report render nothing at all.
+  const renderDot = ({
+    cx,
+    cy,
+    payload,
+    index,
+  }: {
+    cx?: number;
+    cy?: number;
+    payload?: TrendRow;
+    index?: number;
+  }) => {
+    const key = `dot-${index ?? 0}`;
+    if (cx == null || cy == null || payload?.count == null) {
+      return <g key={key} />;
+    }
+    const selected = payload.month === MONTH_SHORT[month - 1];
+    return (
+      <circle
+        key={key}
+        cx={cx}
+        cy={cy}
+        r={selected ? 6 : 3.5}
+        fill={SERIES}
+        stroke="var(--card)"
+        strokeWidth={2}
+      />
+    );
+  };
   const previousLabel = MONTH_NAMES[month - 2] ?? "December";
   const change = delta(total, month > 1 ? trend[month - 2] : null, previousLabel);
 
@@ -438,32 +469,19 @@ export function MonthlyTaskCharts({
                   // A month with no report is a gap in the line, not a dip to
                   // zero through it.
                   connectNulls={false}
-                  dot={{
-                    r: 4,
+                  // One marker per point, sized here rather than stacking a
+                  // second emphasised dot on top of a default one: the small
+                  // dot's surface ring would cut a hole through the larger
+                  // circle underneath and read as a bullseye.
+                  dot={renderDot}
+                  activeDot={{
+                    r: 6,
                     fill: SERIES,
-                    // 2px surface ring so the markers stay legible where they
-                    // sit close together or cross the line.
                     stroke: "var(--card)",
                     strokeWidth: 2,
                   }}
-                  activeDot={{ r: 6, fill: SERIES, stroke: "var(--card)", strokeWidth: 2 }}
                   isAnimationActive={false}
                 />
-                {/* Marks the month the rest of the card is about. Carries no
-                    text label: the axis tick directly beneath it already reads
-                    "Apr", and the value is the hero figure at the top of the
-                    card, so a label here would be the third printing of a
-                    number the reader has already been given twice. */}
-                {trend[month - 1] !== null && trend[month - 1] !== undefined ? (
-                  <ReferenceDot
-                    x={MONTH_SHORT[month - 1]}
-                    y={trend[month - 1] as number}
-                    r={7}
-                    fill={SERIES}
-                    stroke="var(--card)"
-                    strokeWidth={2}
-                  />
-                ) : null}
               </LineChart>
             </ChartContainer>
           </div>
