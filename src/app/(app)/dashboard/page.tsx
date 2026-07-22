@@ -116,10 +116,10 @@ export default async function DashboardPage({
     // Reviewers care about the pending queue first.
     recentQuery = recentQuery.eq("status", "submitted");
   } else {
-    // Scoped explicitly rather than left to RLS. A Coordinator keeps this card's
-    // personal framing — they cannot review anything — but RLS now also hands
-    // them every budget report in the office, so "Recent reports" would quietly
-    // fill with other people's rows under a heading that says otherwise.
+    // Scoped explicitly rather than left to RLS, so the rows always match the
+    // heading above them. Managers and Staff see only their own reports anyway;
+    // stating it here means a future widening of RLS cannot quietly fill a card
+    // titled "Recent reports" with other people's rows.
     recentQuery = recentQuery.eq("author_id", profile.id);
   }
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
+  canDecideOnReport,
   canManageAnyReport,
   canMarkReviewed,
   canRejectReport,
@@ -512,17 +513,38 @@ export async function reviewReport(
   }
   if (decision === "reviewed" && !canMarkReviewed(profile.role)) {
     return {
-      error: "Only an Admin or the Head of Department can mark reports as reviewed",
+      error: "You do not have permission to mark reports as reviewed",
     };
   }
   if (decision === "rejected" && !canRejectReport(profile.role)) {
-    return { error: "You do not have permission to reject reports" };
+    return {
+      error: "Only an Admin or the Head of Department can reject a report",
+    };
   }
   if (decision === "rejected" && !comment) {
     return { error: "A comment explaining the rejection is required" };
   }
 
   const supabase = await createClient();
+
+  // A Coordinator decides on budget reports and their own only. RLS enforces it,
+  // but reading the row first turns a silent "not awaiting review" into an
+  // answer that says what actually happened.
+  const { data: target } = await supabase
+    .from("reports")
+    .select("type, author_id")
+    .eq("id", reportId)
+    .maybeSingle();
+  if (
+    target &&
+    !canDecideOnReport(
+      profile.role,
+      target.type as "budget" | "monthly",
+      target.author_id === profile.id
+    )
+  ) {
+    return { error: "A Coordinator can only review budget reports" };
+  }
 
   // The RPC applies the status and feedback atomically; its update/insert still
   // run under the caller's RLS policies.

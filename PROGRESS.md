@@ -8,7 +8,10 @@ The monthly report tab, the office-domain sign-in restriction, and departments w
 
 Supabase migrations `0001` through `0012` have been applied to the production project.
 
-> **`0013_departments_table_and_role_powers.sql` has NOT been applied.** Until it runs, the Users page fails to load its department list, the Add department button errors, and the role changes below are UI-only — a Manager will still read other people's reports through RLS. Run it in the Supabase SQL editor or via `supabase db push`.
+> **Two migrations are pending, and they must run in order: `0013` then `0014`.**
+>
+> - `0013_departments_table_and_role_powers.sql` — until it runs, the Users page fails to load its department list, the Add department button errors, and the role changes below are UI-only: a Manager will still read other people's reports through RLS.
+> - `0014_coordinator_review.sql` — until it runs, a Coordinator's Mark as reviewed button appears and is refused by the database.
 
 The team's real January–June 2026 spend is seeded into production — see **Seeded data — Actual Expenses 2026** for what reconciles and the two figures that do not.
 
@@ -44,6 +47,24 @@ Reports support comments and private file attachments. Reviewed monthly budgets 
 
 ## Role and permission matrix
 
+The office hierarchy, most powerful first:
+
+**Admin › Head of Department › Coordinator › Manager › Staff**
+
+`roleRank()` in `src/lib/roles.ts` is that ordering, and `outranksOrEquals()` answers "may this account act on that one" — you reach accounts at or below your own rank, never above. It is deliberately *not* a general capability ordering: a Coordinator ranks above a Manager and still cannot edit anyone's report.
+
+Approving and rejecting are two permissions, not one:
+
+| | Mark reviewed | Reject | Self-review |
+| --- | --- | --- | --- |
+| Admin | ✅ | ✅ | ✅ |
+| Head of Department | ✅ | ✅ | ✅ |
+| Coordinator | ✅ budget reports and their own | ❌ | ✅ |
+| Manager | ❌ | ❌ | — |
+| Staff | ❌ | ❌ | — |
+
+Rejection sends a report back with required feedback — the one decision that creates work for someone else — so it stays with the Head of Department and the Admin above them.
+
 ### Staff
 
 - Create monthly budget and activity reports.
@@ -62,6 +83,7 @@ Reports support comments and private file attachments. Reviewed monthly budgets 
 - **Cannot review or reject anything, including someone else's report.** Rejection was removed along with the visibility: a Manager can no longer see another author's submitted report, so a reject button would have had nothing in reach. `isReviewer()` no longer includes them.
 - Annual budget summary is restricted to their own reviewed monthly expenses, and has no Author filter.
 - Does not see the department × month matrix — with one author in scope it would be a single column.
+- Ranks above Staff and below Coordinator in the hierarchy, which governs account management, not report capability.
 
 `profiles.department` records which department a person belongs to, but no visibility rule reads it. A Manager account is still treated as the expense owner for their department. See **Departments** and **Known limitations**.
 
@@ -91,14 +113,16 @@ Both are checked against the *target's* current role, read server-side — the c
 - **Sees only their own monthly activity reports.** Cross-office visibility stops at budget; the activity tab on their dashboard is their own tasks.
 - Read-only on other people's reports. `can_edit_report()` is untouched, so a Coordinator can open a budget report and change nothing in it.
 - Cannot review or reject. They are not a reviewer, so their dashboard keeps the personal "Recent reports" framing rather than a pending-review queue they could not act on.
+- **Can mark a budget report reviewed**, including one they authored. Approval is the natural end of budget oversight: a budget they already read across every team is a budget they can sign off.
+- **Cannot reject anything.** Sending a report back with feedback stays with the Head of Department and the Admin above them.
+- Their review reach is **budget reports plus their own** — the same rows they can see. `canDecideOnReport()` keeps the detail page from offering a control the database would refuse, and the `reports: review submitted` policy is scoped to match, because an UPDATE policy's `USING` clause is evaluated on its own and does not inherit the narrower `SELECT` policy.
+- Gets the pending-review queue on their dashboard and the department × month matrix.
 - Can open the Users page and view the user list.
 - Can reset passwords for Staff, Manager, and Coordinator accounts — one of only two roles that can, the other being Admin.
 - Cannot invite users, change roles or departments, delete accounts, or add a department. Departments render as read-only chips on their Users page, not as controls.
 - Cannot reset Admin or Head of Department passwords, preventing privilege escalation.
 
 Drafts stay private from a Coordinator, exactly as they do from a Manager or Head of Department — a draft is a working copy, not a submission.
-
-The split between "can see someone else's report" and "can decide on one" is why `seesOtherAuthors()` exists separately from `isReviewer()` in `src/lib/auth.ts`. Folding the Coordinator into the reviewer check would have handed them a review queue with no controls in it.
 
 ### Admin
 
@@ -387,10 +411,10 @@ Estimated at a few hours, most of it in the selected and cleared states and keyb
 
 Review controls only appear when the report is `submitted` and the current role/ownership combination is permitted.
 
-- **Mark reviewed:** Admin or Head of Department.
+- **Mark reviewed:** Admin, Head of Department, or Coordinator. A Coordinator reaches budget reports and their own only.
 - **Reject:** Admin or Head of Department; rejection requires a comment.
-- **Self-review:** allowed for both, as of 0013. It follows from "a Head of Department can do everything an Admin can", and it is the change most worth reconsidering — self-review is what review exists to prevent. Putting it back means restoring the author check in `review_report()` and in `enforce_report_review_transition()`; both are marked in the migration.
-- **Manager:** no review authority at all. Removed with their cross-office visibility — see the role matrix.
+- **Self-review:** allowed for all three. It is the decision most worth revisiting — self-review is what review exists to prevent. Restoring it means putting the author check back in `review_report()` and `enforce_report_review_transition()`, both in `0014`.
+- **Manager and Staff:** no review authority. A Manager lost it along with their cross-office visibility in `0013` — see the role matrix.
 - Authors can edit submitted or reviewed reports. A saved revision first returns to `draft`; choosing Submit for review moves the revised content to `submitted` and clears the previous `reviewed_by`/`reviewed_at` values.
 
 The rule is enforced in three layers:
@@ -451,7 +475,9 @@ Only office accounts may sign in. Both the rule and the post-login redirect chec
 12. `0012_coordinator_budget_visibility.sql` — widens `reports: select` and `can_view_report()` so a Coordinator reads every non-draft budget report across the office. Monthly activity reports and `can_edit_report()` are untouched.
 13. `0013_departments_table_and_role_powers.sql` — three changes at once, because they overlap on the same policies: departments become `public.departments` with a foreign key from `profiles`; a Manager loses cross-office visibility and every review power; Head of Department becomes admin-equivalent on reports and accounts. **Not yet applied.**
 
-Migrations `0001`–`0012` are confirmed applied in Supabase; `0013` is pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+14. `0014_coordinator_review.sql` — splits approving from rejecting. A Coordinator may mark reviewed (budget reports and their own) but never reject. **Not yet applied; run after `0013`.**
+
+Migrations `0001`–`0012` are confirmed applied in Supabase; `0013` and `0014` are pending, in that order. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
@@ -531,7 +557,7 @@ Department is otherwise still an attribute of a person — **no query filters on
 - GitHub repository: `muni-the-goat/OCIC-MCD-Managment`
 - Deployed branch: `main`
 - Hosting: Vercel, connected for automatic deployment from GitHub
-- Database: Supabase, migrations `0001`–`0012` applied; `0013` pending
+- Database: Supabase, migrations `0001`–`0012` applied; `0013` and `0014` pending
 - Supabase region: Northeast Asia (Seoul)
 
 ## Remaining validation checklist
@@ -554,6 +580,7 @@ These are production acceptance checks, not unfinished implementation:
 15. After `0013`, confirm a Manager sees no other author's reports anywhere — no pending queue, no Author column, no author filter — and has no Reject control on any report.
 16. After `0013`, confirm a Head of Department can invite, change roles and departments, delete users, edit and bulk-delete reports, and add a department; and that they cannot reset any password, cannot select Admin in either role picker, and see an Admin row with its controls disabled.
 17. Confirm "Add department" creates a department that appears immediately in both department pickers and, once someone in it files a reviewed budget, as a matrix column.
+18. After `0014`, confirm a Coordinator can mark a submitted budget report reviewed — including their own — has no Reject button anywhere, and gets neither control on someone else's monthly activity report.
 14. Confirm the department × month matrix appears for Admin and Head of Department only, that its Total reconciles with the per-author grids below it, and that reports by an author with no department land in the Unassigned column rather than vanishing.
 
 ## Known limitations and future options

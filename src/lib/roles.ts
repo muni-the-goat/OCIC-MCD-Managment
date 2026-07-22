@@ -9,6 +9,29 @@ import type { AppRole } from "@/lib/types";
 // None of this is enforcement. Every answer here is also enforced in a Server
 // Action and, where the data allows, in a Row Level Security policy.
 
+// The office hierarchy, most powerful first:
+//
+//   Admin > Head of Department > Coordinator > Manager > Staff
+//
+// Used for "may this account act on that one" — you reach accounts at or below
+// your own rank, never above. It is not a general capability ordering: a
+// Coordinator ranks above a Manager and still cannot edit anyone's report.
+const RANK: Record<AppRole, number> = {
+  admin: 4,
+  head_of_department: 3,
+  coordinator: 2,
+  manager: 1,
+  staff: 0,
+};
+
+export function roleRank(role: AppRole) {
+  return RANK[role];
+}
+
+export function outranksOrEquals(actor: AppRole, target: AppRole) {
+  return RANK[actor] >= RANK[target];
+}
+
 // Admin and Head of Department are equivalent everywhere except one place:
 // resetting a password, which only canResetPasswords() grants. Every other
 // "can they do the powerful thing" question routes through here, so the single
@@ -17,20 +40,24 @@ export function isPrivileged(role: AppRole) {
   return role === "admin" || role === "head_of_department";
 }
 
-// Deciding on a submitted report. A Manager is deliberately excluded: they no
-// longer see anyone else's reports, so a reject button would have nothing in
-// reach — the power and the visibility were removed together in migration 0013.
+// Holds some decision power over a submitted report, which is what earns the
+// pending-review queue and the Author column. Not the same as holding both
+// powers — a Coordinator approves but cannot reject, so the two capabilities
+// below are asked separately everywhere it matters.
+//
+// A Manager is deliberately excluded: they see only their own reports, so any
+// decision control would have nothing in reach.
 export function isReviewer(role: AppRole) {
-  return isPrivileged(role);
+  return canMarkReviewed(role) || canRejectReport(role);
 }
 
 // Whether this role's report list contains other people's reports, and so needs
-// the Author and Department columns and the author filter. Not the same question
-// as isReviewer(): a Coordinator sees every budget report in the office but
-// decides on none of them, so folding them into the reviewer check would hand
-// them a review queue they cannot act on.
+// the Author and Department columns and the author filter. Currently the same
+// set as isReviewer(), and kept separate anyway: "sees someone else's report"
+// and "decides on it" are different questions that have come apart before and
+// will again.
 export function seesOtherAuthors(role: AppRole) {
-  return isReviewer(role) || role === "coordinator";
+  return isReviewer(role) || seesAllBudgetReports(role);
 }
 
 // A Coordinator's cross-office visibility stops at budget reports. Monthly
@@ -40,12 +67,31 @@ export function seesAllBudgetReports(role: AppRole) {
   return isPrivileged(role) || role === "coordinator";
 }
 
+// Approving. A Coordinator may approve, including their own report — they are
+// the office's budget oversight, and a budget they can already read across every
+// team is a budget they can sign off.
 export function canMarkReviewed(role: AppRole) {
+  return isPrivileged(role) || role === "coordinator";
+}
+
+// Rejecting, which sends a report back with required feedback. Reserved to the
+// Head of Department and the Admin above them: it is the one decision that
+// creates work for someone else.
+export function canRejectReport(role: AppRole) {
   return isPrivileged(role);
 }
 
-export function canRejectReport(role: AppRole) {
-  return isPrivileged(role);
+// What a Coordinator may decide on, given they only ever see budget reports plus
+// their own. Enforced in the `reports: review submitted` policy; this keeps the
+// detail page from offering a control the database would refuse.
+export function canDecideOnReport(
+  role: AppRole,
+  reportType: "budget" | "monthly",
+  isAuthor: boolean
+) {
+  if (!isReviewer(role)) return false;
+  if (role === "coordinator") return reportType === "budget" || isAuthor;
+  return true;
 }
 
 // Editing and deleting a report someone else authored, and the Reports page's
@@ -77,12 +123,12 @@ export function canViewAnnualBudget(role: AppRole) {
 }
 
 // The department × month matrix that sits above the per-author budget grids.
-// Narrower than canViewAnnualBudget() on purpose: it is an office-wide
-// cross-department roll-up. A Manager sees only their own figures, so a matrix
-// would be one column, and a Coordinator's budget access is for oversight of the
-// individual reports rather than for reading the org chart off the spend.
+// Everyone who reads every team's budget gets it, which is the same set as
+// seesAllBudgetReports() — a roll-up of data you can already read line by line
+// gives nothing away. A Manager is excluded because their matrix would be a
+// single column of their own figures.
 export function canViewDepartmentMatrix(role: AppRole) {
-  return isPrivileged(role);
+  return seesAllBudgetReports(role);
 }
 
 // How wide the annual budget summary reaches. One function rather than a set of
