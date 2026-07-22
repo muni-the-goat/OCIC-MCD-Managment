@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { BudgetApprovalBar } from "@/components/budget-approval-bar";
 import { DepartmentBadge } from "@/components/department-badge";
 import {
   DepartmentMonthMatrix,
@@ -16,6 +17,7 @@ import {
   annualBudgetScope,
   canViewAnnualBudget,
   canViewDepartmentMatrix,
+  isPrivileged,
 } from "@/lib/auth";
 import { departmentLabel } from "@/lib/departments";
 import { getDepartments } from "@/lib/departments-server";
@@ -157,11 +159,21 @@ export async function AnnualBudgetSummary({
     yearQuery = yearQuery.eq("author_id", userId);
   }
 
-  const [itemsResult, yearsResult, departments] = await Promise.all([
-    itemQuery,
-    yearQuery,
-    getDepartments(),
-  ]);
+  const [itemsResult, yearsResult, departments, approvalResult] =
+    await Promise.all([
+      itemQuery,
+      yearQuery,
+      getDepartments(),
+      supabase
+        .from("budget_approvals")
+        .select("amount")
+        .eq("year", selectedYear)
+        .maybeSingle(),
+    ]);
+  const approval =
+    approvalResult.data?.amount != null
+      ? Number(approvalResult.data.amount)
+      : null;
 
   const years = Array.from(
     new Set([
@@ -207,6 +219,13 @@ export async function AnnualBudgetSummary({
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
   const items = showAuthorGroups ? [] : aggregateItems(sourceItems);
+  // The same numbers the matrix totals, so the bar above it and the Total row
+  // inside it can never disagree.
+  const totalSpend = matrixItems.reduce(
+    (sum, item) =>
+      sum + MONTH_KEYS.reduce((row, key) => row + Number(item[key] ?? 0), 0),
+    0
+  );
 
   return (
     <Card className="rounded-2xl">
@@ -263,10 +282,17 @@ export async function AnnualBudgetSummary({
                       : ""}
                   </p>
                 </div>
+                <BudgetApprovalBar
+                  year={selectedYear}
+                  approval={approval}
+                  spent={totalSpend}
+                  canEdit={isPrivileged(role)}
+                />
                 <DepartmentMonthMatrix
                   items={matrixItems}
                   departments={departments}
                   year={selectedYear}
+                  approval={approval}
                 />
               </section>
             ) : null}

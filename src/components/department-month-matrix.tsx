@@ -34,12 +34,19 @@ export function DepartmentMonthMatrix({
   items,
   departments,
   year,
+  approval = null,
 }: {
   items: DepartmentMatrixItem[];
   // Passed in rather than imported: departments are rows now, and the column
   // order is theirs.
   departments: DepartmentRecord[];
   year: number;
+  // The approved budget for the year, when one is set. It becomes the
+  // percentage column's denominator — which is the question the workbook's
+  // Percentage column actually answers: how much of what we were given have we
+  // spent. Without it the column falls back to each month's share of the year's
+  // own spend, which is a different and much weaker fact.
+  approval?: number | null;
 }) {
   // columnId -> twelve monthly sums. Amounts already live in m01–m12, so the
   // month split falls out of the columns rather than out of the report period.
@@ -107,9 +114,11 @@ export function DepartmentMonthMatrix({
   const now = new Date();
   const currentMonth = year === now.getFullYear() ? now.getMonth() : -1;
 
+  const denominator = approval && approval > 0 ? approval : grandTotal;
+  const againstApproval = approval !== null && approval > 0;
   const share = (value: number) =>
-    grandTotal > 0 && value !== 0
-      ? `${((value / grandTotal) * 100).toFixed(2)}%`
+    denominator > 0 && value !== 0
+      ? `${((value / denominator) * 100).toFixed(2)}%`
       : "—";
 
   return (
@@ -117,7 +126,11 @@ export function DepartmentMonthMatrix({
       <table className="w-full border-collapse text-sm">
         <caption className="sr-only">
           Reviewed spend for FY {year}, by department and month, with a monthly
-          total and each month&apos;s share of the year.
+          total and each month&apos;s share of{" "}
+          {againstApproval
+            ? `the ${currency.format(approval)} approved budget`
+            : "the year's total spend"}
+          .
         </caption>
         <thead>
           <tr className="border-b bg-muted/40 text-muted-foreground">
@@ -147,9 +160,14 @@ export function DepartmentMonthMatrix({
             ) : null}
             <th
               scope="col"
-              className="min-w-20 border-l p-2 text-right font-medium"
+              title={
+                againstApproval
+                  ? `Share of the ${currency.format(approval)} approved for FY ${year}`
+                  : "Share of this year's total spend — no approved budget is set"
+              }
+              className="min-w-24 border-l p-2 text-right font-medium"
             >
-              % of year
+              {againstApproval ? "% of budget" : "% of year"}
             </th>
           </tr>
         </thead>
@@ -220,8 +238,11 @@ export function DepartmentMonthMatrix({
                 {fmt(grandTotal)}
               </td>
             ) : null}
+            {/* Against an approved budget this is the headline figure — a
+                quarter of the year's money spent. Without one it is 100% by
+                construction and only confirms the column adds up. */}
             <td className="border-l p-2 text-right tabular-nums">
-              {grandTotal > 0 ? "100.00%" : "—"}
+              {share(grandTotal)}
             </td>
           </tr>
         </tfoot>

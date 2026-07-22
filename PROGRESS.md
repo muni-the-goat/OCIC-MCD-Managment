@@ -8,10 +8,9 @@ The monthly report tab, the office-domain sign-in restriction, and departments w
 
 Supabase migrations `0001` through `0012` have been applied to the production project.
 
-> **Two migrations are pending, and they must run in order: `0013` then `0014`.**
->
-> - `0013_departments_table_and_role_powers.sql` — until it runs, the Users page fails to load its department list, the Add department button errors, and the role changes below are UI-only: a Manager will still read other people's reports through RLS.
-> - `0014_coordinator_review.sql` — until it runs, a Coordinator's Mark as reviewed button appears and is refused by the database.
+`0013` and `0014` were applied and confirmed: the `departments` table holds its eight rows, every assigned department resolves through the new foreign key, and the seeded January–June spend came through the migration to the cent.
+
+> **`0015_budget_approval.sql` has NOT been applied.** Until it runs, the annual budget card fails to read `budget_approvals` and the percentage column stays on its "% of year" fallback. Run it in the Supabase SQL editor or via `supabase db push`.
 
 The team's real January–June 2026 spend is seeded into production — see **Seeded data — Actual Expenses 2026** for what reconciles and the two figures that do not.
 
@@ -213,7 +212,17 @@ Sits at the top of the Annual budget tab, above the per-author grids. Modelled o
 - A table, not a chart, on purpose: the question is "what did Multimedia spend in April", which is a cell lookup, and the month shape and section ranking are already charted directly beneath it.
 - The current month is tinted ivory rather than red — the Total row already owns the brand red, and two red rows in one table read as two instances of the same thing.
 
-**Not built: the approved-budget figure.** The source spreadsheet carries `Budget Approval: $150,000.00` and expresses each month as a percentage of it (25.36% of budget spent year to date). Nothing in the schema stores an approved budget — reports record actual spend only — so the matrix's percentage column is each month's **share of the year's total spend** instead, and is labelled "% of year" so it cannot be misread. Adding the spreadsheet's version needs a stored allocation (a `budget_allocations` table keyed by year, and probably by department), an Admin screen to set it, and a migration.
+### The approved budget
+
+`public.budget_approvals` holds one figure per fiscal year — the workbook's `Budget Approval: $150,000.00` line — and migration `0015` seeds FY2026 with it.
+
+- **Keyed by year, not hardcoded.** The figure is re-approved annually; a constant would make January a code change.
+- **One office-wide figure, not one per department.** That is what the workbook holds. A per-department split would need the org to actually allocate that way before the app can claim it does; if that changes, add a nullable `department` column and treat NULL as the office-wide total.
+- **It becomes the percentage column's denominator.** With an approval set the column header reads **% of budget** and answers the question the workbook asks — how much of what we were given have we spent. Without one it falls back to **% of year**, each month's share of the year's own spend, which is a different and much weaker fact. The header changes with it so the two can never be confused.
+- The **Total row** is the headline figure against an approval (22.73% of the year's money spent) where it was previously 100% by construction.
+- **`BudgetApprovalBar`** states the denominator above the matrix rather than leaving it to be inferred from a column header, and shows spent and remaining beside it. Overspend reads as "$X over" rather than as a negative remaining, which looks like a rendering fault.
+- **Setting it is Admin and Head of Department only.** A Coordinator reads every team's spend and the approved figure, and still does not set it — approving a budget is not the same as reading one.
+- The bar's "spent" and the matrix's Total row are computed from the same array, so they cannot disagree.
 
 ## Monthly activity report — task mix
 
@@ -477,7 +486,9 @@ Only office accounts may sign in. Both the rule and the post-login redirect chec
 
 14. `0014_coordinator_review.sql` — splits approving from rejecting. A Coordinator may mark reviewed (budget reports and their own) but never reject. **Not yet applied; run after `0013`.**
 
-Migrations `0001`–`0012` are confirmed applied in Supabase; `0013` and `0014` are pending, in that order. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+15. `0015_budget_approval.sql` — adds `budget_approvals`, one approved figure per fiscal year, seeded with FY2026 = $150,000.00. **Not yet applied.**
+
+Migrations `0001`–`0014` are confirmed applied in Supabase; `0015` is pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
@@ -533,6 +544,8 @@ Department is otherwise still an attribute of a person — **no query filters on
 - `src/components/reports-table.tsx` — report list, accessible Admin selection controls, and bulk-delete confirmation.
 - `src/components/department-badge.tsx` — the one department chip, used everywhere a department appears.
 - `src/components/department-month-matrix.tsx` — the department × month spend table at the top of the Annual budget tab.
+- `src/components/budget-approval-bar.tsx` — the approved figure above that table, and the dialog that sets it.
+- `src/app/(app)/dashboard/actions.ts` — `setBudgetApproval`, guarded to Admin and Head of Department.
 - `src/components/report-form.tsx` — activity/budget form, historical structure reuse, calculations, and serialization.
 - `src/app/(app)/reports/actions.ts` — save, submit, delete, review, comment, and attachment actions.
 - `src/app/(app)/reports/[id]/page.tsx` — detail view and review-control visibility.
@@ -557,7 +570,7 @@ Department is otherwise still an attribute of a person — **no query filters on
 - GitHub repository: `muni-the-goat/OCIC-MCD-Managment`
 - Deployed branch: `main`
 - Hosting: Vercel, connected for automatic deployment from GitHub
-- Database: Supabase, migrations `0001`–`0012` applied; `0013` and `0014` pending
+- Database: Supabase, migrations `0001`–`0014` applied; `0015` pending
 - Supabase region: Northeast Asia (Seoul)
 
 ## Remaining validation checklist
@@ -581,6 +594,7 @@ These are production acceptance checks, not unfinished implementation:
 16. After `0013`, confirm a Head of Department can invite, change roles and departments, delete users, edit and bulk-delete reports, and add a department; and that they cannot reset any password, cannot select Admin in either role picker, and see an Admin row with its controls disabled.
 17. Confirm "Add department" creates a department that appears immediately in both department pickers and, once someone in it files a reviewed budget, as a matrix column.
 18. After `0014`, confirm a Coordinator can mark a submitted budget report reviewed — including their own — has no Reject button anywhere, and gets neither control on someone else's monthly activity report.
+19. After `0015`, confirm the percentage column reads "% of budget" and its Total matches spend ÷ $150,000, that a Coordinator sees the approved figure without an Edit control, and that a year with no approval falls back to "% of year".
 14. Confirm the department × month matrix appears for Admin and Head of Department only, that its Total reconciles with the per-author grids below it, and that reports by an author with no department land in the Unassigned column rather than vanishing.
 
 ## Known limitations and future options
