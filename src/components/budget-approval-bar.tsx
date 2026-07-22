@@ -70,9 +70,12 @@ export function BudgetApprovalBar({
       </div>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm text-muted-foreground">
         {approval === null ? (
+          // Two audiences, two sentences. Telling someone to set a figure they
+          // have no control over is worse than saying nothing.
           <span>
-            Set it to measure spend against the approved figure instead of
-            against the year&apos;s own total.
+            {canEdit
+              ? "Set it to measure spend against the approved figure instead of against the year's own total."
+              : "The Head of Department has not set one yet, so spend is measured against the year's own total."}
           </span>
         ) : (
           <>

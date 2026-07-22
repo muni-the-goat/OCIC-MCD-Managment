@@ -15,9 +15,9 @@ import {
 } from "@/components/department-month-matrix";
 import {
   annualBudgetScope,
+  canSetBudgetApproval,
   canViewAnnualBudget,
   canViewDepartmentMatrix,
-  isPrivileged,
 } from "@/lib/auth";
 import { departmentLabel } from "@/lib/departments";
 import { getDepartments } from "@/lib/departments-server";
@@ -286,7 +286,7 @@ export async function AnnualBudgetSummary({
                   year={selectedYear}
                   approval={approval}
                   spent={totalSpend}
-                  canEdit={isPrivileged(role)}
+                  canEdit={canSetBudgetApproval(role)}
                 />
                 <DepartmentMonthMatrix
                   items={matrixItems}

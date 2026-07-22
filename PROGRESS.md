@@ -96,6 +96,7 @@ Rejection sends a report back with required feedback — the one decision that c
 - Can invite accounts, change roles and departments, delete users, and add a department.
 - Annual budget summary covers all authors, filterable by year and author.
 - **Cannot reset any password.** `canResetPasswords()` is the only capability check that excludes them.
+- **Is the only role that can set the approved annual budget** — see **The approved budget**. That is the one capability an Admin does not have.
 
 Two guards keep that exception from being decorative, both enforced in the server actions:
 
@@ -129,6 +130,7 @@ Drafts stay private from a Coordinator, exactly as they do from a Manager or Hea
 - Sees the department × month spend matrix at the top of the Annual budget tab, across every author.
 - Can invite users, assign roles and departments, reset passwords, delete users, and add a department.
 - Is the only role that can grant the Admin role, or modify and delete an Admin account.
+- **Cannot set the approved annual budget.** The single capability an Admin does not hold; it belongs to the Head of Department. See **The approved budget**.
 - Can edit or delete reports according to the Admin policies.
 - Can select one or more reports on the Reports page and permanently delete them together after confirmation.
 - Can mark any submitted report reviewed or rejected, including a report authored by the same Admin account.
@@ -221,7 +223,9 @@ Sits at the top of the Annual budget tab, above the per-author grids. Modelled o
 - **It becomes the percentage column's denominator.** With an approval set the column header reads **% of budget** and answers the question the workbook asks — how much of what we were given have we spent. Without one it falls back to **% of year**, each month's share of the year's own spend, which is a different and much weaker fact. The header changes with it so the two can never be confused.
 - The **Total row** is the headline figure against an approval (22.73% of the year's money spent) where it was previously 100% by construction.
 - **`BudgetApprovalBar`** states the denominator above the matrix rather than leaving it to be inferred from a column header, and shows spent and remaining beside it. Overspend reads as "$X over" rather than as a negative remaining, which looks like a rendering fault.
-- **Setting it is Admin and Head of Department only.** A Coordinator reads every team's spend and the approved figure, and still does not set it — approving a budget is not the same as reading one.
+- **Setting it is the Head of Department alone — including against the Admin.** `canSetBudgetApproval()` is the one capability in `roles.ts` an Admin does not have, and it is deliberate: approving a budget is financial authority, not administrative authority, and running the system is not the same as deciding what the office may spend. An Admin still reads the figure, and can still grant themselves the role if they genuinely need to change it — the point is that doing so is a visible act rather than a quiet one.
+- The write uses the service-role client, which bypasses RLS, so **the server action guard is the enforcement** — there is no second layer behind it. Do not add a UI path to this action without re-checking `canSetBudgetApproval()` inside the action itself.
+- The empty state says different things to the two audiences: the Head of Department is told to set it, everyone else is told who will.
 - The bar's "spent" and the matrix's Total row are computed from the same array, so they cannot disagree.
 
 ## Monthly activity report — task mix
@@ -594,7 +598,8 @@ These are production acceptance checks, not unfinished implementation:
 16. After `0013`, confirm a Head of Department can invite, change roles and departments, delete users, edit and bulk-delete reports, and add a department; and that they cannot reset any password, cannot select Admin in either role picker, and see an Admin row with its controls disabled.
 17. Confirm "Add department" creates a department that appears immediately in both department pickers and, once someone in it files a reviewed budget, as a matrix column.
 18. After `0014`, confirm a Coordinator can mark a submitted budget report reviewed — including their own — has no Reject button anywhere, and gets neither control on someone else's monthly activity report.
-19. After `0015`, confirm the percentage column reads "% of budget" and its Total matches spend ÷ $150,000, that a Coordinator sees the approved figure without an Edit control, and that a year with no approval falls back to "% of year".
+19. After `0015`, confirm the percentage column reads "% of budget" and its Total matches spend ÷ $150,000, and that a year with no approval falls back to "% of year".
+20. Confirm the Head of Department is the only account with an Edit control on the approved budget — Admin and Coordinator see the figure without one — and that posting to `setBudgetApproval` as an Admin is refused.
 14. Confirm the department × month matrix appears for Admin and Head of Department only, that its Total reconciles with the per-author grids below it, and that reports by an author with no department land in the Unassigned column rather than vanishing.
 
 ## Known limitations and future options

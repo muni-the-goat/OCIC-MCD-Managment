@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getProfile, isPrivileged } from "@/lib/auth";
+import { canSetBudgetApproval, getProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type BudgetApprovalState = { error: string } | { success: string } | null;
@@ -27,11 +27,16 @@ export async function setBudgetApproval(
   _prev: BudgetApprovalState,
   formData: FormData
 ): Promise<BudgetApprovalState> {
-  // Approving a budget is not the same as reading one: a Coordinator sees every
-  // team's spend and the approved figure, and still does not set it.
+  // The Head of Department alone, Admin included in the exclusion. This is the
+  // one action in the app an Admin cannot take: approving a budget is financial
+  // authority, not administrative authority. The write uses the service-role
+  // client, which bypasses RLS, so this check is the enforcement — there is no
+  // second layer behind it.
   const profile = await getProfile();
-  if (!isPrivileged(profile.role)) {
-    return { error: "Only an Admin or the Head of Department can set the approved budget" };
+  if (!canSetBudgetApproval(profile.role)) {
+    return {
+      error: "Only the Head of Department can set the approved budget",
+    };
   }
 
   const parsed = schema.safeParse({

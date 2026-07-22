@@ -122,6 +122,19 @@ export function canViewAnnualBudget(role: AppRole) {
   return isPrivileged(role) || role === "manager" || role === "coordinator";
 }
 
+// Setting the approved annual budget. The Head of Department alone — the only
+// capability in this file that an Admin does not have.
+//
+// That is deliberate and was asked for explicitly. Approving a budget is a
+// financial authority, not an administrative one: an Admin runs the system, and
+// running the system is not the same as deciding what the office may spend. An
+// Admin can still read the figure, and can still grant themselves the Head of
+// Department role if they genuinely need to change it — the point is that doing
+// so is a visible act rather than a quiet one.
+export function canSetBudgetApproval(role: AppRole) {
+  return role === "head_of_department";
+}
+
 // The department × month matrix that sits above the per-author budget grids.
 // Everyone who reads every team's budget gets it, which is the same set as
 // seesAllBudgetReports() — a roll-up of data you can already read line by line

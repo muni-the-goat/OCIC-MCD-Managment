@@ -24,9 +24,15 @@ on conflict (year) do nothing;
 
 alter table public.budget_approvals enable row level security;
 
--- Readable by anyone signed in; the dashboard decides who is shown it. Writes
--- go through the service-role admin client behind a role guard, so there is
--- deliberately no write policy here.
+-- Readable by anyone signed in; the dashboard decides who is shown it.
+--
+-- Writes go through the service-role admin client behind a role guard in
+-- setBudgetApproval(), so there is deliberately no write policy here. That guard
+-- allows the Head of Department and nobody else — not the Admin either. It is
+-- the one action in the application an Admin cannot take, because approving a
+-- budget is financial authority rather than administrative authority. An Admin
+-- who genuinely needs to change it can grant themselves the role, which makes
+-- the act visible rather than quiet.
 drop policy if exists "budget_approvals: read all" on public.budget_approvals;
 create policy "budget_approvals: read all" on public.budget_approvals
   for select to authenticated
