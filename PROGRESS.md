@@ -380,6 +380,33 @@ Deliberately deferred until Phase 1 has been used for a month, because this is w
 - The source spreadsheet behind the April report has not been reviewed. Metric names in Phase 2 should be confirmed against it rather than transcribed from the rendered PDF, where several axis labels are truncated.
 - The current report is authored by a team ("Heng Sokchea, Duong Senghon") while the application models a single `author_id`. This is the same gap already recorded under Known limitations for departments, and Phase 1 does not resolve it.
 
+## Phase 4 — archiving a leaver (future build)
+
+Not started, and the one future item with a deadline attached: it wants building **before** the first person leaves, not after. Until it exists, the only honest advice is "never delete anyone who has filed a report", which is a rule people forget.
+
+### The problem
+
+Deleting a user cascades their whole reporting history out of the database — see **Deleting a user is a hard, cascading delete**. That is correct for an account created by mistake and wrong for everyone else: a leaver's spend still happened, still belongs in the fiscal year, and still has to reconcile against the approved budget.
+
+### Proposal
+
+A nullable `profiles.archived_at`, plus:
+
+1. **Archive replaces Delete as the default action** on the Users page. Delete stays, moves behind a confirmation that names how many reports and how much spend it would destroy, and is Admin-only.
+2. **An archived account cannot sign in.** The check belongs beside the office-domain rule in `src/lib/login-rules.ts`, and needs a matching guard in `getProfile()` so an existing session is ended rather than merely blocked at the login form.
+3. **Their reports stay everywhere they already appear** — annual summary, department matrix, reports list, charts. Nothing about aggregation changes, because nothing about the data changes.
+4. **They disappear from things that imply a live account**: author filters, the invite/role controls, and the pending-review queue.
+5. **Archived is visible, not hidden** — the Users page shows them in a muted state with the date, so "where did Sokchea go" has an answer on the page rather than in someone's memory.
+
+### Constraints for whoever builds it
+
+- `profiles` already carries `role` and `department`; adding a third status column is not a schema problem. The work is in the read paths that currently assume every profile is a live person.
+- **`reports.author_id` must keep its cascade.** Archiving is not a substitute for delete, it is the thing you do instead of reaching for delete. A genuine erasure request still has to work.
+- The **department × month matrix reads a department off the author's current profile**, so an archived author keeps contributing to their department's column. That is correct and worth stating, because it looks like a bug the first time someone notices a departed colleague in this year's totals.
+- Storage cleanup only matters on real deletion; archiving touches no files.
+
+Estimated at half a day, most of it in the session guard and in auditing the read paths rather than in the column itself.
+
 ## Phase 3 — chart cross-filtering (future build)
 
 Not started. Independent of Phases 1 and 2; it can be built before, between, or after them, and would automatically extend to whatever charts Phase 1 adds.
@@ -448,8 +475,34 @@ The Users page uses the server-only Supabase secret client for Auth Admin operat
 - Temporary passwords are displayed once and must be shared securely.
 - Users cannot change their own role through the management UI.
 - Users cannot reset their own password from the management page.
-- User deletion also removes authored report records through database cascades and attempts to clean up attachment files from Storage.
 - Coordinator restrictions are enforced again inside each Server Action, not only by hiding buttons.
+
+### Deleting a user is a hard, cascading delete
+
+There is no deactivation and no undo. One delete takes the account and everything hanging off it:
+
+| Constraint | On delete |
+| --- | --- |
+| `auth.users` → `profiles` | cascade |
+| `profiles` → `reports.author_id` | cascade |
+| `reports` → `budget_items` | cascade |
+| `reports` → `report_comments` | cascade |
+| `reports` → `report_attachments` | cascade |
+| `profiles` → `report_comments.author_id` | cascade |
+| `profiles` → `reports.reviewed_by` | **set null** |
+| `profiles` → `budget_approvals.updated_by` | **set null** |
+
+So it removes their account, **every report they authored**, all line items, comments and attachments on those reports, and **every comment they wrote on anyone else's report** — those other reports survive with the comment missing.
+
+Two things survive: reports they *reviewed* stay reviewed, with the reviewer null so the detail page reads "Unknown"; and the approved budget figure outlives whoever set it.
+
+Attachment **files** are handled outside the database. `deleteUser` collects the storage paths first, deletes the account, then removes the objects. If that last step fails the action returns "User deleted, but some attachment files could not be cleaned up" and orphaned files remain in the bucket.
+
+**Nothing warns you how much is about to go.** As of the 2026 seed, deleting the Brand Marketing author removes $14,120.39 — 41% of all recorded spend — from the matrix, the annual summary, and every chart, silently. Deleting your own account is blocked, which is the only guard in place.
+
+**Operational guidance until an archive exists:** do not delete anyone who has filed a report. Nothing in the schema separates "left the company" from "never existed", so removing a leaver erases their spend history from the books. Instead either **demote them to Staff** and leave the account dormant — their reports stay in the summary and they lose access to everything but their own — or **reset their password** to something nobody holds, if the login should die but the record should not.
+
+Data seeded from `supabase/seed/actual_expenses_2026.sql` is re-runnable, so the January–June 2026 figures specifically are recoverable. Anything typed into the app since is not.
 
 ## Sign-in restriction
 
@@ -611,7 +664,8 @@ These are production acceptance checks, not unfinished implementation:
 - One pre-existing July 2026 author/period contains three reviewed reports. The uniqueness trigger deliberately preserves them. After deciding which record is canonical, the duplicates can be reconciled and the trigger can later be upgraded to a partial unique index.
 - Supabase is hosted in Seoul while users are primarily closer to Southeast Asia, which can add network latency. Moving regions requires creating a new project and migrating data/configuration.
 - The project is stored inside OneDrive, which can slow local dependency operations or cause file locks.
-- The next planned work is the Marketing Communication alignment (Phases 1 and 2) and chart cross-filtering (Phase 3), all described above.
+- **Deleting a user destroys their entire reporting history**, silently and irreversibly — see **Deleting a user is a hard, cascading delete**. Phase 4 is the fix, and it is the one future item worth doing before it is needed rather than after.
+- The next planned work is the Marketing Communication alignment (Phases 1 and 2), chart cross-filtering (Phase 3), and archiving a leaver (Phase 4), all described above.
 - Possible future phases beyond it: departments/teams, canonical budget categories, notifications, audit logs, and Excel/PDF export. Export is worth reconsidering once Phase 1 lands, because the team still hand-assembles the PDF that the application would then hold all the data for.
 
 ## Local environment notes
