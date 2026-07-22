@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Download, Pencil, Trash2 } from "lucide-react";
 import { CommentForm } from "@/components/comment-form";
 import { DeleteReportButton } from "@/components/delete-report-button";
+import { DepartmentBadge } from "@/components/department-badge";
 import { ReviewControls } from "@/components/review-controls";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,6 @@ import {
 } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
-  departmentLabel,
   reportPeriodLabel,
   reportTypeLabel,
   taskTypeColor,
@@ -133,15 +133,17 @@ export default async function ReportDetailPage({
             </h1>
             <StatusBadge status={report.status} />
           </div>
-          <p className="text-sm text-muted-foreground">
-            {reportTypeLabel(report.type, report.budget_period)} report ·{" "}
-            {reportPeriodLabel(
-              report.type,
-              report.period_month,
-              report.period_year,
-              report.budget_period
-            )} · by {nameOf(report.author_id)} ·{" "}
-            {departmentLabel(departmentOf(report.author_id))}
+          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
+            <span>
+              {reportTypeLabel(report.type, report.budget_period)} report ·{" "}
+              {reportPeriodLabel(
+                report.type,
+                report.period_month,
+                report.period_year,
+                report.budget_period
+              )} · by {nameOf(report.author_id)}
+            </span>
+            <DepartmentBadge department={departmentOf(report.author_id)} />
           </p>
           {report.reviewed_by && report.reviewed_at ? (
             <p className="text-sm text-muted-foreground">

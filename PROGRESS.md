@@ -4,11 +4,14 @@
 
 The main reporting workflow is implemented, production-build verified, and pushed to GitHub `main`. Vercel is connected to the repository for automatic deployments.
 
-The monthly report tab, the office-domain sign-in restriction, and departments were developed on `feat/monthly-report-tab` (pull request #1) and merged to `main`. The most recent work on `main` prints each author's department wherever a report names them — see **Where department is shown**.
+The monthly report tab, the office-domain sign-in restriction, and departments were developed on `feat/monthly-report-tab` (pull request #1) and merged to `main`. The most recent work on `main` prints each author's department as a chip wherever a report names them (see **Where department is shown**), and widens the Coordinator role to every budget report in the office while leaving monthly activity reports private (see **Coordinator**).
 
 Supabase migrations `0001` through `0010` have been applied to the production project.
 
-> **`0011_event_marketing_department.sql` has NOT been applied.** Until it is, selecting Event Marketing for a user fails the database check constraint and the assignment is rejected. Run it in the Supabase SQL editor or via `supabase db push`.
+> **Two migrations are pending. Run both in the Supabase SQL editor, or `supabase db push`.**
+>
+> - `0011_event_marketing_department.sql` — until it runs, selecting Event Marketing for a user fails the check constraint and the assignment is rejected.
+> - `0012_coordinator_budget_visibility.sql` — until it runs, the Coordinator's widened budget access is UI-only: the pages will offer the all-author view and RLS will return nothing but their own rows, so the summary reads as empty rather than as broken.
 
 No migration is required for the Marketing Communication alignment described below: report content rides in the existing `reports.content` jsonb column.
 
@@ -76,11 +79,19 @@ Reports support comments and private file attachments. Reviewed monthly budgets 
 ### Coordinator
 
 - Has normal report-author capabilities.
+- **Sees every budget report across the office**, monthly and legacy annual, in every non-draft status — plus its line items, comments, and attachments.
+- **Annual budget summary covers all authors**, the same reach an Admin has, with the same author filter.
+- **Sees only their own monthly activity reports.** Cross-office visibility stops at budget; the activity tab on their dashboard is their own tasks.
+- Read-only on other people's reports. `can_edit_report()` is untouched, so a Coordinator can open a budget report and change nothing in it.
+- Cannot review or reject. They are not a reviewer, so their dashboard keeps the personal "Recent reports" framing rather than a pending-review queue they could not act on.
 - Can open the Users page and view the user list.
 - Can reset passwords for Staff, Manager, and Coordinator accounts.
-- Cannot invite users, change roles or departments, or delete accounts. Departments render as plain labels on their Users page, not as controls.
+- Cannot invite users, change roles or departments, or delete accounts. Departments render as read-only chips on their Users page, not as controls.
 - Cannot reset Admin or Head of Department passwords, preventing privilege escalation.
-- Cannot review reports or access the annual budget summary.
+
+Drafts stay private from a Coordinator, exactly as they do from a Manager or Head of Department — a draft is a working copy, not a submission.
+
+The split between "can see someone else's report" and "can decide on one" is why `seesOtherAuthors()` exists separately from `isReviewer()` in `src/lib/auth.ts`. Folding the Coordinator into the reviewer check would have handed them a review queue with no controls in it.
 
 ### Admin
 
@@ -147,12 +158,13 @@ Aggregation behavior:
 - Items are grouped by trimmed, case-insensitive `section + line-item name`.
 - Matching rows from reviewed monthly reports are summed into `m01`–`m12`.
 - Section subtotals, monthly totals, and the annual grand total are calculated for display.
-- A Manager query is always pinned to that Manager's user ID.
-- A Head of Department query is limited to authors whose profile role is `manager`.
-- An Admin query remains unrestricted.
-- When an Admin or Head of Department selects the all-author option, the summary renders a separate grid under each author's name instead of merging identical section/item names across people.
+- Reach is decided by `annualBudgetScope()` in `src/lib/auth.ts`, which returns `all`, `managers`, or `own`. It is one function rather than a pair of role booleans because the query scope, the author filter, and the card's own description all have to agree — and they drifted apart the last time each answered the question for itself.
+- `all` — Admin and Coordinator. Unrestricted.
+- `managers` — Head of Department. Limited to authors whose profile role is `manager`.
+- `own` — Manager. Always pinned to that Manager's user ID.
+- When a scope that reaches several authors selects the all-author option, the summary renders a separate grid under each author's name instead of merging identical section/item names across people.
 - Selecting one author keeps the focused single-grid summary.
-- Staff and Coordinator dashboards do not render or query the annual summary.
+- Staff dashboards do not render or query the annual summary.
 - The summary is streamed behind a Suspense loading skeleton so it does not block the rest of the dashboard.
 
 ## Monthly activity report — task mix
@@ -376,8 +388,9 @@ Only office accounts may sign in. Both the rule and the post-login redirect chec
 9. `0009_monthly_budget_uniqueness_and_revisions.sql` — permits authors to revise submitted/reviewed reports and blocks new duplicate monthly budgets per author/month/year without deleting existing duplicates.
 10. `0010_profile_department.sql` — adds `profiles.department`, the `user_department()` helper, and a self-update policy that pins department the way it already pins role.
 11. `0011_event_marketing_department.sql` — widens the department check constraint to include Event Marketing. **Not yet applied.**
+12. `0012_coordinator_budget_visibility.sql` — widens `reports: select` and `can_view_report()` so a Coordinator reads every non-draft budget report across the office. Monthly activity reports and `can_edit_report()` are untouched. **Not yet applied.**
 
-Migrations `0001`–`0010` are confirmed applied in Supabase; `0011` is pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0010` are confirmed applied in Supabase; `0011` and `0012` are pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
@@ -388,19 +401,24 @@ Digital Marketing · Multimedia · Brand Marketing · Product Marketing · KTI M
 - **Text column with a check constraint, not an enum.** Departments are a business list that will change more often than `app_role`, and `alter type … add value` cannot always run inside a transaction block, which makes enum growth awkward under migration tooling. Widening a check constraint is a plain transactional statement.
 - **The list lives in two places** — the constraint in the latest department migration and `DEPARTMENTS` in `src/lib/types.ts`. Adding one means a new migration widening the constraint *and* a line in that array; `0011` is the worked example. The ids are stored values, so renaming one orphans every profile holding it. The *display order* is free, though: nothing resolves a department by index, so a new entry can sit wherever reads best.
 - **Nullable, no default.** Accounts that predate the column genuinely have no department, and back-filling everyone into one would be inventing data. Those rows read "Unassigned" until an Admin sets them.
-- **Assignment is Admin-only**, enforced in three layers like the role: the Coordinator sees a plain label instead of a control, `updateUserDepartment` calls `requireRole("admin")`, and the RLS self-update policy pins `department` so a user cannot change their own through the API. The comparison uses `is not distinct from` rather than `=` so a NULL department compares correctly instead of making the predicate NULL and failing every self-update.
+- **Assignment is Admin-only**, enforced in three layers like the role: the Coordinator sees a read-only chip instead of a control, `updateUserDepartment` calls `requireRole("admin")`, and the RLS self-update policy pins `department` so a user cannot change their own through the API. The comparison uses `is not distinct from` rather than `=` so a NULL department compares correctly instead of making the predicate NULL and failing every self-update.
 - Unlike the role, **an Admin may set their own department.** It grants no privilege, and an Admin belongs to a department the same as anyone else.
 
 ### Where department is shown
 
-Every place a report names its author now names the department beside it:
+Every place a report names its author names the department beside it, as a chip — `DepartmentBadge` in `src/components/department-badge.tsx`:
 
-- **Report detail** — `Monthly activity report · June 2026 · by Sokchea Heng · KTI Marketing`.
-- **Reports list** — a Department column beside Author. Reviewers only; the column follows `showAuthor`, since a Staff member's list is entirely their own reports.
-- **Dashboard, Pending review / Recent reports** — appended to the author on each row, for reviewers.
-- **Dashboard, Annual budget summary** — leads the sub-line of each author group header, which is the fastest way to tell whose figures are whose when two people share a first name.
+- **Report detail** — after the author on the sub-line.
+- **Reports list** — a Department column beside Author. Follows `showAuthor`, since a Staff member's list is entirely their own reports.
+- **Dashboard, Pending review / Recent reports** — on each row, outside the truncating span so a long title cannot clip it off.
+- **Dashboard, Annual budget summary** — beside the author's name in each group header, which is the fastest way to tell whose figures are whose when two people share a first name.
+- **Users page** — the Admin gets the assignment control; the Coordinator gets the same read-only chip.
 
-An author with no department reads **Unassigned**. A report whose author row is missing entirely reads `—` instead, because "Unassigned" would claim more than is known.
+**One chip style for all eight departments, deliberately.** Department is an attribute of a person, not a state of a report. Giving each department its own hue would put eight categorical colours directly beside the Status column — the one place in those rows where colour already carries meaning — and eight hues cannot be told apart under colour-vision deficiency, so the colour would be decoration some readers cannot use.
+
+The chip is **gold** (`--department`, `--department-foreground`, `--department-edge` in `globals.css`), for a specific reason: gold is the brand's second hue and is the one family no status badge uses — submitted is blue, reviewed emerald, rejected red, draft grey — so a department and a status never read as the same kind of fact. A neutral ivory chip was tried first and is nearly invisible on a white card. 7.5:1 light, 6.8:1 dark. In dark mode the fill only reaches 1.5:1 against the card, so the gold edge is what draws the boundary and is not optional.
+
+The one distinction the chip does draw is **assigned versus not**: a filled gold chip is a real department, a dashed outline is an empty field. That makes the gaps scannable too, which matters while most accounts are still unassigned. A report whose author row is missing entirely reads `—` rather than a chip, because "Unassigned" would claim more than is known.
 
 The monthly report tab is deliberately untouched: it pools every author's tasks into one mix with no per-author breakdown, so there is no author there to label. Grouping that tab by author the way the budget tab does would be the change that creates the need.
 
@@ -415,15 +433,16 @@ Department is otherwise still an attribute of a person — **no query filters on
 - `src/components/monthly-task-summary.tsx` — reviewed-only task aggregation, month resolution, and role-specific author scope.
 - `src/components/monthly-task-charts.tsx` — task mix donut, the month's task list, and the activity trend line.
 - `src/components/reports-table.tsx` — report list, accessible Admin selection controls, and bulk-delete confirmation.
+- `src/components/department-badge.tsx` — the one department chip, used everywhere a department appears.
 - `src/components/report-form.tsx` — activity/budget form, historical structure reuse, calculations, and serialization.
 - `src/app/(app)/reports/actions.ts` — save, submit, delete, review, comment, and attachment actions.
 - `src/app/(app)/reports/[id]/page.tsx` — detail view and review-control visibility.
 - `src/app/(app)/admin/users/page.tsx` — Admin/Coordinator user list with role-specific controls.
 - `src/app/(app)/admin/users/actions.ts` — invite, role change, department change, password reset, and deletion authorization.
 - `src/lib/login-rules.ts` — the office-domain rule and the post-login redirect check, shared by the login page, the login action, the invite action, and the proxy.
-- `src/lib/auth.ts` — centralized role guards and permission helpers.
+- `src/lib/auth.ts` — centralized role guards and permission helpers, including `isReviewer()` / `seesOtherAuthors()` (deliberately different questions) and `annualBudgetScope()`.
 - `src/lib/types.ts` — roles, reports, budget periods, month keys, the `TASK_TYPES` taxonomy, and shared data types.
-- `src/app/globals.css` — brand theme and the validated `--series-1…6` / `--series-neutral` chart palette, defined for both themes. The stock `--chart-N` slots remain for the generated components but no chart draws with them.
+- `src/app/globals.css` — brand theme, the validated `--series-1…6` / `--series-neutral` chart palette, and the `--department*` chip tokens, all defined for both themes. The stock `--chart-N` slots remain for the generated components but no chart draws with them.
 - `src/lib/supabase/` — browser, authenticated server, and secret Admin clients.
 - `src/proxy.ts` — Supabase session refresh and login redirects.
 - `supabase/migrations/` — ordered schema and security history.
@@ -433,7 +452,7 @@ Department is otherwise still an attribute of a person — **no query filters on
 - GitHub repository: `muni-the-goat/OCIC-MCD-Managment`
 - Deployed branch: `main`
 - Hosting: Vercel, connected for automatic deployment from GitHub
-- Database: Supabase, migrations `0001`–`0010` applied; `0011` pending
+- Database: Supabase, migrations `0001`–`0010` applied; `0011` and `0012` pending
 - Supabase region: Northeast Asia (Seoul)
 
 ## Remaining validation checklist
@@ -448,8 +467,9 @@ These are production acceptance checks, not unfinished implementation:
 6. Confirm the Head of Department sees only Manager-authored expenses and can filter by Manager.
 7. Confirm the all-author annual summary labels and separates each author's expense grid.
 8. Confirm Admin can select one, several, or all visible reports and delete them after confirmation.
-9. Confirm Staff and Coordinator do not see the annual summary or bulk-delete controls.
+9. Confirm Staff do not see the annual summary, and that neither Staff nor Coordinator see bulk-delete controls.
 10. Confirm a Coordinator can reset an eligible user's password but cannot invite, change roles, delete users, or reset Admin/HoD passwords.
+10a. After `0012`, confirm a Coordinator sees every non-draft budget report on the Reports page and every author in the annual summary, sees no one else's monthly activity report, sees no drafts, and has no Edit, Delete, Mark reviewed, or Reject control on a report they did not author.
 11. Confirm a reviewed monthly budget enters the correct annual-summary month while draft, submitted, and rejected budgets stay excluded.
 12. Confirm a new monthly budget reuses the nearest earlier section/item structure but leaves current amounts empty.
 

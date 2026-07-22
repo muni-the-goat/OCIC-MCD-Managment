@@ -3,10 +3,9 @@ import { Plus } from "lucide-react";
 import { ReportFilters } from "@/components/report-filters";
 import { ReportsTable } from "@/components/reports-table";
 import { Button } from "@/components/ui/button";
-import { getProfile, isReviewer } from "@/lib/auth";
+import { getProfile, isReviewer, seesOtherAuthors } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
-  departmentLabel,
   reportPeriodLabel,
   reportTypeLabel,
   type BudgetPeriod,
@@ -41,6 +40,10 @@ export default async function ReportsPage({
   const [profile, params] = await Promise.all([getProfile(), searchParams]);
   const supabase = await createClient();
   const reviewer = isReviewer(profile.role);
+  // A Coordinator is not a reviewer but does see every budget report, so the
+  // Author/Department columns and the author filter follow the wider question.
+  const showsOtherAuthors = seesOtherAuthors(profile.role);
+  const isCoordinator = profile.role === "coordinator";
 
   let query = supabase
     .from("reports")
@@ -63,7 +66,7 @@ export default async function ReportsPage({
   ) {
     query = query.eq("status", params.status);
   }
-  if (reviewer && params.author) {
+  if (showsOtherAuthors && params.author) {
     query = query.eq("author_id", params.author);
   }
 
@@ -82,15 +85,14 @@ export default async function ReportsPage({
     authorLabel: report.author?.full_name || report.author?.email || "—",
     // Only meaningful once we know who the author is; an orphaned row would
     // otherwise read "Unassigned", which claims more than we know.
-    departmentLabel: report.author
-      ? departmentLabel(report.author.department)
-      : "—",
+    department: report.author?.department ?? null,
+    hasAuthor: Boolean(report.author),
     status: report.status,
     updatedLabel: new Date(report.updated_at).toLocaleDateString(),
   }));
 
   let authors: { id: string; label: string }[] = [];
-  if (reviewer) {
+  if (showsOtherAuthors) {
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id, full_name, email")
@@ -107,9 +109,11 @@ export default async function ReportsPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
           <p className="text-sm text-muted-foreground">
-            {reviewer
-              ? "All submitted reports across the office, plus your own."
-              : "Your budget and monthly reports."}
+            {isCoordinator
+              ? "Every budget report across the office, plus your own reports."
+              : reviewer
+                ? "All submitted reports across the office, plus your own."
+                : "Your budget and monthly reports."}
           </p>
         </div>
         <Button asChild className="gap-2">
@@ -120,7 +124,7 @@ export default async function ReportsPage({
         </Button>
       </div>
 
-      <ReportFilters authors={authors} showAuthorFilter={reviewer} />
+      <ReportFilters authors={authors} showAuthorFilter={showsOtherAuthors} />
 
       {reports.length === 0 ? (
         <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
@@ -130,7 +134,7 @@ export default async function ReportsPage({
         <ReportsTable
           key={`${params.type ?? "all"}:${params.status ?? "all"}:${params.author ?? "all"}`}
           reports={reportItems}
-          showAuthor={reviewer}
+          showAuthor={showsOtherAuthors}
           canBulkDelete={profile.role === "admin"}
         />
       )}

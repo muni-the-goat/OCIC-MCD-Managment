@@ -7,11 +7,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { canViewAnnualBudget } from "@/lib/auth";
+import { DepartmentBadge } from "@/components/department-badge";
+import { annualBudgetScope, canViewAnnualBudget } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   MONTH_KEYS,
-  departmentLabel,
   type AppRole,
   type BudgetItem,
   type Department,
@@ -90,9 +90,13 @@ export async function AnnualBudgetSummary({
   if (!canViewAnnualBudget(role)) return null;
 
   const supabase = await createClient();
-  const isAdmin = role === "admin";
-  const isHeadOfDepartment = role === "head_of_department";
-  const canFilterAuthors = isAdmin || isHeadOfDepartment;
+  // Admin and Coordinator both reach every author, for different reasons — one
+  // administers the office, the other oversees its spend — so the summary asks
+  // for the scope rather than for the role.
+  const scope = annualBudgetScope(role);
+  const seesEveryAuthor = scope === "all";
+  const isHeadOfDepartment = scope === "managers";
+  const canFilterAuthors = scope !== "own";
   const selectedYear = validYear(year);
 
   const authorsResult = canFilterAuthors
@@ -140,7 +144,7 @@ export async function AnnualBudgetSummary({
         ? authors.map((profile) => profile.id)
         : ["00000000-0000-0000-0000-000000000000"]
     );
-  } else if (!isAdmin) {
+  } else if (!seesEveryAuthor) {
     itemQuery = itemQuery.eq("report.author_id", userId);
   }
 
@@ -158,7 +162,7 @@ export async function AnnualBudgetSummary({
         ? authors.map((profile) => profile.id)
         : ["00000000-0000-0000-0000-000000000000"]
     );
-  } else if (!isAdmin) {
+  } else if (!seesEveryAuthor) {
     yearQuery = yearQuery.eq("author_id", userId);
   }
 
@@ -207,7 +211,7 @@ export async function AnnualBudgetSummary({
           </p>
           <CardTitle>Annual budget summary · FY {selectedYear}</CardTitle>
           <CardDescription>
-            {isAdmin
+            {seesEveryAuthor
               ? "Automatically combines all reviewed monthly budget reports across the office."
               : isHeadOfDepartment
                 ? "Automatically combines reviewed monthly budget reports submitted by Managers."
@@ -244,18 +248,20 @@ export async function AnnualBudgetSummary({
                 className="overflow-hidden rounded-lg border"
               >
                 <div className="border-b bg-muted/30 px-4 py-3">
-                  <h3
-                    id={`annual-budget-author-${group.id}`}
-                    className="font-semibold"
-                  >
-                    {group.label}
-                  </h3>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <h3
+                      id={`annual-budget-author-${group.id}`}
+                      className="font-semibold"
+                    >
+                      {group.label}
+                    </h3>
+                    {/* Beside the name rather than in the sub-line below: with
+                        several authors stacked this is the fastest way to tell
+                        whose figures these are when two share a first name. */}
+                    <DepartmentBadge department={group.department} />
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    {/* Department leads the line: with several authors stacked,
-                        it is the fastest way to tell whose figures these are
-                        when two people share a first name. */}
-                    {departmentLabel(group.department)} · Reviewed monthly
-                    expenses · FY {selectedYear}
+                    Reviewed monthly expenses · FY {selectedYear}
                   </p>
                 </div>
                 <div className="p-4">

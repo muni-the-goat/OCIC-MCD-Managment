@@ -35,6 +35,23 @@ export function isReviewer(role: AppRole) {
   );
 }
 
+// Whether this role's report list contains other people's reports, and so needs
+// the Author and Department columns and the author filter. Deliberately not the
+// same question as isReviewer(): a Coordinator sees every budget report in the
+// office but decides on none of them, so folding them into the reviewer check
+// would hand them a review queue they cannot act on.
+export function seesOtherAuthors(role: AppRole) {
+  return isReviewer(role) || role === "coordinator";
+}
+
+// A Coordinator's cross-office visibility stops at budget reports. Monthly
+// activity reports stay private to their author and the review chain — this
+// mirrors the `reports: select` policy added in migration 0012, which is the
+// enforcement; this function only decides how the page describes itself.
+export function seesAllBudgetReports(role: AppRole) {
+  return role === "admin" || role === "coordinator";
+}
+
 export function canMarkReviewed(role: AppRole) {
   return role === "admin" || role === "head_of_department";
 }
@@ -45,6 +62,27 @@ export function canRejectReport(role: AppRole) {
 
 export function canViewAnnualBudget(role: AppRole) {
   return (
-    role === "admin" || role === "head_of_department" || role === "manager"
+    role === "admin" ||
+    role === "head_of_department" ||
+    role === "manager" ||
+    role === "coordinator"
   );
+}
+
+// How wide the annual budget summary reaches. One function rather than a pair of
+// role booleans because the query scope, the author filter and the card's own
+// description all have to agree, and they drifted apart the last time each
+// answered the question for itself.
+//
+//   all      — every author in the office (Admin, Coordinator)
+//   managers — authors whose role is manager (Head of Department)
+//   own      — the signed-in user alone (Manager)
+//
+// Staff never reach this: canViewAnnualBudget() gates the card first.
+export type AnnualBudgetScope = "all" | "managers" | "own";
+
+export function annualBudgetScope(role: AppRole): AnnualBudgetScope {
+  if (seesAllBudgetReports(role)) return "all";
+  if (role === "head_of_department") return "managers";
+  return "own";
 }

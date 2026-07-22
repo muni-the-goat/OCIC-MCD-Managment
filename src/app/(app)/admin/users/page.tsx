@@ -1,3 +1,4 @@
+import { DepartmentBadge } from "@/components/department-badge";
 import { InviteUserDialog } from "@/components/invite-user-dialog";
 import {
   DeleteUserButton,
@@ -16,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { departmentLabel, type Profile } from "@/lib/types";
+import type { Profile } from "@/lib/types";
 
 export const metadata = { title: "Users" };
 
@@ -87,13 +88,7 @@ export default async function AdminUsersPage() {
                         department={user.department}
                       />
                     ) : (
-                      <span
-                        className={
-                          user.department ? undefined : "text-muted-foreground"
-                        }
-                      >
-                        {departmentLabel(user.department)}
-                      </span>
+                      <DepartmentBadge department={user.department} />
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">

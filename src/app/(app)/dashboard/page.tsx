@@ -21,6 +21,7 @@ import {
 } from "@/components/annual-budget-summary";
 import { DashboardChartTabs } from "@/components/dashboard-chart-tabs";
 import { GaugeStatCard, StatusMix } from "@/components/dashboard-stats";
+import { DepartmentBadge } from "@/components/department-badge";
 import {
   MonthlyTaskSummary,
   MonthlyTaskSummarySkeleton,
@@ -37,7 +38,6 @@ import {
 import { canViewAnnualBudget, getProfile, isReviewer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
-  departmentLabel,
   periodLabel,
   reportPeriodLabel,
   reportTypeLabel,
@@ -101,6 +101,8 @@ export default async function DashboardPage({
     return count ?? 0;
   };
 
+  const mineOnly = !reviewer;
+
   let recentQuery = supabase
     .from("reports")
     .select(
@@ -111,10 +113,14 @@ export default async function DashboardPage({
   if (reviewer) {
     // Reviewers care about the pending queue first.
     recentQuery = recentQuery.eq("status", "submitted");
+  } else {
+    // Scoped explicitly rather than left to RLS. A Coordinator keeps this card's
+    // personal framing — they cannot review anything — but RLS now also hands
+    // them every budget report in the office, so "Recent reports" would quietly
+    // fill with other people's rows under a heading that says otherwise.
+    recentQuery = recentQuery.eq("author_id", profile.id);
   }
 
-  // Staff only ever see their own rows through RLS; scoping is for reviewers.
-  const mineOnly = !reviewer;
   const [total, submitted, reviewed, rejected, { data: recentData }] =
     await Promise.all([
       countBy(undefined, mineOnly),
@@ -280,18 +286,31 @@ export default async function DashboardPage({
                           <span className="block truncate font-medium">
                             {report.title}
                           </span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {reportTypeLabel(report.type, report.budget_period)}{" "}
-                            ·{" "}
-                            {reportPeriodLabel(
-                              report.type,
-                              report.period_month,
-                              report.period_year,
-                              report.budget_period
-                            )}
-                            {reviewer && report.author
-                              ? ` · ${report.author.full_name || report.author.email} · ${departmentLabel(report.author.department)}`
-                              : ""}
+                          <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                            <span className="truncate">
+                              {reportTypeLabel(
+                                report.type,
+                                report.budget_period
+                              )}{" "}
+                              ·{" "}
+                              {reportPeriodLabel(
+                                report.type,
+                                report.period_month,
+                                report.period_year,
+                                report.budget_period
+                              )}
+                              {reviewer && report.author
+                                ? ` · ${report.author.full_name || report.author.email}`
+                                : ""}
+                            </span>
+                            {/* Outside the truncating span so a long title never
+                                clips the department off the row. */}
+                            {reviewer && report.author ? (
+                              <DepartmentBadge
+                                department={report.author.department}
+                                className="shrink-0"
+                              />
+                            ) : null}
                           </span>
                         </span>
                         <StatusBadge status={report.status} />

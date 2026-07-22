@@ -8,6 +8,7 @@ import {
   bulkDeleteReports,
   type ActionState,
 } from "@/app/(app)/reports/actions";
+import { DepartmentBadge } from "@/components/department-badge";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { ReportStatus } from "@/lib/types";
+import type { Department, ReportStatus } from "@/lib/types";
 
 export interface ReportsTableItem {
   id: string;
@@ -36,7 +37,11 @@ export interface ReportsTableItem {
   typeLabel: string;
   periodLabel: string;
   authorLabel: string;
-  departmentLabel: string;
+  // The department id rather than its label, so the cell can render a chip.
+  // `hasAuthor` is separate because a null department and a missing author row
+  // are different facts: one is unassigned, the other is unknown.
+  department: Department | null;
+  hasAuthor: boolean;
   status: ReportStatus;
   updatedLabel: string;
 }
@@ -220,8 +225,12 @@ export function ReportsTable({
                   {showAuthor ? (
                     <>
                       <TableCell>{report.authorLabel}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {report.departmentLabel}
+                      <TableCell>
+                        {report.hasAuthor ? (
+                          <DepartmentBadge department={report.department} />
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                     </>
                   ) : null}

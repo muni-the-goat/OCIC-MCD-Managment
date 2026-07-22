@@ -27,6 +27,9 @@
   --color-status-good: var(--status-good);
   --color-status-warning: var(--status-warning);
   --color-status-critical: var(--status-critical);
+  --color-department: var(--department);
+  --color-department-foreground: var(--department-foreground);
+  --color-department-edge: var(--department-edge);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -104,6 +107,18 @@
   --status-warning: #fab219;
   --status-critical: #d03b3b;
 
+  /* The department chip. Gold rather than a neutral tint, because a department
+     label sits in the same row as a status badge and an ivory chip on a white
+     card is barely a chip at all. Gold is the brand's second hue and is the one
+     family no status badge uses — submitted is blue, reviewed emerald, rejected
+     red, draft grey — so the two never read as the same kind of fact.
+     7.5:1 light, 6.8:1 dark. All eight departments share this one chip: eight
+     categorical hues cannot be separated under colour-vision deficiency, and
+     the label already names the department in text. */
+  --department: #f6ebc9;
+  --department-foreground: #5c4708;
+  --department-edge: #e0c983;
+
   /* The dashboard's categorical palette. Eight-slot method, six slots filled:
      a fixed hue order, assigned by position and never cycled or reordered.
      It does two jobs, both of them identity:
@@ -171,6 +186,13 @@
   --sidebar-accent-foreground: #edd060;
   --sidebar-border: rgba(255, 255, 255, 0.16);
   --sidebar-ring: #dab428;
+
+  /* Re-stepped for the dark card surface, not flipped. The fill alone only
+     reaches 1.5:1 against the card, so the gold edge is what draws the chip's
+     boundary here and is not optional. */
+  --department: #4a3f1e;
+  --department-foreground: #edd060;
+  --department-edge: rgba(237, 208, 96, 0.42);
 
   /* Same six hues, re-stepped for the dark card surface rather than flipped —
      validated as a set the same way. All six clear 3:1 here. */
