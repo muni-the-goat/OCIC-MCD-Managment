@@ -9,6 +9,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { canOpenUsersPage } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/types";
 
@@ -26,7 +27,7 @@ export function AppNav({ role }: { role: AppRole }) {
     { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
     { href: "/reports", label: "Reports", icon: "reports" },
     { href: "/reports/new", label: "New report", icon: "new" },
-    ...(role === "admin" || role === "coordinator"
+    ...(canOpenUsersPage(role)
       ? [{ href: "/admin/users", label: "Users", icon: "users" }]
       : []),
   ];

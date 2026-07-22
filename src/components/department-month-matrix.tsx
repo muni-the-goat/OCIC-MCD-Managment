@@ -1,5 +1,5 @@
+import type { DepartmentRecord } from "@/lib/departments";
 import {
-  DEPARTMENTS,
   MONTH_KEYS,
   MONTH_NAMES,
   type Department,
@@ -32,9 +32,13 @@ export interface DepartmentMatrixItem extends MonthlyAmounts {
 // are already charted directly below it.
 export function DepartmentMonthMatrix({
   items,
+  departments,
   year,
 }: {
   items: DepartmentMatrixItem[];
+  // Passed in rather than imported: departments are rows now, and the column
+  // order is theirs.
+  departments: DepartmentRecord[];
   year: number;
 }) {
   // columnId -> twelve monthly sums. Amounts already live in m01–m12, so the
@@ -55,19 +59,20 @@ export function DepartmentMonthMatrix({
   const hasSpend = (id: ColumnId) =>
     grid.get(id)?.some((value) => value !== 0) ?? false;
 
-  // Column order follows DEPARTMENTS so it never reshuffles between years or
-  // between filter states, with Unassigned last. A department with nothing in it
-  // is dropped: an all-zero column is a wider table that says nothing. Empty
-  // month rows are kept, though — the shape of the year is the point, and a
-  // missing row would hide the fact that nothing was reported.
+  // Column order follows the departments table's own sort order so it never
+  // reshuffles between years or between filter states, with Unassigned last. A
+  // department with nothing in it is dropped: an all-zero column is a wider
+  // table that says nothing. Empty month rows are kept, though — the shape of
+  // the year is the point, and a missing row would hide the fact that nothing
+  // was reported.
   const columns = [
-    ...DEPARTMENTS.filter((department) => hasSpend(department.id)).map(
-      (department) => ({
+    ...departments
+      .filter((department) => hasSpend(department.id))
+      .map((department) => ({
         id: department.id as ColumnId,
         label: department.label,
-        short: department.short as string,
-      })
-    ),
+        short: department.short,
+      })),
     ...(hasSpend(UNASSIGNED)
       ? [
           {

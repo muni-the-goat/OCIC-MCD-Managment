@@ -17,6 +17,8 @@ import {
   canViewAnnualBudget,
   canViewDepartmentMatrix,
 } from "@/lib/auth";
+import { departmentLabel } from "@/lib/departments";
+import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
 import {
   MONTH_KEYS,
@@ -103,19 +105,14 @@ export async function AnnualBudgetSummary({
   // for the scope rather than for the role.
   const scope = annualBudgetScope(role);
   const seesEveryAuthor = scope === "all";
-  const isHeadOfDepartment = scope === "managers";
-  const canFilterAuthors = scope !== "own";
+  const canFilterAuthors = seesEveryAuthor;
   const selectedYear = validYear(year);
 
   const authorsResult = canFilterAuthors
-    ? await (() => {
-        let query = supabase
-          .from("profiles")
-          .select("id, full_name, email, role, department")
-          .order("full_name");
-        if (isHeadOfDepartment) query = query.eq("role", "manager");
-        return query;
-      })()
+    ? await supabase
+        .from("profiles")
+        .select("id, full_name, email, role, department")
+        .order("full_name")
     : { data: [], error: null };
 
   const authors = (authorsResult.data ?? []).map((profile) => ({
@@ -145,13 +142,6 @@ export async function AnnualBudgetSummary({
 
   if (selectedAuthor) {
     itemQuery = itemQuery.eq("report.author_id", selectedAuthor);
-  } else if (isHeadOfDepartment) {
-    itemQuery = itemQuery.in(
-      "report.author_id",
-      authors.length > 0
-        ? authors.map((profile) => profile.id)
-        : ["00000000-0000-0000-0000-000000000000"]
-    );
   } else if (!seesEveryAuthor) {
     itemQuery = itemQuery.eq("report.author_id", userId);
   }
@@ -163,20 +153,14 @@ export async function AnnualBudgetSummary({
     .eq("budget_period", "monthly")
     .eq("status", "reviewed")
     .limit(1000);
-  if (isHeadOfDepartment) {
-    yearQuery = yearQuery.in(
-      "author_id",
-      authors.length > 0
-        ? authors.map((profile) => profile.id)
-        : ["00000000-0000-0000-0000-000000000000"]
-    );
-  } else if (!seesEveryAuthor) {
+  if (!seesEveryAuthor) {
     yearQuery = yearQuery.eq("author_id", userId);
   }
 
-  const [itemsResult, yearsResult] = await Promise.all([
+  const [itemsResult, yearsResult, departments] = await Promise.all([
     itemQuery,
     yearQuery,
+    getDepartments(),
   ]);
 
   const years = Array.from(
@@ -215,7 +199,10 @@ export async function AnnualBudgetSummary({
     .map(([authorId, authorItems]) => ({
       id: authorId,
       label: authorProfiles.get(authorId)?.label ?? "Unknown author",
-      department: authorProfiles.get(authorId)?.department ?? null,
+      department: departmentLabel(
+        authorProfiles.get(authorId)?.department,
+        departments
+      ),
       items: aggregateItems(authorItems),
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
@@ -232,9 +219,7 @@ export async function AnnualBudgetSummary({
           <CardDescription>
             {seesEveryAuthor
               ? "Automatically combines all reviewed monthly budget reports across the office."
-              : isHeadOfDepartment
-                ? "Automatically combines reviewed monthly budget reports submitted by Managers."
-                : "Automatically combines only your reviewed monthly budget reports."}
+              : "Automatically combines only your reviewed monthly budget reports."}
           </CardDescription>
         </div>
         <SummaryFilters
@@ -242,9 +227,7 @@ export async function AnnualBudgetSummary({
           selectedYear={selectedYear}
           authors={authors}
           selectedAuthor={selectedAuthor}
-          allAuthorsLabel={
-            isHeadOfDepartment ? "All managers" : "All authors"
-          }
+          allAuthorsLabel="All authors"
         />
       </CardHeader>
       <CardContent>
@@ -282,6 +265,7 @@ export async function AnnualBudgetSummary({
                 </div>
                 <DepartmentMonthMatrix
                   items={matrixItems}
+                  departments={departments}
                   year={selectedYear}
                 />
               </section>
@@ -310,7 +294,7 @@ function AuthorGroups({
   groups: {
     id: string;
     label: string;
-    department: Department | null;
+    department: string | null;
     items: BudgetItem[];
   }[];
   year: number;
@@ -343,7 +327,7 @@ function AuthorGroups({
                 {/* Beside the name rather than in the sub-line below: with
                     several authors stacked this is the fastest way to tell
                     whose figures these are when two share a first name. */}
-                <DepartmentBadge department={group.department} />
+                <DepartmentBadge label={group.department} />
               </div>
               <p className="text-xs text-muted-foreground">
                 Reviewed monthly expenses · FY {year}

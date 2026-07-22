@@ -17,10 +17,13 @@ import { Separator } from "@/components/ui/separator";
 import { BudgetGrid } from "@/components/budget-grid";
 import { deleteAttachment } from "../actions";
 import {
+  canManageAnyReport,
   canMarkReviewed,
   canRejectReport,
   getProfile,
 } from "@/lib/auth";
+import { departmentLabel } from "@/lib/departments";
+import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
 import {
   reportPeriodLabel,
@@ -66,6 +69,7 @@ export default async function ReportDetailPage({
     { data: commentsData },
     { data: attachmentsData },
     { data: profilesData },
+    departments,
   ] = await Promise.all([
     report.type === "budget"
       ? supabase
@@ -85,6 +89,7 @@ export default async function ReportDetailPage({
       .eq("report_id", id)
       .order("created_at"),
     supabase.from("profiles").select("id, full_name, email, department"),
+    getDepartments(),
   ]);
 
   const items = (itemsData ?? []) as BudgetItem[];
@@ -111,15 +116,14 @@ export default async function ReportDetailPage({
     : [];
 
   const isAuthor = report.author_id === profile.id;
-  const canEdit = isAuthor || profile.role === "admin";
-  const canDelete =
-    (isAuthor && report.status === "draft") || profile.role === "admin";
+  const privileged = canManageAnyReport(profile.role);
+  const canEdit = isAuthor || privileged;
+  const canDelete = (isAuthor && report.status === "draft") || privileged;
   const canApprove = canMarkReviewed(profile.role);
   const canReject = canRejectReport(profile.role);
+  // Admin and Head of Department may decide on a report they authored.
   const canReview =
-    (canApprove || canReject) &&
-    report.status === "submitted" &&
-    (!isAuthor || profile.role === "admin");
+    (canApprove || canReject) && report.status === "submitted";
 
   return (
     <div
@@ -143,7 +147,9 @@ export default async function ReportDetailPage({
                 report.budget_period
               )} · by {nameOf(report.author_id)}
             </span>
-            <DepartmentBadge department={departmentOf(report.author_id)} />
+            <DepartmentBadge
+              label={departmentLabel(departmentOf(report.author_id), departments)}
+            />
           </p>
           {report.reviewed_by && report.reviewed_at ? (
             <p className="text-sm text-muted-foreground">

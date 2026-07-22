@@ -25,13 +25,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DEPARTMENTS } from "@/lib/types";
+import type { DepartmentRecord } from "@/lib/departments";
 
 // Matches the sentinel the server action expects; Radix Select cannot carry an
 // empty-string value.
 const UNASSIGNED = "unassigned";
 
-export function InviteUserDialog() {
+export function InviteUserDialog({
+  departments,
+  canGrantAdmin,
+}: {
+  departments: DepartmentRecord[];
+  // A Head of Department may not create an Admin. Hiding the option is the
+  // courtesy; the server action is the enforcement.
+  canGrantAdmin: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState<UserActionState, FormData>(
     inviteUser,
@@ -99,7 +107,9 @@ export function InviteUserDialog() {
                     Head of Department
                   </SelectItem>
                   <SelectItem value="coordinator">Coordinator</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  {canGrantAdmin ? (
+                    <SelectItem value="admin">Admin</SelectItem>
+                  ) : null}
                 </SelectContent>
               </Select>
             </div>
@@ -111,7 +121,7 @@ export function InviteUserDialog() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                  {DEPARTMENTS.map((department) => (
+                  {departments.map((department) => (
                     <SelectItem key={department.id} value={department.id}>
                       {department.label}
                     </SelectItem>

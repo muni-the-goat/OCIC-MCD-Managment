@@ -1,35 +1,37 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { departmentLabel, type Department } from "@/lib/types";
 
 // Every department shares one chip style, deliberately. Department is an
-// attribute of a person, not a state of a report, and giving each of the eight
-// its own hue would put eight categorical colours directly beside the Status
-// column — the one place in these rows where colour already carries meaning.
-// Eight hues also cannot be told apart under colour-vision deficiency, so the
-// colour would be decoration that some readers cannot use.
+// attribute of a person, not a state of a report, and giving each its own hue
+// would put categorical colours directly beside the Status column — the one
+// place in those rows where colour already carries meaning. The set is also open
+// now that departments are rows in a table, so per-department hues would run out
+// the first time someone added a ninth.
 //
 // The one distinction worth drawing is assigned versus not: a filled chip is a
 // real department, a dashed outline is an empty field. That makes the gaps
-// scannable too, which matters while most accounts are still unassigned.
+// scannable too, which matters while accounts are still unassigned.
+//
+// Takes a resolved label rather than an id, because resolving needs the
+// department list and that is a server-side read.
 export function DepartmentBadge({
-  department,
+  label,
   className,
 }: {
-  department: Department | null | undefined;
+  label: string | null;
   className?: string;
 }) {
   return (
     <Badge
       variant="outline"
       className={cn(
-        department
+        label
           ? "border-department-edge bg-department text-department-foreground"
           : "border-dashed border-input bg-transparent font-normal text-muted-foreground",
         className
       )}
     >
-      {departmentLabel(department)}
+      {label ?? "Unassigned"}
     </Badge>
   );
 }

@@ -36,6 +36,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { canViewAnnualBudget, getProfile, isReviewer } from "@/lib/auth";
+import { departmentLabel } from "@/lib/departments";
+import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
 import {
   periodLabel,
@@ -121,14 +123,21 @@ export default async function DashboardPage({
     recentQuery = recentQuery.eq("author_id", profile.id);
   }
 
-  const [total, submitted, reviewed, rejected, { data: recentData }] =
-    await Promise.all([
-      countBy(undefined, mineOnly),
-      countBy("submitted", mineOnly),
-      countBy("reviewed", mineOnly),
-      countBy("rejected", mineOnly),
-      recentQuery,
-    ]);
+  const [
+    total,
+    submitted,
+    reviewed,
+    rejected,
+    { data: recentData },
+    departments,
+  ] = await Promise.all([
+    countBy(undefined, mineOnly),
+    countBy("submitted", mineOnly),
+    countBy("reviewed", mineOnly),
+    countBy("rejected", mineOnly),
+    recentQuery,
+    getDepartments(),
+  ]);
   const recent = (recentData ?? []) as unknown as RecentReport[];
 
   // The four statuses are exhaustive, so whatever the three tracked ones do not
@@ -307,7 +316,10 @@ export default async function DashboardPage({
                                 clips the department off the row. */}
                             {reviewer && report.author ? (
                               <DepartmentBadge
-                                department={report.author.department}
+                                label={departmentLabel(
+                                  report.author.department,
+                                  departments
+                                )}
                                 className="shrink-0"
                               />
                             ) : null}

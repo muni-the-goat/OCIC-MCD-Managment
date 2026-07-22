@@ -6,7 +6,9 @@ The main reporting workflow is implemented, production-build verified, and pushe
 
 The monthly report tab, the office-domain sign-in restriction, and departments were developed on `feat/monthly-report-tab` (pull request #1) and merged to `main`. The most recent work on `main` prints each author's department as a chip wherever a report names them (see **Where department is shown**), and widens the Coordinator role to every budget report in the office while leaving monthly activity reports private (see **Coordinator**).
 
-Supabase migrations `0001` through `0012` have all been applied to the production project. No migration is outstanding.
+Supabase migrations `0001` through `0012` have been applied to the production project.
+
+> **`0013_departments_table_and_role_powers.sql` has NOT been applied.** Until it runs, the Users page fails to load its department list, the Add department button errors, and the role changes below are UI-only — a Manager will still read other people's reports through RLS. Run it in the Supabase SQL editor or via `supabase db push`.
 
 The team's real January–June 2026 spend is seeded into production — see **Seeded data — Actual Expenses 2026** for what reconciles and the two figures that do not.
 
@@ -54,25 +56,32 @@ Reports support comments and private file attachments. Reviewed monthly budgets 
 
 ### Manager
 
-- Has normal report-author capabilities.
-- Can see non-draft reports needed for the review workflow.
-- Can reject another author's submitted report with a required comment.
-- Cannot mark a report reviewed.
-- Cannot review or reject their own report.
-- Annual budget summary is restricted to their own reviewed monthly expenses.
-- Does not receive an Author filter on the annual summary.
+**Sees only their own reports.** As of migration 0013 a Manager has no cross-office visibility at all — no other author's pending queue, no other author's reports, no author column, no author filter.
 
-`profiles.department` now records which department a person belongs to, but no visibility rule reads it. A Manager account is still treated as the expense owner for their department, and Head of Department scope is still "authors whose role is `manager`" rather than "authors in my department". See **Departments** and **Known limitations**.
+- Has normal report-author capabilities.
+- **Cannot review or reject anything, including someone else's report.** Rejection was removed along with the visibility: a Manager can no longer see another author's submitted report, so a reject button would have had nothing in reach. `isReviewer()` no longer includes them.
+- Annual budget summary is restricted to their own reviewed monthly expenses, and has no Author filter.
+- Does not see the department × month matrix — with one author in scope it would be a single column.
+
+`profiles.department` records which department a person belongs to, but no visibility rule reads it. A Manager account is still treated as the expense owner for their department. See **Departments** and **Known limitations**.
 
 ### Head of Department
 
-- Sees the department × month spend matrix at the top of the Annual budget tab, scoped to the Manager-authored reports they already see.
-- Can see non-draft reports across the office.
-- Can mark another author's submitted report reviewed.
-- Can reject another author's submitted report with a required comment.
-- Cannot review or reject their own report.
-- Annual budget summary includes reviewed monthly budgets authored by Managers.
-- Can filter the annual summary by year and by individual Manager.
+**Admin-equivalent, with exactly one exception: they cannot reset a password.** Everything else an Admin can do to a report or an account, they can do.
+
+- Sees every non-draft report across the office, and the department × month spend matrix across every author.
+- Can mark reviewed and reject, including on a report they authored themselves.
+- Can edit or delete any report, and bulk-delete from the Reports page.
+- Can invite accounts, change roles and departments, delete users, and add a department.
+- Annual budget summary covers all authors, filterable by year and author.
+- **Cannot reset any password.** `canResetPasswords()` is the only capability check that excludes them.
+
+Two guards keep that exception from being decorative, both enforced in the server actions:
+
+- **A Head of Department cannot grant the Admin role.** Without this, they could promote an account and reset passwords through it.
+- **A Head of Department cannot modify or delete an Admin account.** The row's controls are disabled and the action refuses it.
+
+Both are checked against the *target's* current role, read server-side — the client never decides. `profiles: admin all` is deliberately **not** widened to Head of Department for the same reason: it would be a direct API route around both guards.
 
 ### Coordinator
 
@@ -83,8 +92,8 @@ Reports support comments and private file attachments. Reviewed monthly budgets 
 - Read-only on other people's reports. `can_edit_report()` is untouched, so a Coordinator can open a budget report and change nothing in it.
 - Cannot review or reject. They are not a reviewer, so their dashboard keeps the personal "Recent reports" framing rather than a pending-review queue they could not act on.
 - Can open the Users page and view the user list.
-- Can reset passwords for Staff, Manager, and Coordinator accounts.
-- Cannot invite users, change roles or departments, or delete accounts. Departments render as read-only chips on their Users page, not as controls.
+- Can reset passwords for Staff, Manager, and Coordinator accounts — one of only two roles that can, the other being Admin.
+- Cannot invite users, change roles or departments, delete accounts, or add a department. Departments render as read-only chips on their Users page, not as controls.
 - Cannot reset Admin or Head of Department passwords, preventing privilege escalation.
 
 Drafts stay private from a Coordinator, exactly as they do from a Manager or Head of Department — a draft is a working copy, not a submission.
@@ -95,8 +104,8 @@ The split between "can see someone else's report" and "can decide on one" is why
 
 - Has unrestricted report and user-management authority.
 - Sees the department × month spend matrix at the top of the Annual budget tab, across every author.
-- Can invite users, assign roles and departments, reset passwords, and delete users.
-- Is the only role that can set a department, including their own.
+- Can invite users, assign roles and departments, reset passwords, delete users, and add a department.
+- Is the only role that can grant the Admin role, or modify and delete an Admin account.
 - Can edit or delete reports according to the Admin policies.
 - Can select one or more reports on the Reports page and permanently delete them together after confirmation.
 - Can mark any submitted report reviewed or rejected, including a report authored by the same Admin account.
@@ -379,9 +388,9 @@ Estimated at a few hours, most of it in the selected and cleared states and keyb
 Review controls only appear when the report is `submitted` and the current role/ownership combination is permitted.
 
 - **Mark reviewed:** Admin or Head of Department.
-- **Reject:** Admin, Head of Department, or Manager; rejection requires a comment.
-- **Admin self-review:** allowed.
-- **Head of Department/Manager self-review:** blocked.
+- **Reject:** Admin or Head of Department; rejection requires a comment.
+- **Self-review:** allowed for both, as of 0013. It follows from "a Head of Department can do everything an Admin can", and it is the change most worth reconsidering — self-review is what review exists to prevent. Putting it back means restoring the author check in `review_report()` and in `enforce_report_review_transition()`; both are marked in the migration.
+- **Manager:** no review authority at all. Removed with their cross-office visibility — see the role matrix.
 - Authors can edit submitted or reviewed reports. A saved revision first returns to `draft`; choosing Submit for review moves the revised content to `submitted` and clears the previous `reviewed_by`/`reviewed_at` values.
 
 The rule is enforced in three layers:
@@ -440,20 +449,32 @@ Only office accounts may sign in. Both the rule and the post-login redirect chec
 10. `0010_profile_department.sql` — adds `profiles.department`, the `user_department()` helper, and a self-update policy that pins department the way it already pins role.
 11. `0011_event_marketing_department.sql` — widens the department check constraint to include Event Marketing.
 12. `0012_coordinator_budget_visibility.sql` — widens `reports: select` and `can_view_report()` so a Coordinator reads every non-draft budget report across the office. Monthly activity reports and `can_edit_report()` are untouched.
+13. `0013_departments_table_and_role_powers.sql` — three changes at once, because they overlap on the same policies: departments become `public.departments` with a foreign key from `profiles`; a Manager loses cross-office visibility and every review power; Head of Department becomes admin-equivalent on reports and accounts. **Not yet applied.**
 
-Migrations `0001`–`0012` are all confirmed applied in Supabase. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0012` are confirmed applied in Supabase; `0013` is pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
-Eight departments, stored on `profiles.department`:
+**Departments are rows in `public.departments` as of migration 0013, not a constant.** An Admin or Head of Department adds one from the Users page — "Add department" beside "Invite user" — and it is usable immediately in every picker, chip, and chart column.
 
-Digital Marketing · Multimedia · Brand Marketing · Product Marketing · KTI Marketing · Partnership Marketing · Event Marketing · Admin/HR
+The eight seeded by 0013, in display order: Digital Marketing · Multimedia · Brand Marketing · Product Marketing · KTI Marketing · Partnership Marketing · Event Marketing · Admin/HR.
 
-- **Text column with a check constraint, not an enum.** Departments are a business list that will change more often than `app_role`, and `alter type … add value` cannot always run inside a transaction block, which makes enum growth awkward under migration tooling. Widening a check constraint is a plain transactional statement.
-- **The list lives in two places** — the constraint in the latest department migration and `DEPARTMENTS` in `src/lib/types.ts`. Adding one means a new migration widening the constraint *and* a line in that array; `0011` is the worked example. The ids are stored values, so renaming one orphans every profile holding it. The *display order* is free, though: nothing resolves a department by index, so a new entry can sit wherever reads best.
-- **Nullable, no default.** Accounts that predate the column genuinely have no department, and back-filling everyone into one would be inventing data. Those rows read "Unassigned" until an Admin sets them.
-- **Assignment is Admin-only**, enforced in three layers like the role: the Coordinator sees a read-only chip instead of a control, `updateUserDepartment` calls `requireRole("admin")`, and the RLS self-update policy pins `department` so a user cannot change their own through the API. The comparison uses `is not distinct from` rather than `=` so a NULL department compares correctly instead of making the predicate NULL and failing every self-update.
-- Unlike the role, **an Admin may set their own department.** It grants no privilege, and an Admin belongs to a department the same as anyone else.
+- **A table with a foreign key, replacing the text column with a check constraint.** The constraint needed a migration per department — `0011` exists solely to add Event Marketing. A foreign key does the same job against a list the app can extend, so the org chart stops being a schema concern.
+- **The id is generated from the name once, then frozen.** `departmentId()` slugifies (`Corporate Communications` → `corporate_communications`), and the dialog previews the result before you commit, because renaming later changes the label and never the id. Every profile stores the id, so changing it would orphan them.
+- **`short` is for the department × month matrix headers only** — eight full names make a table nobody can fit on a laptop. It defaults to the full name when left blank. Never use it where a department stands alone; "Brand" and "Product" are not names.
+- **Nullable, no default.** Accounts that predate the column genuinely have no department, and back-filling everyone into one would be inventing data. Those rows read "Unassigned" until someone sets them.
+- **Assignment is Admin and Head of Department only**, enforced in three layers: the Coordinator sees a read-only chip instead of a control, the server action re-checks the role, and the RLS self-update policy pins `department` so a user cannot change their own through the API. That comparison uses `is not distinct from` rather than `=` so a NULL department compares correctly instead of making the predicate NULL and failing every self-update.
+- One may set **their own** department. It grants no privilege, and everyone belongs to a department the same as anyone else.
+- **No delete-department UI, deliberately.** The foreign key is `on delete set null`, so removing one silently unassigns everyone in it. If that is ever wanted it needs a confirmation that names how many accounts it would clear.
+
+### Where the split modules come from
+
+Two pairs of files exist for the same reason, and both matter if you touch them:
+
+- `src/lib/roles.ts` (pure predicates) and `src/lib/auth.ts` (session + re-export)
+- `src/lib/departments.ts` (pure helpers) and `src/lib/departments-server.ts` (the table read)
+
+A client component importing the server half drags the Supabase server client into the browser bundle and the build fails with a "Server Component / Client Component Browser" trace. `app-nav.tsx` imports `canOpenUsersPage` from `roles.ts`, and `add-department-dialog.tsx` imports `departmentId` from `departments.ts`, for exactly that reason. Server code may keep importing everything from `auth.ts`.
 
 ### Where department is shown
 
@@ -489,11 +510,16 @@ Department is otherwise still an attribute of a person — **no query filters on
 - `src/components/report-form.tsx` — activity/budget form, historical structure reuse, calculations, and serialization.
 - `src/app/(app)/reports/actions.ts` — save, submit, delete, review, comment, and attachment actions.
 - `src/app/(app)/reports/[id]/page.tsx` — detail view and review-control visibility.
-- `src/app/(app)/admin/users/page.tsx` — Admin/Coordinator user list with role-specific controls.
-- `src/app/(app)/admin/users/actions.ts` — invite, role change, department change, password reset, and deletion authorization.
+- `src/app/(app)/admin/users/page.tsx` — user list with role-specific controls, for Admin, Head of Department, and Coordinator.
+- `src/app/(app)/admin/users/actions.ts` — invite, role change, department change, department creation, password reset, and deletion authorization, plus the two guards that keep a Head of Department out of Admin accounts.
 - `src/lib/login-rules.ts` — the office-domain rule and the post-login redirect check, shared by the login page, the login action, the invite action, and the proxy.
-- `src/lib/auth.ts` — centralized role guards and permission helpers, including `isReviewer()` / `seesOtherAuthors()` (deliberately different questions) and `annualBudgetScope()`.
-- `src/lib/types.ts` — roles, reports, budget periods, month keys, the `TASK_TYPES` taxonomy, the `DEPARTMENTS` list (with the `short` labels the matrix headers use), and shared data types.
+- `src/lib/roles.ts` — every "who may do what" predicate, as pure functions of role. No server import, so client components can ask the same questions.
+- `src/lib/auth.ts` — session access (`getProfile`, `requireRole`) and a re-export of `roles.ts` for server callers.
+- `src/lib/departments.ts` — `DepartmentRecord`, `departmentLabel()`, `departmentId()`. Pure; safe in the browser.
+- `src/lib/departments-server.ts` — `getDepartments()`, the cached table read.
+- `src/lib/types.ts` — roles, reports, budget periods, month keys, the `TASK_TYPES` taxonomy, and shared data types. `Department` is a plain `string` here: departments are rows, so a closed union would be a lie.
+- `src/components/add-department-dialog.tsx` — the Add department button and its id preview.
+- `src/components/use-action-toasts.ts` — shared once-only toast for `useActionState` results.
 - `src/app/globals.css` — brand theme, the validated `--series-1…6` / `--series-neutral` chart palette, and the `--department*` chip tokens, all defined for both themes. The stock `--chart-N` slots remain for the generated components but no chart draws with them.
 - `src/lib/supabase/` — browser, authenticated server, and secret Admin clients.
 - `src/proxy.ts` — Supabase session refresh and login redirects.
@@ -505,7 +531,7 @@ Department is otherwise still an attribute of a person — **no query filters on
 - GitHub repository: `muni-the-goat/OCIC-MCD-Managment`
 - Deployed branch: `main`
 - Hosting: Vercel, connected for automatic deployment from GitHub
-- Database: Supabase, migrations `0001`–`0012` applied
+- Database: Supabase, migrations `0001`–`0012` applied; `0013` pending
 - Supabase region: Northeast Asia (Seoul)
 
 ## Remaining validation checklist
@@ -525,6 +551,9 @@ These are production acceptance checks, not unfinished implementation:
 11. Confirm a Coordinator sees every non-draft budget report on the Reports page and every author in the annual summary, sees no one else's monthly activity report, sees no drafts, and has no Edit, Delete, Mark reviewed, or Reject control on a report they did not author.
 12. Confirm a reviewed monthly budget enters the correct annual-summary month while draft, submitted, and rejected budgets stay excluded.
 13. Confirm a new monthly budget reuses the nearest earlier section/item structure but leaves current amounts empty.
+15. After `0013`, confirm a Manager sees no other author's reports anywhere — no pending queue, no Author column, no author filter — and has no Reject control on any report.
+16. After `0013`, confirm a Head of Department can invite, change roles and departments, delete users, edit and bulk-delete reports, and add a department; and that they cannot reset any password, cannot select Admin in either role picker, and see an Admin row with its controls disabled.
+17. Confirm "Add department" creates a department that appears immediately in both department pickers and, once someone in it files a reviewed budget, as a matrix column.
 14. Confirm the department × month matrix appears for Admin and Head of Department only, that its Total reconciles with the per-author grids below it, and that reports by an author with no department land in the Unassigned column rather than vanishing.
 
 ## Known limitations and future options

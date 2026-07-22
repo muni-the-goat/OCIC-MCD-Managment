@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
+  canManageAnyReport,
   canMarkReviewed,
   canRejectReport,
   getProfile,
@@ -437,8 +438,11 @@ export async function bulkDeleteReports(
   formData: FormData
 ): Promise<ActionState> {
   const profile = await getProfile();
-  if (profile.role !== "admin") {
-    return { error: "Only an Admin can delete multiple reports" };
+  if (!canManageAnyReport(profile.role)) {
+    return {
+      error:
+        "Only an Admin or the Head of Department can delete multiple reports",
+    };
   }
 
   const parsed = z

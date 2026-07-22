@@ -29,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { Department, ReportStatus } from "@/lib/types";
+import type { ReportStatus } from "@/lib/types";
 
 export interface ReportsTableItem {
   id: string;
@@ -37,10 +37,10 @@ export interface ReportsTableItem {
   typeLabel: string;
   periodLabel: string;
   authorLabel: string;
-  // The department id rather than its label, so the cell can render a chip.
-  // `hasAuthor` is separate because a null department and a missing author row
-  // are different facts: one is unassigned, the other is unknown.
-  department: Department | null;
+  // Resolved on the server — departments are a table now, and this is a client
+  // component. `hasAuthor` is separate because a null department and a missing
+  // author row are different facts: one is unassigned, the other is unknown.
+  departmentLabel: string | null;
   hasAuthor: boolean;
   status: ReportStatus;
   updatedLabel: string;
@@ -227,7 +227,7 @@ export function ReportsTable({
                       <TableCell>{report.authorLabel}</TableCell>
                       <TableCell>
                         {report.hasAuthor ? (
-                          <DepartmentBadge department={report.department} />
+                          <DepartmentBadge label={report.departmentLabel} />
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}

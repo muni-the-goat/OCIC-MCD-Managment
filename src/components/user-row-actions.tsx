@@ -1,8 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useState } from "react";
 import { KeyRound, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import {
   deleteUser,
   resetUserPassword,
@@ -26,35 +25,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DEPARTMENTS, type AppRole, type Department } from "@/lib/types";
+import { useActionToasts } from "@/components/use-action-toasts";
+import type { DepartmentRecord } from "@/lib/departments";
+import type { AppRole, Department } from "@/lib/types";
 
 // Radix Select forbids an empty-string item value, and the server needs to tell
 // "clear the department" apart from "field missing", so both ends agree on a
 // sentinel instead.
 const UNASSIGNED = "unassigned";
 
-function useActionToasts(
-  state: UserActionState,
-  onSuccess?: (state: Extract<NonNullable<UserActionState>, { success: string }>) => void
-) {
-  const seen = useRef<UserActionState>(null);
-  useEffect(() => {
-    if (!state || state === seen.current) return;
-    seen.current = state;
-    if ("error" in state) toast.error(state.error);
-    else if (onSuccess) onSuccess(state);
-    else toast.success(state.success);
-  }, [state, onSuccess]);
-}
-
 export function RoleSelect({
   userId,
   role,
   disabled,
+  canGrantAdmin = true,
 }: {
   userId: string;
   role: AppRole;
   disabled?: boolean;
+  // A Head of Department cannot grant Admin. The option stays visible when the
+  // account already holds it, so the select can still show its current value.
+  canGrantAdmin?: boolean;
 }) {
   const [state, formAction] = useActionState<UserActionState, FormData>(
     updateUserRole,
@@ -81,7 +72,9 @@ export function RoleSelect({
         <SelectItem value="manager">Manager</SelectItem>
         <SelectItem value="head_of_department">Head of Department</SelectItem>
         <SelectItem value="coordinator">Coordinator</SelectItem>
-        <SelectItem value="admin">Admin</SelectItem>
+        {canGrantAdmin || role === "admin" ? (
+          <SelectItem value="admin">Admin</SelectItem>
+        ) : null}
       </SelectContent>
     </Select>
   );
@@ -90,10 +83,12 @@ export function RoleSelect({
 export function DepartmentSelect({
   userId,
   department,
+  departments,
   disabled,
 }: {
   userId: string;
   department: Department | null;
+  departments: DepartmentRecord[];
   disabled?: boolean;
 }) {
   const [state, formAction] = useActionState<UserActionState, FormData>(
@@ -118,7 +113,7 @@ export function DepartmentSelect({
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-        {DEPARTMENTS.map((entry) => (
+        {departments.map((entry) => (
           <SelectItem key={entry.id} value={entry.id}>
             {entry.label}
           </SelectItem>

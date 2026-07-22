@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { ReportForm } from "@/components/report-form";
-import { getProfile } from "@/lib/auth";
+import { canManageAnyReport, getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { reportTypeLabel, type BudgetItem, type Report } from "@/lib/types";
 
@@ -22,7 +22,8 @@ export default async function EditReportPage({
   if (!data) notFound();
 
   const report = data as Report;
-  const editable = report.author_id === profile.id || profile.role === "admin";
+  const editable =
+    report.author_id === profile.id || canManageAnyReport(profile.role);
   if (!editable) redirect(`/reports/${id}`);
 
   let budgetItems: BudgetItem[] = [];

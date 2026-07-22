@@ -1,3 +1,4 @@
+import { AddDepartmentDialog } from "@/components/add-department-dialog";
 import { DepartmentBadge } from "@/components/department-badge";
 import { InviteUserDialog } from "@/components/invite-user-dialog";
 import {
@@ -15,21 +16,36 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { requireRole } from "@/lib/auth";
+import {
+  canManageUsers,
+  canOpenUsersPage,
+  canResetPasswords,
+  getProfile,
+} from "@/lib/auth";
+import { departmentLabel } from "@/lib/departments";
+import { getDepartments } from "@/lib/departments-server";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 
 export const metadata = { title: "Users" };
 
 export default async function AdminUsersPage() {
-  const me = await requireRole("admin", "coordinator");
-  const isAdmin = me.role === "admin";
-  const supabase = await createClient();
+  const me = await getProfile();
+  if (!canOpenUsersPage(me.role)) redirect("/dashboard");
 
-  const { data } = await supabase
-    .from("profiles")
-    .select("*")
-    .order("created_at");
+  const manages = canManageUsers(me.role);
+  const resets = canResetPasswords(me.role);
+  // Only an Admin may create or promote to Admin, or touch an Admin account.
+  // Without that, "a Head of Department cannot reset passwords" would be one
+  // promotion away from meaningless.
+  const isAdmin = me.role === "admin";
+
+  const supabase = await createClient();
+  const [{ data }, departments] = await Promise.all([
+    supabase.from("profiles").select("*").order("created_at"),
+    getDepartments(),
+  ]);
   const users = (data ?? []) as Profile[];
 
   return (
@@ -38,12 +54,20 @@ export default async function AdminUsersPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
           <p className="text-sm text-muted-foreground">
-            {isAdmin
-              ? "Invite office members and manage their roles."
+            {manages
+              ? "Invite office members and manage their roles and departments."
               : "View office members and reset eligible user passwords."}
           </p>
         </div>
-        {isAdmin ? <InviteUserDialog /> : null}
+        {manages ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <AddDepartmentDialog />
+            <InviteUserDialog
+              departments={departments}
+              canGrantAdmin={isAdmin}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="overflow-x-auto rounded-lg border">
@@ -61,6 +85,9 @@ export default async function AdminUsersPage() {
           <TableBody>
             {users.map((user) => {
               const isMe = user.id === me.id;
+              // A Head of Department manages everyone below them, but never an
+              // Admin — that account is out of reach entirely.
+              const locked = !manages || (!isAdmin && user.role === "admin");
               return (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">
@@ -76,19 +103,23 @@ export default async function AdminUsersPage() {
                     <RoleSelect
                       userId={user.id}
                       role={user.role}
-                      disabled={isMe || !isAdmin}
+                      disabled={isMe || locked}
+                      canGrantAdmin={isAdmin}
                     />
                   </TableCell>
                   <TableCell>
-                    {/* A Coordinator can see the table but assigns nothing, so
-                        they get the label rather than a dead control. */}
-                    {isAdmin ? (
+                    {/* A Coordinator sees the table but assigns nothing, so they
+                        get the chip rather than a dead control. */}
+                    {locked ? (
+                      <DepartmentBadge
+                        label={departmentLabel(user.department, departments)}
+                      />
+                    ) : (
                       <DepartmentSelect
                         userId={user.id}
                         department={user.department}
+                        departments={departments}
                       />
-                    ) : (
-                      <DepartmentBadge department={user.department} />
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
@@ -97,12 +128,13 @@ export default async function AdminUsersPage() {
                   <TableCell className="text-right">
                     {isMe ? null : (
                       <span className="inline-flex items-center gap-1">
-                        {isAdmin ||
-                        (user.role !== "admin" &&
-                          user.role !== "head_of_department") ? (
+                        {resets &&
+                        (isAdmin ||
+                          (user.role !== "admin" &&
+                            user.role !== "head_of_department")) ? (
                           <ResetPasswordButton userId={user.id} />
                         ) : null}
-                        {isAdmin ? (
+                        {manages && !locked ? (
                           <DeleteUserButton
                             userId={user.id}
                             label={user.full_name || user.email}

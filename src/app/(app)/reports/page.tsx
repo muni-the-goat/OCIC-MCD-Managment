@@ -3,7 +3,14 @@ import { Plus } from "lucide-react";
 import { ReportFilters } from "@/components/report-filters";
 import { ReportsTable } from "@/components/reports-table";
 import { Button } from "@/components/ui/button";
-import { getProfile, isReviewer, seesOtherAuthors } from "@/lib/auth";
+import {
+  canManageAnyReport,
+  getProfile,
+  isReviewer,
+  seesOtherAuthors,
+} from "@/lib/auth";
+import { departmentLabel } from "@/lib/departments";
+import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
 import {
   reportPeriodLabel,
@@ -70,7 +77,7 @@ export default async function ReportsPage({
     query = query.eq("author_id", params.author);
   }
 
-  const { data } = await query;
+  const [{ data }, departments] = await Promise.all([query, getDepartments()]);
   const reports = (data ?? []) as unknown as ReportRow[];
   const reportItems = reports.map((report) => ({
     id: report.id,
@@ -85,7 +92,7 @@ export default async function ReportsPage({
     authorLabel: report.author?.full_name || report.author?.email || "—",
     // Only meaningful once we know who the author is; an orphaned row would
     // otherwise read "Unassigned", which claims more than we know.
-    department: report.author?.department ?? null,
+    departmentLabel: departmentLabel(report.author?.department, departments),
     hasAuthor: Boolean(report.author),
     status: report.status,
     updatedLabel: new Date(report.updated_at).toLocaleDateString(),
@@ -135,7 +142,7 @@ export default async function ReportsPage({
           key={`${params.type ?? "all"}:${params.status ?? "all"}:${params.author ?? "all"}`}
           reports={reportItems}
           showAuthor={showsOtherAuthors}
-          canBulkDelete={profile.role === "admin"}
+          canBulkDelete={canManageAnyReport(profile.role)}
         />
       )}
     </div>

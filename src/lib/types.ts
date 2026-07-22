@@ -8,42 +8,14 @@ export type ReportType = "budget" | "monthly";
 export type BudgetPeriod = "annual" | "monthly";
 export type ReportStatus = "draft" | "submitted" | "reviewed" | "rejected";
 
-// Mirrors the check constraint in the latest department migration (0011) —
-// change both together. Adding a department needs a new migration widening that
-// constraint; the ids are stored values, so renaming one orphans every profile
-// holding it.
+// Departments are rows in public.departments as of migration 0013, not a union
+// of known ids — an Admin or Head of Department can add one from the Users page,
+// so the set is open at runtime and a closed union would be a lie. The reader,
+// the label lookup, and the id generator all live in src/lib/departments.ts.
 //
-// Unlike TASK_TYPES, the order here is presentational only: nothing resolves a
-// department by index — departmentLabel() looks up by id — so a new entry can
-// sit wherever it reads best. Admin/HR stays last as the non-marketing bucket.
-// `short` exists for one job: column headers in the department × month matrix,
-// where eight full names make a table nobody can fit on a laptop. That table
-// also carries the full label in a title attribute. Never use `short` anywhere
-// the department stands on its own — "Brand" and "Product" are not names.
-export const DEPARTMENTS = [
-  { id: "digital_marketing", label: "Digital Marketing", short: "Digital" },
-  { id: "multimedia", label: "Multimedia", short: "Multimedia" },
-  { id: "brand_marketing", label: "Brand Marketing", short: "Brand" },
-  { id: "product_marketing", label: "Product Marketing", short: "Product" },
-  { id: "kti_marketing", label: "KTI Marketing", short: "KTI" },
-  {
-    id: "partnership_marketing",
-    label: "Partnership Marketing",
-    short: "Partnership",
-  },
-  { id: "event_marketing", label: "Event Marketing", short: "Event" },
-  { id: "admin_hr", label: "Admin/HR", short: "Admin/HR" },
-] as const;
-export type Department = (typeof DEPARTMENTS)[number]["id"];
-export const DEPARTMENT_IDS = DEPARTMENTS.map(
-  (department) => department.id
-) as Department[];
-
-export function departmentLabel(department: Department | null | undefined) {
-  return (
-    DEPARTMENTS.find((entry) => entry.id === department)?.label ?? "Unassigned"
-  );
-}
+// The id is the stored value on every profile and is frozen at creation:
+// renaming a department changes its label, never its id.
+export type Department = string;
 
 export interface Profile {
   id: string;
