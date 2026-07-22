@@ -4,7 +4,7 @@
 
 The main reporting workflow is implemented, production-build verified, and pushed to GitHub `main`. Vercel is connected to the repository for automatic deployments.
 
-The monthly report tab, the office-domain sign-in restriction, and departments were developed on `feat/monthly-report-tab` (pull request #1) and merged to `main`.
+The monthly report tab, the office-domain sign-in restriction, and departments were developed on `feat/monthly-report-tab` (pull request #1) and merged to `main`. The most recent work on `main` prints each author's department wherever a report names them — see **Where department is shown**.
 
 Supabase migrations `0001` through `0010` have been applied to the production project.
 
@@ -62,7 +62,7 @@ Reports support comments and private file attachments. Reviewed monthly budgets 
 - Annual budget summary is restricted to their own reviewed monthly expenses.
 - Does not receive an Author filter on the annual summary.
 
-The current schema does not have a separate department table or `department_id`. A Manager account is therefore treated as the expense owner for that department.
+`profiles.department` now records which department a person belongs to, but no visibility rule reads it. A Manager account is still treated as the expense owner for their department, and Head of Department scope is still "authors whose role is `manager`" rather than "authors in my department". See **Departments** and **Known limitations**.
 
 ### Head of Department
 
@@ -157,7 +157,7 @@ Aggregation behavior:
 
 ## Monthly activity report — task mix
 
-On branch `feat/monthly-report-tab`, not yet merged.
+Shipped and merged to `main`.
 
 The dashboard chart area became two tabs: the existing **Annual budget** summary and a new **Monthly report** summary. Each tab streams behind its own Suspense boundary and keeps its own filters in the URL (`task_year`, `task_month`, `task_author`) so switching tabs never re-filters the other. A user without annual-budget access sees the monthly card alone with no tab rail.
 
@@ -249,7 +249,7 @@ The shipped task list corresponds to section 2 of that report, not to the sectio
 The mechanical part of the report, and the part that removes the most manual chart-building.
 
 1. **Content log.** A repeating row on the monthly activity form: content title, format, and the platforms it was published to. Stored in `content.content_items` alongside `tasks`. Formats follow the same fixed-array pattern as `TASK_TYPES` (Reel/video, Photo album, Story, and room to append), so the taxonomy stays editable in one place.
-2. **Content creation chart.** A donut of pieces by format — the direct equivalent of report section 1.1.1 — reusing the existing `--task-N` palette and the legend/table treatment already built for the task mix.
+2. **Content creation chart.** A donut of pieces by format — the direct equivalent of report section 1.1.1 — reusing the existing `--series-N` palette and the legend/table treatment already built for the task mix.
 3. **Content published chart.** A grouped bar of pieces per platform, split by format, matching report section 1.1.2. Platform is the axis; format is the series, capped at the validated palette.
 4. **Media engagement.** Two tag lists, local and international, entered as free text and rendered as chips on the report detail page.
 5. **Report structure.** Split the single Challenges textarea into the categories the real report uses — Coordination, Equipment and manpower, Team management feedback — and add General feedback and discussion points. Existing reports keep their current Challenges text; the new fields start empty.
@@ -342,6 +342,16 @@ The Users page uses the server-only Supabase secret client for Auth Admin operat
 - User deletion also removes authored report records through database cascades and attempts to clean up attachment files from Storage.
 - Coordinator restrictions are enforced again inside each Server Action, not only by hiding buttons.
 
+## Sign-in restriction
+
+Only office accounts may sign in. Both the rule and the post-login redirect check live in `src/lib/login-rules.ts` so a new caller cannot reintroduce a weaker version of either.
+
+- `ALLOWED_EMAIL_DOMAIN` is `@ocic.com.kh`. Changing offices means changing that one constant.
+- The login action checks the domain **before** calling Supabase Auth, so a personal address is never attempted as a credential, and the rejection message names the required domain instead of reading as a wrong password.
+- The invite action applies the same rule through a zod `.refine`, so an Admin cannot create an account that would then be unable to sign in.
+- `safeNextPath` accepts only a same-origin absolute path. It rejects `//evil.com` and `/\evil.com` — browsers normalise `\` to `/` in the authority position — and anything carrying a scheme. Control characters are stripped first so a smuggled tab or newline cannot make the test disagree with what the browser eventually parses. The login page, the login action, and the proxy all route their `next` value through it.
+- This is a convenience and anti-typo guard on the client path, not the security boundary. Row Level Security and the Server Action role guards remain the authority.
+
 ## Attachments and comments
 
 - Attachments are uploaded inside the report save action.
@@ -409,10 +419,11 @@ Department is otherwise still an attribute of a person — **no query filters on
 - `src/app/(app)/reports/actions.ts` — save, submit, delete, review, comment, and attachment actions.
 - `src/app/(app)/reports/[id]/page.tsx` — detail view and review-control visibility.
 - `src/app/(app)/admin/users/page.tsx` — Admin/Coordinator user list with role-specific controls.
-- `src/app/(app)/admin/users/actions.ts` — invite, role change, password reset, and deletion authorization.
+- `src/app/(app)/admin/users/actions.ts` — invite, role change, department change, password reset, and deletion authorization.
+- `src/lib/login-rules.ts` — the office-domain rule and the post-login redirect check, shared by the login page, the login action, the invite action, and the proxy.
 - `src/lib/auth.ts` — centralized role guards and permission helpers.
 - `src/lib/types.ts` — roles, reports, budget periods, month keys, the `TASK_TYPES` taxonomy, and shared data types.
-- `src/app/globals.css` — brand theme, `--chart-N` single-series marks, and the validated `--task-N` categorical palette.
+- `src/app/globals.css` — brand theme and the validated `--series-1…6` / `--series-neutral` chart palette, defined for both themes. The stock `--chart-N` slots remain for the generated components but no chart draws with them.
 - `src/lib/supabase/` — browser, authenticated server, and secret Admin clients.
 - `src/proxy.ts` — Supabase session refresh and login redirects.
 - `supabase/migrations/` — ordered schema and security history.
@@ -422,7 +433,7 @@ Department is otherwise still an attribute of a person — **no query filters on
 - GitHub repository: `muni-the-goat/OCIC-MCD-Managment`
 - Deployed branch: `main`
 - Hosting: Vercel, connected for automatic deployment from GitHub
-- Database: Supabase, migrations `0001`–`0010` applied
+- Database: Supabase, migrations `0001`–`0010` applied; `0011` pending
 - Supabase region: Northeast Asia (Seoul)
 
 ## Remaining validation checklist
@@ -444,7 +455,8 @@ These are production acceptance checks, not unfinished implementation:
 
 ## Known limitations and future options
 
-- `profiles.department` records which department a person belongs to, but **nothing reads it yet**. Annual budget visibility still uses the Manager author account as the department boundary, and no report, budget, or dashboard query filters by department. Wiring it up — a Head of Department seeing their own department rather than all Managers, a department filter on the dashboard summaries, department subtotals in the annual budget — is the obvious next step and needs no further schema work.
+- `profiles.department` is **displayed but never queried**. Every surface that names an author now prints their department beside it, and no query filters, scopes, or groups by it. Annual budget visibility still uses the Manager author account as the department boundary. Wiring it into queries — a Head of Department seeing their own department rather than all Managers, a department filter on the dashboard summaries, department subtotals in the annual budget — is the obvious next step and needs no further schema work.
+- The author filter dropdowns on both dashboard tabs still list names only. Adding the department would disambiguate two people who share a first name, but it risks truncating inside the select's width and wants a two-line item rather than a longer single line.
 - Annual aggregation matches normalized text names; it does not use permanent line-item IDs. Historical structure reuse reduces spelling drift, but a future canonical expense-category table would provide stronger guarantees.
 - One pre-existing July 2026 author/period contains three reviewed reports. The uniqueness trigger deliberately preserves them. After deciding which record is canonical, the duplicates can be reconciled and the trigger can later be upgraded to a partial unique index.
 - Supabase is hosted in Seoul while users are primarily closer to Southeast Asia, which can add network latency. Moving regions requires creating a new project and migrating data/configuration.
