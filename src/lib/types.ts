@@ -27,7 +27,7 @@ export function roleLabel(role: AppRole) {
 // The task taxonomy the monthly-report pie chart slices by. Editing this list is
 // the single lever for the whole feature: it drives the form's type picker, the
 // chart's legend, and the colour each type is painted with. Order is meaningful —
-// slot N always takes --task-N, so a type keeps its colour no matter which types
+// slot N always takes --series-N, so a type keeps its colour no matter which types
 // happen to appear in a given month. Only ever append; renaming an id orphans the
 // tasks already saved under it.
 export const TASK_TYPES = [
@@ -54,7 +54,7 @@ export function taskTypeLabel(type: TaskType) {
 // chart — filtering a month down to three types must not repaint the survivors.
 export function taskTypeColor(type: TaskType) {
   const slot = TASK_TYPE_IDS.indexOf(type);
-  return `var(--task-${(slot < 0 ? TASK_TYPE_IDS.length - 1 : slot) + 1})`;
+  return `var(--series-${(slot < 0 ? TASK_TYPE_IDS.length - 1 : slot) + 1})`;
 }
 
 export interface MonthlyContent {

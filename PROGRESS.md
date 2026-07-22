@@ -180,12 +180,12 @@ The **Tasks completed** tile also carries a month-over-month delta (`↑ 3 vs Ma
 
 The dashboard now uses four forms, each chosen for its job rather than for variety:
 
-| Chart | Form | Job |
-| --- | --- | --- |
-| Spend by month (budget tab) | vertical bars | compare monthly magnitudes |
-| Biggest line items (budget tab) | horizontal bars | rank, with long labels |
-| Task mix (monthly tab) | donut | part-to-whole, ≤ 6 segments |
-| Activity trend (monthly tab) | line | shape of the year |
+| Chart | Form | Job | Colour |
+| --- | --- | --- | --- |
+| Spend by month (budget tab) | vertical bars | compare monthly magnitudes | `--series-1` red |
+| Biggest line items (budget tab) | horizontal bars | rank, with long labels | `--series-2` gold |
+| Task mix (monthly tab) | donut | part-to-whole, ≤ 6 segments | `--series-1…6` |
+| Activity trend (monthly tab) | line | shape of the year | `--series-neutral` |
 
 Monthly activity reports gained a structured task list, stored in the existing `reports.content` jsonb as `tasks: [{ name, type }]`. No migration was required.
 
@@ -198,9 +198,27 @@ The chart counts **reviewed** monthly activity reports only, scoped exactly like
 
 ### Chart colour tokens
 
-`--chart-1` through `--chart-5` are single-series brand marks and fail as a categorical set — two of them are near-grey and the gold sits outside the usable lightness band. Six new tokens `--task-1` through `--task-6` were added to `globals.css` for both themes and validated as a set for lightness band, chroma floor, protanopia/deuteranopia separation, normal-vision separation, and contrast against the card surface.
+`--chart-1` through `--chart-5` are the stock shadcn theme slots. They fail as a categorical set — two are near-grey and the gold sits outside the usable lightness band — and are kept only because the generated components reference them. **No chart uses them.**
 
-Three of the light-mode hues sit below 3:1 on white. That is permitted only because the values are also carried in text: the legend beside the ring prints each count and percentage as ordinary visible text, not as a hidden screen-reader twin. **Do not hand-edit one of these hexes without re-validating the whole set**, and do not remove the legend counts.
+`--series-1` through `--series-6` in `globals.css` are the palette the dashboard actually draws with, defined for both themes and validated as a set for lightness band, chroma floor, protanopia/deuteranopia separation, normal-vision separation, and contrast against the card surface. The order is the CVD-safety mechanism, so slots are never reordered or cycled.
+
+The palette does two jobs, both of them identity:
+
+1. **Within a chart.** The task mix donut takes slot N for the Nth entry in `TASK_TYPES`, via `taskTypeColor()`. A type keeps its colour whichever types happen to be present, so filtering never repaints the survivors.
+2. **Across charts.** Each single-series chart takes its own slot, so two cards side by side are not the same red. Assignments live beside each chart — `grep "var(--series-"` lists them.
+
+Current assignments:
+
+| Chart | Colour | Why |
+| --- | --- | --- |
+| Spend by month | `--series-1` red | brand mark leads the budget card |
+| Biggest line items | `--series-2` gold | second brand hue, distinct from the chart beside it |
+| Task mix | `--series-1…6` | genuinely categorical — one hue per task type |
+| Activity trend | `--series-neutral` graphite | see below |
+
+`--series-neutral` exists because the trend line shares a card with the categorical donut. In any of the six hues it would rhyme with a slice — a blue line beneath a blue "Video & photo" arc reads as that one type plotted over time, which is not what it is. Graphite belongs to no category and reads as context, which is the line's actual job.
+
+**Contrast obligations.** `--series-2` (gold) sits at 2.17:1 on white, below the 3:1 mark threshold. It is legal on Biggest line items *only* because that chart prints a value on every bar; remove those labels and the colour must change. Slots 3 and 5 are likewise under 3:1 and appear only in the donut, whose legend prints every count and percentage as ordinary visible text. **Do not hand-edit a hex, reorder the slots, or move a colour to another chart without re-validating the set and checking the relief obligation travels with it.**
 
 ## Marketing Communication report alignment
 

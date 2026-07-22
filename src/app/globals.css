@@ -104,20 +104,39 @@
   --status-warning: #fab219;
   --status-critical: #d03b3b;
 
-  /* Categorical palette for the monthly task mix — one fixed hue per task type,
-     assigned by the type's position in TASK_TYPES and never cycled or reordered.
-     Distinct from --chart-N, which are single-series brand marks: these six were
-     validated as a set against the card surface (#ffffff light, #212721 dark)
-     for lightness band, chroma floor, protan/deutan separation and contrast.
-     Slots 2, 3 and 5 sit under 3:1 on white, so the chart must carry its values
-     in text as well — it ships direct slice labels, a legend with counts, and a
-     screen-reader table. Do not hand-edit a hex without re-validating the set. */
-  --task-1: #a42a28; /* red — the brand mark leads the ring */
-  --task-2: #eda100; /* yellow */
-  --task-3: #1baf7a; /* aqua */
-  --task-4: #2a78d6; /* blue */
-  --task-5: #e87ba4; /* magenta */
-  --task-6: #4a3aa7; /* violet */
+  /* The dashboard's categorical palette. Eight-slot method, six slots filled:
+     a fixed hue order, assigned by position and never cycled or reordered.
+     It does two jobs, both of them identity:
+
+       1. Within a chart — the task mix donut takes slot N for the Nth entry in
+          TASK_TYPES, so a type keeps its colour whichever types are present.
+       2. Across charts — each single-series chart takes its own slot, so two
+          cards side by side are not the same red. Assignments live next to each
+          chart; grep "var(--series-" to see them all at once.
+
+     Validated as a set against the card surface (#ffffff light, #212721 dark)
+     for lightness band, chroma floor, protan/deutan separation, normal-vision
+     separation and contrast. Slots 2, 3 and 5 sit under 3:1 on white, so any
+     chart using them must also print its values as text — the donut ships a
+     legend with counts, and the ranked bars carry a label on every bar. Do not
+     hand-edit a hex, or reorder the slots, without re-validating the whole set.
+
+     Distinct from --chart-N below, which are the stock shadcn theme slots and
+     are kept only because the generated components reference them. */
+  --series-1: #a42a28; /* red — the brand mark leads */
+  --series-2: #eda100; /* yellow */
+  --series-3: #1baf7a; /* aqua */
+  --series-4: #2a78d6; /* blue */
+  --series-5: #e87ba4; /* magenta */
+  --series-6: #4a3aa7; /* violet */
+
+  /* For a single-series mark that shares a card with the categorical palette
+     above. The activity trend sits under the task mix donut, and in any of the
+     six hues it would rhyme with one of the slices — a blue line beneath a blue
+     "Video & photo" arc reads as that type plotted over time, which is not what
+     it is. Graphite belongs to no category and says "context", which is the
+     line's actual job. 7.4:1 on white. */
+  --series-neutral: #4f5556;
 }
 
 .dark {
@@ -155,12 +174,13 @@
 
   /* Same six hues, re-stepped for the dark card surface rather than flipped —
      validated as a set the same way. All six clear 3:1 here. */
-  --task-1: #c24a3e;
-  --task-2: #c98500;
-  --task-3: #199e70;
-  --task-4: #3987e5;
-  --task-5: #d55181;
-  --task-6: #9085e9;
+  --series-1: #c24a3e;
+  --series-2: #c98500;
+  --series-3: #199e70;
+  --series-4: #3987e5;
+  --series-5: #d55181;
+  --series-6: #9085e9;
+  --series-neutral: #b9b4a8;
 }
 
 @layer base {

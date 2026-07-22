@@ -22,10 +22,16 @@ import {
   type BudgetItem,
 } from "@/lib/types";
 
-// One hue for every mark: each chart carries a single series, so identity is
-// already in the axis label and colour is free to stay recessive and on-brand.
-// --chart-1 clears 3:1 against the card surface in both themes.
-const SERIES = "var(--chart-1)";
+// Each chart here carries a single series, so colour is not encoding anything
+// inside a chart — it identifies the chart. Two cards side by side in the same
+// red read as one continued series, so they take separate slots from the shared
+// categorical palette (see globals.css).
+//
+// Slot 1, brand red, clears 3:1 on both card surfaces and leads the budget card.
+const MONTH_SERIES = "var(--series-1)";
+// Slot 2, gold, sits at 2.17:1 on white. Legal here and only here, because this
+// chart prints a value on every bar — remove those labels and this must change.
+const ITEM_SERIES = "var(--series-2)";
 
 // Past eight bars the ranking stops being scannable; the tail folds into one row.
 const MAX_RANKED = 8;
@@ -43,7 +49,7 @@ const compact = new Intl.NumberFormat("en-US", {
 });
 
 const chartConfig = {
-  amount: { label: "Spend", color: SERIES },
+  amount: { label: "Spend", color: MONTH_SERIES },
 } satisfies ChartConfig;
 
 // Cents stop earning their width once a total runs six figures, and the hero
@@ -288,7 +294,7 @@ export function AnnualBudgetCharts({
                 />
                 <Bar
                   dataKey="amount"
-                  fill={SERIES}
+                  fill={MONTH_SERIES}
                   radius={[4, 4, 0, 0]}
                   maxBarSize={36}
                   isAnimationActive={false}
@@ -356,7 +362,7 @@ export function AnnualBudgetCharts({
               />
               <Bar
                 dataKey="amount"
-                fill={SERIES}
+                fill={ITEM_SERIES}
                 radius={[0, 4, 4, 0]}
                 maxBarSize={24}
                 isAnimationActive={false}

@@ -29,9 +29,11 @@ export interface TaskEntry {
   type: TaskType;
 }
 
-// The trend is one series, so identity already lives in the axis and the colour
-// stays recessive and on-brand — same treatment as the budget tab's bars.
-const SERIES = "var(--chart-1)";
+// Graphite, not a palette slot. This line shares a card with the task mix donut,
+// which spends all six categorical hues on task types — so any hue here would
+// rhyme with a slice and invite reading the line as that one type over time.
+// See the --series-neutral note in globals.css.
+const SERIES = "var(--series-neutral)";
 
 const chartConfig = {
   count: { label: "Tasks", color: SERIES },
