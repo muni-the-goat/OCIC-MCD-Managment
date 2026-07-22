@@ -22,6 +22,7 @@ import {
 } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
+  departmentLabel,
   reportPeriodLabel,
   reportTypeLabel,
   taskTypeColor,
@@ -83,19 +84,26 @@ export default async function ReportDetailPage({
       .select("*")
       .eq("report_id", id)
       .order("created_at"),
-    supabase.from("profiles").select("id, full_name, email"),
+    supabase.from("profiles").select("id, full_name, email, department"),
   ]);
 
   const items = (itemsData ?? []) as BudgetItem[];
   const comments = (commentsData ?? []) as ReportComment[];
   const attachments = (attachmentsData ?? []) as ReportAttachment[];
   const people = new Map(
-    ((profilesData ?? []) as Pick<Profile, "id" | "full_name" | "email">[]).map(
-      (p) => [p.id, p.full_name || p.email]
-    )
+    (
+      (profilesData ?? []) as Pick<
+        Profile,
+        "id" | "full_name" | "email" | "department"
+      >[]
+    ).map((p) => [p.id, p])
   );
-  const nameOf = (userId: string | null) =>
-    (userId && people.get(userId)) || "Unknown";
+  const nameOf = (userId: string | null) => {
+    const person = userId ? people.get(userId) : undefined;
+    return person ? person.full_name || person.email : "Unknown";
+  };
+  const departmentOf = (userId: string | null) =>
+    userId ? (people.get(userId)?.department ?? null) : null;
 
   // content is jsonb — a report written before tasks existed simply has no key.
   const tasks = Array.isArray(report.content?.tasks)
@@ -132,8 +140,8 @@ export default async function ReportDetailPage({
               report.period_month,
               report.period_year,
               report.budget_period
-            )} · by{" "}
-            {nameOf(report.author_id)}
+            )} · by {nameOf(report.author_id)} ·{" "}
+            {departmentLabel(departmentOf(report.author_id))}
           </p>
           {report.reviewed_by && report.reviewed_at ? (
             <p className="text-sm text-muted-foreground">

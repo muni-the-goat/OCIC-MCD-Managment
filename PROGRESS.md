@@ -381,7 +381,20 @@ Digital Marketing · Multimedia · Brand Marketing · Product Marketing · KTI M
 - **Assignment is Admin-only**, enforced in three layers like the role: the Coordinator sees a plain label instead of a control, `updateUserDepartment` calls `requireRole("admin")`, and the RLS self-update policy pins `department` so a user cannot change their own through the API. The comparison uses `is not distinct from` rather than `=` so a NULL department compares correctly instead of making the predicate NULL and failing every self-update.
 - Unlike the role, **an Admin may set their own department.** It grants no privilege, and an Admin belongs to a department the same as anyone else.
 
-Department is currently an attribute of a person and nothing more — no report, budget, or dashboard query filters on it yet. See Known limitations.
+### Where department is shown
+
+Every place a report names its author now names the department beside it:
+
+- **Report detail** — `Monthly activity report · June 2026 · by Sokchea Heng · KTI Marketing`.
+- **Reports list** — a Department column beside Author. Reviewers only; the column follows `showAuthor`, since a Staff member's list is entirely their own reports.
+- **Dashboard, Pending review / Recent reports** — appended to the author on each row, for reviewers.
+- **Dashboard, Annual budget summary** — leads the sub-line of each author group header, which is the fastest way to tell whose figures are whose when two people share a first name.
+
+An author with no department reads **Unassigned**. A report whose author row is missing entirely reads `—` instead, because "Unassigned" would claim more than is known.
+
+The monthly report tab is deliberately untouched: it pools every author's tasks into one mix with no per-author breakdown, so there is no author there to label. Grouping that tab by author the way the budget tab does would be the change that creates the need.
+
+Department is otherwise still an attribute of a person — **no query filters on it**. See Known limitations.
 
 ## Main code locations
 

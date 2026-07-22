@@ -37,11 +37,13 @@ import {
 import { canViewAnnualBudget, getProfile, isReviewer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
+  departmentLabel,
   periodLabel,
   reportPeriodLabel,
   reportTypeLabel,
   roleLabel,
   type BudgetPeriod,
+  type Department,
   type ReportStatus,
   type ReportType,
 } from "@/lib/types";
@@ -57,7 +59,11 @@ interface RecentReport {
   period_month: number;
   period_year: number;
   updated_at: string;
-  author: { full_name: string; email: string } | null;
+  author: {
+    full_name: string;
+    email: string;
+    department: Department | null;
+  } | null;
 }
 
 function Chip({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
@@ -98,7 +104,7 @@ export default async function DashboardPage({
   let recentQuery = supabase
     .from("reports")
     .select(
-      "id, title, type, budget_period, status, period_month, period_year, updated_at, author:profiles!author_id(full_name, email)"
+      "id, title, type, budget_period, status, period_month, period_year, updated_at, author:profiles!author_id(full_name, email, department)"
     )
     .order("updated_at", { ascending: false })
     .limit(6);
@@ -284,7 +290,7 @@ export default async function DashboardPage({
                               report.budget_period
                             )}
                             {reviewer && report.author
-                              ? ` · ${report.author.full_name || report.author.email}`
+                              ? ` · ${report.author.full_name || report.author.email} · ${departmentLabel(report.author.department)}`
                               : ""}
                           </span>
                         </span>

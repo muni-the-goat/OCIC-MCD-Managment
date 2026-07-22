@@ -36,6 +36,7 @@ export interface ReportsTableItem {
   typeLabel: string;
   periodLabel: string;
   authorLabel: string;
+  departmentLabel: string;
   status: ReportStatus;
   updatedLabel: string;
 }
@@ -177,7 +178,12 @@ export function ReportsTable({
               <TableHead>Title</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Period</TableHead>
-              {showAuthor ? <TableHead>Author</TableHead> : null}
+              {showAuthor ? (
+                <>
+                  <TableHead>Author</TableHead>
+                  <TableHead>Department</TableHead>
+                </>
+              ) : null}
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Updated</TableHead>
             </TableRow>
@@ -212,7 +218,12 @@ export function ReportsTable({
                   <TableCell>{report.typeLabel}</TableCell>
                   <TableCell>{report.periodLabel}</TableCell>
                   {showAuthor ? (
-                    <TableCell>{report.authorLabel}</TableCell>
+                    <>
+                      <TableCell>{report.authorLabel}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {report.departmentLabel}
+                      </TableCell>
+                    </>
                   ) : null}
                   <TableCell>
                     <StatusBadge status={report.status} />

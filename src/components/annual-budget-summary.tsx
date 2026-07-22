@@ -11,8 +11,10 @@ import { canViewAnnualBudget } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   MONTH_KEYS,
+  departmentLabel,
   type AppRole,
   type BudgetItem,
+  type Department,
   type MonthKey,
 } from "@/lib/types";
 
@@ -97,7 +99,7 @@ export async function AnnualBudgetSummary({
     ? await (() => {
         let query = supabase
           .from("profiles")
-          .select("id, full_name, email, role")
+          .select("id, full_name, email, role, department")
           .order("full_name");
         if (isHeadOfDepartment) query = query.eq("role", "manager");
         return query;
@@ -107,6 +109,7 @@ export async function AnnualBudgetSummary({
   const authors = (authorsResult.data ?? []).map((profile) => ({
     id: profile.id,
     label: profile.full_name || profile.email,
+    department: (profile.department ?? null) as Department | null,
   }));
   const permittedAuthorIds = new Set(authors.map((profile) => profile.id));
   const selectedAuthor =
@@ -172,8 +175,8 @@ export async function AnnualBudgetSummary({
   ).sort((a, b) => b - a);
   const sourceItems = (itemsResult.data ?? []) as unknown as SourceBudgetItem[];
   const showAuthorGroups = canFilterAuthors && !selectedAuthor;
-  const authorLabels = new Map(
-    authors.map((profile) => [profile.id, profile.label])
+  const authorProfiles = new Map(
+    authors.map((profile) => [profile.id, profile])
   );
   const groupedSourceItems = new Map<string, SourceBudgetItem[]>();
 
@@ -188,7 +191,8 @@ export async function AnnualBudgetSummary({
   const authorGroups = [...groupedSourceItems.entries()]
     .map(([authorId, authorItems]) => ({
       id: authorId,
-      label: authorLabels.get(authorId) ?? "Unknown author",
+      label: authorProfiles.get(authorId)?.label ?? "Unknown author",
+      department: authorProfiles.get(authorId)?.department ?? null,
       items: aggregateItems(authorItems),
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
@@ -247,7 +251,11 @@ export async function AnnualBudgetSummary({
                     {group.label}
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Reviewed monthly expenses · FY {selectedYear}
+                    {/* Department leads the line: with several authors stacked,
+                        it is the fastest way to tell whose figures these are
+                        when two people share a first name. */}
+                    {departmentLabel(group.department)} · Reviewed monthly
+                    expenses · FY {selectedYear}
                   </p>
                 </div>
                 <div className="p-4">

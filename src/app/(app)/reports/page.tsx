@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { getProfile, isReviewer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
+  departmentLabel,
   reportPeriodLabel,
   reportTypeLabel,
   type BudgetPeriod,
+  type Department,
   type ReportStatus,
   type ReportType,
 } from "@/lib/types";
@@ -24,7 +26,11 @@ interface ReportRow {
   period_year: number;
   status: ReportStatus;
   updated_at: string;
-  author: { full_name: string; email: string } | null;
+  author: {
+    full_name: string;
+    email: string;
+    department: Department | null;
+  } | null;
 }
 
 export default async function ReportsPage({
@@ -39,7 +45,7 @@ export default async function ReportsPage({
   let query = supabase
     .from("reports")
     .select(
-      "id, type, budget_period, title, period_month, period_year, status, updated_at, author:profiles!author_id(full_name, email)"
+      "id, type, budget_period, title, period_month, period_year, status, updated_at, author:profiles!author_id(full_name, email, department)"
     )
     .order("updated_at", { ascending: false })
     .limit(200);
@@ -74,6 +80,11 @@ export default async function ReportsPage({
       report.budget_period
     ),
     authorLabel: report.author?.full_name || report.author?.email || "—",
+    // Only meaningful once we know who the author is; an orphaned row would
+    // otherwise read "Unassigned", which claims more than we know.
+    departmentLabel: report.author
+      ? departmentLabel(report.author.department)
+      : "—",
     status: report.status,
     updatedLabel: new Date(report.updated_at).toLocaleDateString(),
   }));
