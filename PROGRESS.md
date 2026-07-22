@@ -6,12 +6,7 @@ The main reporting workflow is implemented, production-build verified, and pushe
 
 The monthly report tab, the office-domain sign-in restriction, and departments were developed on `feat/monthly-report-tab` (pull request #1) and merged to `main`. The most recent work on `main` prints each author's department as a chip wherever a report names them (see **Where department is shown**), and widens the Coordinator role to every budget report in the office while leaving monthly activity reports private (see **Coordinator**).
 
-Supabase migrations `0001` through `0010` have been applied to the production project.
-
-> **Two migrations are pending. Run both in the Supabase SQL editor, or `supabase db push`.**
->
-> - `0011_event_marketing_department.sql` — until it runs, selecting Event Marketing for a user fails the check constraint and the assignment is rejected.
-> - `0012_coordinator_budget_visibility.sql` — until it runs, the Coordinator's widened budget access is UI-only: the pages will offer the all-author view and RLS will return nothing but their own rows, so the summary reads as empty rather than as broken.
+Supabase migrations `0001` through `0012` have all been applied to the production project. No migration is outstanding.
 
 No migration is required for the Marketing Communication alignment described below: report content rides in the existing `reports.content` jsonb column.
 
@@ -387,10 +382,10 @@ Only office accounts may sign in. Both the rule and the post-login redirect chec
 8. `0008_admin_self_review.sql` — permits Admin self-review while preserving self-review restrictions for HoD and Manager.
 9. `0009_monthly_budget_uniqueness_and_revisions.sql` — permits authors to revise submitted/reviewed reports and blocks new duplicate monthly budgets per author/month/year without deleting existing duplicates.
 10. `0010_profile_department.sql` — adds `profiles.department`, the `user_department()` helper, and a self-update policy that pins department the way it already pins role.
-11. `0011_event_marketing_department.sql` — widens the department check constraint to include Event Marketing. **Not yet applied.**
-12. `0012_coordinator_budget_visibility.sql` — widens `reports: select` and `can_view_report()` so a Coordinator reads every non-draft budget report across the office. Monthly activity reports and `can_edit_report()` are untouched. **Not yet applied.**
+11. `0011_event_marketing_department.sql` — widens the department check constraint to include Event Marketing.
+12. `0012_coordinator_budget_visibility.sql` — widens `reports: select` and `can_view_report()` so a Coordinator reads every non-draft budget report across the office. Monthly activity reports and `can_edit_report()` are untouched.
 
-Migrations `0001`–`0010` are confirmed applied in Supabase; `0011` and `0012` are pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0012` are all confirmed applied in Supabase. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
@@ -452,7 +447,7 @@ Department is otherwise still an attribute of a person — **no query filters on
 - GitHub repository: `muni-the-goat/OCIC-MCD-Managment`
 - Deployed branch: `main`
 - Hosting: Vercel, connected for automatic deployment from GitHub
-- Database: Supabase, migrations `0001`–`0010` applied; `0011` and `0012` pending
+- Database: Supabase, migrations `0001`–`0012` applied
 - Supabase region: Northeast Asia (Seoul)
 
 ## Remaining validation checklist
