@@ -122,7 +122,7 @@ Both are checked against the *target's* current role, read server-side — the c
 - Cannot invite users, change roles or departments, delete accounts, or add a department. Departments render as read-only chips on their Users page, not as controls.
 - Cannot reset Admin or Head of Department passwords, preventing privilege escalation.
 
-Drafts stay private from a Coordinator, exactly as they do from a Manager or Head of Department — a draft is a working copy, not a submission.
+Drafts stay private from a Coordinator — a draft is a working copy, not a submission. Note that they are **not** private from an Admin or a Head of Department: `0013` put the Head of Department into the same unrestricted clause as the Admin, who has always read drafts. That follows from "admin-equivalent", but it is a widening worth knowing about, and the `reports: select` policy is where to narrow it if drafts should stay private from everyone but their author.
 
 ### Admin
 
