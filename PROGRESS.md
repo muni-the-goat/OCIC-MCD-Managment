@@ -8,6 +8,8 @@ The monthly report tab, the office-domain sign-in restriction, and departments w
 
 Supabase migrations `0001` through `0012` have all been applied to the production project. No migration is outstanding.
 
+The team's real January–June 2026 spend is seeded into production — see **Seeded data — Actual Expenses 2026** for what reconciles and the two figures that do not.
+
 No migration is required for the Marketing Communication alignment described below: report content rides in the existing `reports.content` jsonb column.
 
 Latest verification completed successfully:
@@ -247,6 +249,42 @@ Current assignments:
 
 **Contrast obligations.** `--series-2` (gold) sits at 2.17:1 on white, below the 3:1 mark threshold. It is legal on Biggest line items *only* because that chart prints a value on every bar; remove those labels and the colour must change. Slots 3 and 5 are likewise under 3:1 and appear only in the donut, whose legend prints every count and percentage as ordinary visible text. **Do not hand-edit a hex, reorder the slots, or move a colour to another chart without re-validating the set and checking the relief obligation travels with it.**
 
+## Seeded data — Actual Expenses 2026
+
+`supabase/seed/actual_expenses_2026.sql` holds the team's real January–June 2026 spend, transcribed from their `Actual Expenses 2026 (Summary (Printing))` workbook. It lives outside `supabase/migrations/` on purpose: it is data, not schema, and must never be mistaken for schema history or auto-applied.
+
+**Applied.** 28 reports and 112 line items are in production, all tagged `content->>'seed' = 'actual-expenses-2026'`. That tag is the undo: deleting on it removes the seed and nothing else, and the script deletes by it before each run so it is safe to re-run.
+
+Sheet block → department, by way of the report author's profile:
+
+| Sheet block | Department | Account |
+| --- | --- | --- |
+| PR / Communication | Brand Marketing | Jeriko Enriquez |
+| Event | Event Marketing | Steven Kim |
+| Digital | Digital Marketing | Soputhyka Kong |
+| Multimedia | Multimedia | Sophal Chan |
+| Coordination | Admin/HR | Kosal Phal |
+| CSR, Partnership | Partnership Marketing | **none — not seeded** |
+| Products | Product Marketing | no spend in 2026 |
+
+### What reconciles, and what does not
+
+Brand Marketing, Event Marketing, Digital Marketing and Admin/HR match the workbook to the cent, month by month. Two gaps remain, both recorded rather than papered over:
+
+- **Partnership Marketing, $3,582.00 in April, not seeded.** No account is assigned to that department, and a department is read from the author's profile, so there is nowhere for the figure to land. Assign someone and re-run the seed; it is idempotent.
+- **Multimedia January is $24.90, not $387.90.** The source workbook does not add up here: the itemised rows give $24.90 but its own TOTAL row and the summary matrix both say $387.90 — a difference of exactly $363.00, which is also the Dell Monitor figure sitting in February. Nothing was invented to close it. Multimedia therefore reads $4,878.88 for the year against the workbook's $5,241.88. Add the missing January line once someone identifies it.
+
+Together those two explain the whole variance: $38,038.68 in the workbook, $34,093.68 seeded.
+
+### Transcription decisions
+
+- **Line-item names are verbatim**, apart from four typo fixes — `Adobe Creative Clound` → `Cloud`, `iCould Drive` → `iCloud Drive`, an unclosed `Office Expense (OCIC Wall`, and `Cooporate Event` → `Corporate Event`. The annual summary aggregates by normalised text, so seeding a misspelling would guarantee a mismatch the first time somebody types it correctly.
+- **Section names are normalised**, because the sheet's `Categorise` column holds several values in one cell. Four Event rows carry two categories and were filed under the dominant one; the seed file lists which.
+- **Months with no spend produce no report.** An empty report is a filing that never happened.
+- **Line items with no spend in a month are omitted from that month's report**, so Digital's YouTube and Telegram — tracked in the sheet, never spent on — do not appear.
+- **Reports are dated to their period**, not to the day the seed ran, so the timeline reads as a filing history rather than as thirty reports landing at once.
+- "Coordination" has no entry in `DEPARTMENTS` and is seeded as **Admin/HR** — its contents are petty cash, office expense, online tools and subscriptions. If it should be its own department it needs a `DEPARTMENTS` entry, a migration widening the check constraint, and a change to the seed.
+
 ## Marketing Communication report alignment
 
 Planned, not started. Scope was derived from a real departmental report, `April2026-Marcom-KTI` (Marketing Communication-KTI, 1–30 April 2026), which is the format the team actually produces today.
@@ -460,6 +498,7 @@ Department is otherwise still an attribute of a person — **no query filters on
 - `src/lib/supabase/` — browser, authenticated server, and secret Admin clients.
 - `src/proxy.ts` — Supabase session refresh and login redirects.
 - `supabase/migrations/` — ordered schema and security history.
+- `supabase/seed/` — data, never schema. Run by hand; never auto-applied.
 
 ## Deployment state
 
