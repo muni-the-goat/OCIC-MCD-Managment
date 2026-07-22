@@ -8,6 +8,8 @@ The monthly report tab, the office-domain sign-in restriction, and departments w
 
 Supabase migrations `0001` through `0010` have been applied to the production project.
 
+> **`0011_event_marketing_department.sql` has NOT been applied.** Until it is, selecting Event Marketing for a user fails the database check constraint and the assignment is rejected. Run it in the Supabase SQL editor or via `supabase db push`.
+
 No migration is required for the Marketing Communication alignment described below: report content rides in the existing `reports.content` jsonb column.
 
 Latest verification completed successfully:
@@ -363,17 +365,18 @@ The Users page uses the server-only Supabase secret client for Auth Admin operat
 8. `0008_admin_self_review.sql` — permits Admin self-review while preserving self-review restrictions for HoD and Manager.
 9. `0009_monthly_budget_uniqueness_and_revisions.sql` — permits authors to revise submitted/reviewed reports and blocks new duplicate monthly budgets per author/month/year without deleting existing duplicates.
 10. `0010_profile_department.sql` — adds `profiles.department`, the `user_department()` helper, and a self-update policy that pins department the way it already pins role.
+11. `0011_event_marketing_department.sql` — widens the department check constraint to include Event Marketing. **Not yet applied.**
 
-Migrations `0001`–`0010` are confirmed applied in Supabase. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0010` are confirmed applied in Supabase; `0011` is pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
-Seven departments, stored on `profiles.department`:
+Eight departments, stored on `profiles.department`:
 
-Digital Marketing · Multimedia · Brand Marketing · Product Marketing · KTI Marketing · Partnership Marketing · Admin/HR
+Digital Marketing · Multimedia · Brand Marketing · Product Marketing · KTI Marketing · Partnership Marketing · Event Marketing · Admin/HR
 
 - **Text column with a check constraint, not an enum.** Departments are a business list that will change more often than `app_role`, and `alter type … add value` cannot always run inside a transaction block, which makes enum growth awkward under migration tooling. Widening a check constraint is a plain transactional statement.
-- **The list lives in two places** — the constraint in `0010` and `DEPARTMENTS` in `src/lib/types.ts`. Adding one means a new migration widening the constraint *and* a line in that array. The ids are stored values, so renaming one orphans every profile holding it; only append.
+- **The list lives in two places** — the constraint in the latest department migration and `DEPARTMENTS` in `src/lib/types.ts`. Adding one means a new migration widening the constraint *and* a line in that array; `0011` is the worked example. The ids are stored values, so renaming one orphans every profile holding it. The *display order* is free, though: nothing resolves a department by index, so a new entry can sit wherever reads best.
 - **Nullable, no default.** Accounts that predate the column genuinely have no department, and back-filling everyone into one would be inventing data. Those rows read "Unassigned" until an Admin sets them.
 - **Assignment is Admin-only**, enforced in three layers like the role: the Coordinator sees a plain label instead of a control, `updateUserDepartment` calls `requireRole("admin")`, and the RLS self-update policy pins `department` so a user cannot change their own through the API. The comparison uses `is not distinct from` rather than `=` so a NULL department compares correctly instead of making the predicate NULL and failing every self-update.
 - Unlike the role, **an Admin may set their own department.** It grants no privilege, and an Admin belongs to a department the same as anyone else.

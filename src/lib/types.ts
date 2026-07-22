@@ -8,9 +8,14 @@ export type ReportType = "budget" | "monthly";
 export type BudgetPeriod = "annual" | "monthly";
 export type ReportStatus = "draft" | "submitted" | "reviewed" | "rejected";
 
-// Mirrors the check constraint in migration 0010 — change both together.
-// Appending a department needs a new migration widening that constraint; the
-// ids are stored values, so renaming one orphans every profile holding it.
+// Mirrors the check constraint in the latest department migration (0011) —
+// change both together. Adding a department needs a new migration widening that
+// constraint; the ids are stored values, so renaming one orphans every profile
+// holding it.
+//
+// Unlike TASK_TYPES, the order here is presentational only: nothing resolves a
+// department by index — departmentLabel() looks up by id — so a new entry can
+// sit wherever it reads best. Admin/HR stays last as the non-marketing bucket.
 export const DEPARTMENTS = [
   { id: "digital_marketing", label: "Digital Marketing" },
   { id: "multimedia", label: "Multimedia" },
@@ -18,6 +23,7 @@ export const DEPARTMENTS = [
   { id: "product_marketing", label: "Product Marketing" },
   { id: "kti_marketing", label: "KTI Marketing" },
   { id: "partnership_marketing", label: "Partnership Marketing" },
+  { id: "event_marketing", label: "Event Marketing" },
   { id: "admin_hr", label: "Admin/HR" },
 ] as const;
 export type Department = (typeof DEPARTMENTS)[number]["id"];
