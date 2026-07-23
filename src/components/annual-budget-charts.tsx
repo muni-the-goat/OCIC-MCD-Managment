@@ -381,10 +381,12 @@ export function AnnualBudgetCharts({
         </section>
       </div>
 
-      {/* A single-section author repeats the "Top section" stat here, which is
-          the point: every author card keeps the same anatomy, so a missing
-          strip reads as a rendering fault rather than as a one-section year. */}
-      {sections.length > 0 ? (
+      {/* sections[0] is the "Top section" stat above, so the first row here
+          always repeats it. Past one section the rows that follow carry the
+          part-to-whole read and earn that repeat; at one section the repeat is
+          the entire strip, so it is dropped rather than printed twice. The
+          missing strip on a single-section card is this rule, not a fault. */}
+      {sections.length > 1 ? (
         <ul className="flex flex-wrap gap-x-6 gap-y-2 border-t pt-4 text-xs">
           {sections.map((section) => (
             <li key={section.name} className="text-muted-foreground">
