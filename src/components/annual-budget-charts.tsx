@@ -381,7 +381,10 @@ export function AnnualBudgetCharts({
         </section>
       </div>
 
-      {sections.length > 1 ? (
+      {/* A single-section author repeats the "Top section" stat here, which is
+          the point: every author card keeps the same anatomy, so a missing
+          strip reads as a rendering fault rather than as a one-section year. */}
+      {sections.length > 0 ? (
         <ul className="flex flex-wrap gap-x-6 gap-y-2 border-t pt-4 text-xs">
           {sections.map((section) => (
             <li key={section.name} className="text-muted-foreground">
