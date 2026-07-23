@@ -12,9 +12,14 @@ import {
 } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
+  METRIC_IDS,
   MONTH_NAMES,
+  PLATFORM_IDS,
   TASK_TYPE_IDS,
   type BudgetPeriod,
+  type MetricId,
+  type PlatformId,
+  type PlatformMetrics,
   type ReportTask,
 } from "@/lib/types";
 
@@ -104,6 +109,52 @@ function parseTasks(raw: FormDataEntryValue | null): ReportTask[] | null {
   }
   const result = z.array(taskSchema).max(MAX_TASKS).safeParse(parsedJson);
   return result.success ? (result.data as ReportTask[]) : null;
+}
+
+// Platform figures ride in `content` alongside the tasks, so this schema is
+// again the only guard. Unlike a task type, an unknown platform is dropped
+// rather than coerced: there is no honest "other" to file a figure under, and
+// silently moving 123,167 Facebook views onto some fallback row would be worse
+// than losing them.
+const platformMetricsSchema = z.object({
+  platform: z.enum(PLATFORM_IDS as [PlatformId, ...PlatformId[]]),
+  // partialRecord, not record: z.record over an enum key demands every metric
+  // be present, which is the exact opposite of a sparse "only what this
+  // platform measures" map.
+  values: z
+    .partialRecord(
+      z.enum(METRIC_IDS as [MetricId, ...MetricId[]]),
+      // Non-negative and finite. Rates arrive as the platform reports them
+      // (5.02 for 5.02%), so this cannot be capped at 100.
+      z.number().finite().min(0)
+    )
+    .default({}),
+});
+
+function parseMetrics(raw: FormDataEntryValue | null): PlatformMetrics[] | null {
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(String(raw ?? "[]"));
+  } catch {
+    return null;
+  }
+  const result = z
+    .array(platformMetricsSchema)
+    .max(PLATFORM_IDS.length)
+    .safeParse(parsedJson);
+  if (!result.success) return null;
+
+  // A platform the author added and never filled is an empty slot, not a month
+  // of silence — drop it, exactly as blank task rows are dropped.
+  const rows = (result.data as PlatformMetrics[]).filter(
+    (row) => Object.keys(row.values).length > 0
+  );
+
+  // One row per platform. Two rows for the same platform would make every
+  // downstream read ambiguous, and the form cannot produce them.
+  return new Set(rows.map((row) => row.platform)).size === rows.length
+    ? rows
+    : null;
 }
 
 const reportSchema = z.object({
@@ -258,6 +309,13 @@ export async function saveReport(
         error: `Check the task list — each task needs a description, and there is a limit of ${MAX_TASKS}`,
       };
     }
+    const metrics = parseMetrics(formData.get("metrics"));
+    if (!metrics) {
+      return {
+        error:
+          "Check the social performance figures — each row needs a known platform and non-negative numbers",
+      };
+    }
     const summary = String(formData.get("summary") ?? "").trim();
     content = {
       summary,
@@ -265,6 +323,7 @@ export async function saveReport(
       challenges: String(formData.get("challenges") ?? "").trim(),
       next_month_plan: String(formData.get("next_month_plan") ?? "").trim(),
       tasks,
+      metrics,
     };
     if (intent === "submitted" && !summary) {
       return { error: "A summary is required before submitting" };

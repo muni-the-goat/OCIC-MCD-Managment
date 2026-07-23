@@ -24,13 +24,20 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  METRICS,
+  METRIC_IDS,
   MONTH_KEYS,
   MONTH_NAMES,
   MONTH_SHORT,
+  PLATFORM_IDS,
   TASK_TYPES,
   TASK_TYPE_IDS,
+  platformLabel,
   type BudgetHistoryReport,
   type BudgetItem,
+  type MetricId,
+  type PlatformId,
+  type PlatformMetrics,
   type Report,
   type ReportTask,
   type ReportType,
@@ -68,6 +75,51 @@ function tasksFromContent(tasks?: ReportTask[]): ReportTask[] {
     name: typeof task?.name === "string" ? task.name : "",
     type: TASK_TYPE_IDS.includes(task?.type) ? task.type : "other",
   }));
+}
+
+// Metric inputs are held as raw strings so "" stays distinguishable from "0"
+// all the way to submit — see PlatformMetrics in lib/types for why that
+// difference is load-bearing.
+interface EditMetrics {
+  platform: PlatformId;
+  values: Partial<Record<MetricId, string>>;
+}
+
+function metricsFromContent(rows?: PlatformMetrics[]): EditMetrics[] {
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .filter((row) => PLATFORM_IDS.includes(row?.platform))
+    .map((row) => ({
+      platform: row.platform,
+      values: Object.fromEntries(
+        METRIC_IDS.filter(
+          (metric) => typeof row.values?.[metric] === "number"
+        ).map((metric) => [metric, String(row.values[metric])])
+      ),
+    }));
+}
+
+// "" is not measured and is left out entirely; "0" is a measured zero and is
+// kept. Anything unparseable is dropped rather than saved as 0, so a typo
+// cannot quietly become a reported figure.
+function metricsPayload(rows: EditMetrics[]): string {
+  return JSON.stringify(
+    rows
+      .map((row) => ({
+        platform: row.platform,
+        values: Object.fromEntries(
+          METRIC_IDS.flatMap((metric) => {
+            const raw = row.values[metric]?.trim() ?? "";
+            if (raw === "") return [];
+            const value = Number(raw);
+            return Number.isFinite(value) && value >= 0
+              ? [[metric, value] as const]
+              : [];
+          })
+        ),
+      }))
+      .filter((row) => Object.keys(row.values).length > 0)
+  );
 }
 
 function num(raw: string): number {
@@ -170,6 +222,10 @@ export function ReportForm({
     tasksFromContent(content.tasks)
   );
 
+  const [metrics, setMetrics] = useState<EditMetrics[]>(() =>
+    metricsFromContent(content.metrics)
+  );
+
   const [sections, setSections] = useState<EditSection[]>(() =>
     report
       ? sectionsFromItems(budgetItems ?? [])
@@ -234,6 +290,21 @@ export function ReportForm({
   const tasksPayload = JSON.stringify(
     namedTasks.map((task) => ({ name: task.name.trim(), type: task.type }))
   );
+
+  const metricsJson = metricsPayload(metrics);
+  // Count of platforms that will actually save, which is not metrics.length —
+  // a row opened and left blank is dropped on both sides.
+  const filledPlatforms = (JSON.parse(metricsJson) as PlatformMetrics[]).length;
+  const availablePlatforms = PLATFORM_IDS.filter(
+    (id) => !metrics.some((row) => row.platform === id)
+  );
+
+  const updateMetric = (index: number, metric: MetricId, raw: string) =>
+    setMetrics((prev) =>
+      prev.map((row, i) =>
+        i === index ? { ...row, values: { ...row.values, [metric]: raw } } : row
+      )
+    );
 
   const updateTask = (index: number, patch: Partial<ReportTask>) => {
     setTasks((prev) =>
@@ -320,7 +391,10 @@ export function ReportForm({
       {type === "budget" ? (
         <input type="hidden" name="budget_sections" value={budgetPayload} />
       ) : (
-        <input type="hidden" name="tasks" value={tasksPayload} />
+        <>
+          <input type="hidden" name="tasks" value={tasksPayload} />
+          <input type="hidden" name="metrics" value={metricsJson} />
+        </>
       )}
 
       {state?.error ? (
@@ -566,6 +640,103 @@ export function ReportForm({
                 {namedTasks.length === 0
                   ? "No tasks listed yet"
                   : `${namedTasks.length} task${namedTasks.length === 1 ? "" : "s"} will be saved`}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="max-w-3xl">
+          <CardHeader>
+            <CardTitle>Social media performance</CardTitle>
+            <CardDescription>
+              Optional. Add a platform, then fill in only the figures that
+              platform reports. A blank box means <em>not measured</em> and a{" "}
+              <strong>0</strong> means measured and zero — the two are stored
+              differently, so leave a box empty rather than typing 0 to fill it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {metrics.map((row, index) => (
+              <div key={row.platform} className="rounded-lg border p-3">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <p className="font-medium">{platformLabel(row.platform)}</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remove ${platformLabel(row.platform)}`}
+                    onClick={() =>
+                      setMetrics((prev) => prev.filter((_, i) => i !== index))
+                    }
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {METRICS.map((metric) => {
+                    const inputId = `${row.platform}_${metric.id}`;
+                    return (
+                      <div key={metric.id} className="space-y-1.5">
+                        <Label
+                          htmlFor={inputId}
+                          className="text-xs font-normal text-muted-foreground"
+                        >
+                          {metric.label}
+                          {metric.kind === "rate" ? " (%)" : ""}
+                        </Label>
+                        <Input
+                          id={inputId}
+                          type="number"
+                          min={0}
+                          // Rates arrive with decimals (5.02); counts do not,
+                          // but a shared step keeps one control for both.
+                          step="any"
+                          inputMode="decimal"
+                          className="tabular-nums"
+                          value={row.values[metric.id] ?? ""}
+                          onChange={(event) =>
+                            updateMetric(index, metric.id, event.target.value)
+                          }
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {availablePlatforms.length > 0 ? (
+                <Select
+                  // Reset to the placeholder after each pick so the same
+                  // trigger can add a second platform.
+                  value=""
+                  onValueChange={(value) =>
+                    setMetrics((prev) => [
+                      ...prev,
+                      { platform: value as PlatformId, values: {} },
+                    ])
+                  }
+                >
+                  <SelectTrigger className="w-56" aria-label="Add a platform">
+                    <SelectValue placeholder="Add a platform…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availablePlatforms.map((id) => (
+                      <SelectItem key={id} value={id}>
+                        {platformLabel(id)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Every platform has been added.
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                {filledPlatforms === 0
+                  ? "No figures entered yet"
+                  : `${filledPlatforms} platform${filledPlatforms === 1 ? "" : "s"} will be saved`}
               </p>
             </div>
           </CardContent>

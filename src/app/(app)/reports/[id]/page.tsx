@@ -27,11 +27,17 @@ import { departmentLabel } from "@/lib/departments";
 import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
 import {
+  PLATFORM_IDS,
+  formatMetric,
+  metricLabel,
+  platformLabel,
   reportPeriodLabel,
   reportTypeLabel,
+  reportedMetrics,
   taskTypeColor,
   taskTypeLabel,
   type BudgetItem,
+  type PlatformMetrics,
   type Profile,
   type Report,
   type ReportAttachment,
@@ -115,6 +121,20 @@ export default async function ReportDetailPage({
   const tasks = Array.isArray(report.content?.tasks)
     ? (report.content.tasks as ReportTask[])
     : [];
+  // Same for metrics, plus a guard on each row: this is hand-editable jsonb, so
+  // a row without a known platform or a `values` object is skipped rather than
+  // allowed to throw the whole page.
+  const metrics = (
+    Array.isArray(report.content?.metrics)
+      ? (report.content.metrics as PlatformMetrics[])
+      : []
+  ).filter(
+    (row) =>
+      PLATFORM_IDS.includes(row?.platform) &&
+      row.values !== null &&
+      typeof row.values === "object"
+  );
+  const columns = reportedMetrics(metrics);
 
   const isAuthor = report.author_id === profile.id;
   const privileged = canManageAnyReport(profile.role);
@@ -231,6 +251,65 @@ export default async function ReportDetailPage({
                 </ul>
               )}
             </div>
+            {metrics.length > 0 ? (
+              <div>
+                <h3 className="mb-1 text-sm font-semibold">
+                  Social media performance
+                </h3>
+                {/* Only the metrics this month actually reported get a column,
+                    so a platform that measures four things does not drag six
+                    empty columns across the table. An em dash is "not
+                    measured"; a real 0 prints as 0. */}
+                <div className="-mx-1 overflow-x-auto px-1">
+                  <table className="w-full min-w-[32rem] text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th
+                          scope="col"
+                          className="py-1.5 pr-3 text-left font-medium"
+                        >
+                          Platform
+                        </th>
+                        {columns.map((metric) => (
+                          <th
+                            key={metric}
+                            scope="col"
+                            className="py-1.5 pl-3 text-right font-medium"
+                          >
+                            {metricLabel(metric)}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {metrics.map((row) => (
+                        <tr key={row.platform} className="border-b last:border-0">
+                          <th
+                            scope="row"
+                            className="py-1.5 pr-3 text-left font-normal"
+                          >
+                            {platformLabel(row.platform)}
+                          </th>
+                          {columns.map((metric) => {
+                            const value = row.values?.[metric];
+                            return (
+                              <td
+                                key={metric}
+                                className="py-1.5 pl-3 text-right tabular-nums text-muted-foreground"
+                              >
+                                {value === undefined
+                                  ? "—"
+                                  : formatMetric(metric, value)}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
             {MONTHLY_SECTIONS.map(([key, label]) => (
               <div key={key}>
                 <h3 className="mb-1 text-sm font-semibold">{label}</h3>

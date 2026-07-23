@@ -68,12 +68,88 @@ export function taskTypeColor(type: TaskType) {
   return `var(--series-${(slot < 0 ? TASK_TYPE_IDS.length - 1 : slot) + 1})`;
 }
 
+// The platforms a monthly report can carry performance figures for. Same rules
+// as TASK_TYPES: only ever append, and renaming an id orphans the figures
+// already saved under it. Order is the display order, nothing more — these do
+// not take colour slots, because the metrics table is a table, not a chart.
+export const PLATFORMS = [
+  { id: "facebook", label: "Facebook" },
+  { id: "instagram", label: "Instagram" },
+  { id: "tiktok", label: "TikTok" },
+  { id: "linkedin", label: "LinkedIn" },
+  { id: "youtube", label: "YouTube" },
+  { id: "telegram", label: "Telegram" },
+  { id: "website", label: "Website" },
+] as const;
+export type PlatformId = (typeof PLATFORMS)[number]["id"];
+export const PLATFORM_IDS = PLATFORMS.map((entry) => entry.id) as PlatformId[];
+
+export function platformLabel(platform: PlatformId) {
+  return PLATFORMS.find((entry) => entry.id === platform)?.label ?? platform;
+}
+
+// The figures a platform row can carry. `rate` values are percentages exactly
+// as the platforms report them — 5.02 means 5.02%, so nothing here is ever
+// multiplied by 100 on the way in or out.
+export const METRICS = [
+  { id: "posts", label: "Posts", kind: "count" },
+  { id: "views", label: "Views", kind: "count" },
+  { id: "reach", label: "Reach", kind: "count" },
+  { id: "profile_views", label: "Profile views", kind: "count" },
+  { id: "interactions", label: "Interactions", kind: "count" },
+  { id: "likes", label: "Likes", kind: "count" },
+  { id: "shares", label: "Shares", kind: "count" },
+  { id: "visits", label: "Visits", kind: "count" },
+  { id: "follows", label: "Follows", kind: "count" },
+  { id: "link_clicks", label: "Link clicks", kind: "count" },
+  { id: "engagement_rate", label: "Engagement rate", kind: "rate" },
+  { id: "follow_rate", label: "Follow rate", kind: "rate" },
+  { id: "visit_rate", label: "Visit rate", kind: "rate" },
+] as const;
+export type MetricId = (typeof METRICS)[number]["id"];
+export const METRIC_IDS = METRICS.map((entry) => entry.id) as MetricId[];
+
+export function metricLabel(metric: MetricId) {
+  return METRICS.find((entry) => entry.id === metric)?.label ?? metric;
+}
+
+// A metric missing from `values` was not measured; a metric present at 0 was
+// measured and came back zero. The distinction is the whole reason this is a
+// sparse map rather than a fixed row of numbers: LinkedIn publishing nothing
+// in a month is a reported zero, while TikTok having no "visits" concept at
+// all is an absence. Collapsing the two would let an absence read as a slump.
+export interface PlatformMetrics {
+  platform: PlatformId;
+  values: Partial<Record<MetricId, number>>;
+}
+
+const countFormat = new Intl.NumberFormat("en-US");
+const rateFormat = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 2,
+});
+
+export function formatMetric(metric: MetricId, value: number) {
+  return METRICS.find((entry) => entry.id === metric)?.kind === "rate"
+    ? `${rateFormat.format(value)}%`
+    : countFormat.format(value);
+}
+
+// The metrics actually reported by at least one platform in a set of rows, in
+// METRICS order. A table over every metric would be mostly empty columns; this
+// is what lets the table carry only the ones the month has figures for.
+export function reportedMetrics(rows: PlatformMetrics[]): MetricId[] {
+  return METRIC_IDS.filter((metric) =>
+    rows.some((row) => row.values[metric] !== undefined)
+  );
+}
+
 export interface MonthlyContent {
   summary?: string;
   accomplishments?: string;
   challenges?: string;
   next_month_plan?: string;
   tasks?: ReportTask[];
+  metrics?: PlatformMetrics[];
 }
 
 export interface Report {
