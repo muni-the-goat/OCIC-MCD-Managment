@@ -146,6 +146,13 @@ function Stat({
   );
 }
 
+// The dashboard budget card's cross-filter selection.
+type Focus =
+  | { kind: "item"; key: string; label: string }
+  | { kind: "section"; key: string; label: string }
+  | { kind: "month"; index: number; label: string }
+  | null;
+
 export function AnnualBudgetCharts({
   items,
   year,
@@ -153,9 +160,7 @@ export function AnnualBudgetCharts({
   items: BudgetItem[];
   year: number;
 }) {
-  const [focus, setFocus] = useState<
-    { kind: "item" | "section"; key: string; label: string } | null
-  >(null);
+  const [focus, setFocus] = useState<Focus>(null);
 
   const allTotal = items.reduce((sum, item) => sum + itemTotal(item), 0);
   if (allTotal === 0) {
@@ -166,71 +171,92 @@ export function AnnualBudgetCharts({
     );
   }
 
-  // The focused subset — a single line item, a whole section, or (unfocused)
-  // everything. Cross-filtering is local state over data already in the browser,
-  // so it costs no query. The month chart and the four tiles follow the subset;
-  // the ranked chart keeps every bar for context and dims those outside it.
-  const focusItems =
+  // Cross-filtering is local state over data already in the browser, so it costs
+  // no query. Three focus kinds: one line item, one whole section, or one month.
+  const monthFocus = focus?.kind === "month" ? focus.index : null;
+  const subsetIds =
     focus?.kind === "item"
-      ? items.filter((item) => item.id === focus.key)
+      ? new Set([focus.key])
       : focus?.kind === "section"
-        ? items.filter(
-            (item) => (item.section || "Uncategorized") === focus.key
+        ? new Set(
+            items
+              .filter((i) => (i.section || "Uncategorized") === focus.key)
+              .map((i) => i.id)
           )
-        : items;
-  const focusItemIds = new Set(focusItems.map((item) => item.id));
+        : null;
 
+  // A month focus counts only that month; an item/section focus counts the full
+  // year. This one accessor drives the tiles and the ranked ordering together.
+  const amountOf = (item: BudgetItem) =>
+    monthFocus != null
+      ? Number(item[MONTH_KEYS[monthFocus]] ?? 0)
+      : itemTotal(item);
+  const effectiveItems = subsetIds
+    ? items.filter((i) => subsetIds.has(i.id))
+    : items;
+
+  // Spend by month: an item/section focus narrows the whole series to the
+  // subset; a month focus keeps every month and highlights the chosen one.
+  const monthChartItems = subsetIds ? effectiveItems : items;
   const monthly = MONTH_KEYS.map((key, index) => ({
     month: MONTH_SHORT[index],
     full: MONTH_NAMES[index],
-    amount: focusItems.reduce((sum, item) => sum + Number(item[key] ?? 0), 0),
+    index,
+    amount: monthChartItems.reduce(
+      (sum, item) => sum + Number(item[key] ?? 0),
+      0
+    ),
   }));
-  const total = monthly.reduce((sum, entry) => sum + entry.amount, 0);
-  const peak = monthly.reduce((best, entry) =>
-    entry.amount > best.amount ? entry : best
+  const monthlyPeak = monthly.reduce((best, e) =>
+    e.amount > best.amount ? e : best
   );
-  const activeMonths = monthly.filter((entry) => entry.amount > 0).length;
 
-  // Section subtotals across ALL items — this is the toggle control, so it lists
-  // every section regardless of the current focus. Largest first.
+  // The four tiles, all reading the current focus.
+  const total = effectiveItems.reduce((sum, item) => sum + amountOf(item), 0);
+  const peakTile =
+    monthFocus != null
+      ? { full: MONTH_NAMES[monthFocus], amount: monthly[monthFocus].amount }
+      : monthlyPeak;
+  const activeMonths =
+    monthFocus != null
+      ? monthly[monthFocus].amount > 0
+        ? 1
+        : 0
+      : monthly.filter((e) => e.amount > 0).length;
+
+  const effSectionTotals = new Map<string, number>();
+  for (const item of effectiveItems) {
+    const n = item.section || "Uncategorized";
+    effSectionTotals.set(n, (effSectionTotals.get(n) ?? 0) + amountOf(item));
+  }
+  const effSections = [...effSectionTotals.entries()]
+    .map(([name, amount]) => ({ name, amount }))
+    .filter((s) => s.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+  const effSpendingCount = effectiveItems.filter((i) => amountOf(i) > 0).length;
+
+  // Section chips list every section regardless of focus — the toggle control.
   const sectionTotals = new Map<string, number>();
   for (const item of items) {
-    const name = item.section || "Uncategorized";
-    sectionTotals.set(name, (sectionTotals.get(name) ?? 0) + itemTotal(item));
+    const n = item.section || "Uncategorized";
+    sectionTotals.set(n, (sectionTotals.get(n) ?? 0) + itemTotal(item));
   }
   const sections = [...sectionTotals.entries()]
     .map(([name, amount]) => ({ name, amount }))
-    .filter((section) => section.amount > 0)
+    .filter((s) => s.amount > 0)
     .sort((a, b) => b.amount - a.amount);
 
-  // The focused subset's own top section and line-item count, for the tiles.
-  const focusSectionTotals = new Map<string, number>();
-  for (const item of focusItems) {
-    const name = item.section || "Uncategorized";
-    focusSectionTotals.set(
-      name,
-      (focusSectionTotals.get(name) ?? 0) + itemTotal(item)
-    );
-  }
-  const focusSections = [...focusSectionTotals.entries()]
-    .map(([name, amount]) => ({ name, amount }))
-    .filter((section) => section.amount > 0)
-    .sort((a, b) => b.amount - a.amount);
-  const focusSpendingCount = focusItems.filter(
-    (item) => itemTotal(item) > 0
-  ).length;
-
-  // Ranked line items across ALL items (the context view), tail folded in.
+  // Ranked line items, by the focus-appropriate amount so a month focus
+  // re-ranks by that month's spend. Tail folded into one row.
   const spending = items
     .map((item) => ({
       key: item.id,
       name: item.name || "Untitled",
       section: item.section || "Uncategorized",
-      amount: itemTotal(item),
+      amount: amountOf(item),
     }))
-    .filter((item) => item.amount > 0)
+    .filter((i) => i.amount > 0)
     .sort((a, b) => b.amount - a.amount);
-
   const ranked =
     spending.length > MAX_RANKED
       ? [
@@ -245,15 +271,23 @@ export function AnnualBudgetCharts({
           },
         ]
       : spending;
+  // Item/section focus dims the ranked bars outside the subset; a month focus
+  // leaves them all lit (it re-ranks instead).
+  const highlighted = (key: string) => (subsetIds ? subsetIds.has(key) : true);
 
-  // Clicking a ranked bar focuses that line item (toggle); the combined
-  // remainder isn't a single item, so it doesn't select.
-  const selectItem = (key: string, name: string, section: string) => {
-    if (key === "other") return;
-    setFocus((current) =>
-      current?.kind === "item" && current.key === key
+  const toggleItem = (key: string, name: string, section: string) => {
+    if (key === "other") return; // the combined remainder isn't one item
+    setFocus((c) =>
+      c?.kind === "item" && c.key === key
         ? null
         : { kind: "item", key, label: `${section} · ${name}` }
+    );
+  };
+  const toggleMonth = (index: number) => {
+    setFocus((c) =>
+      c?.kind === "month" && c.index === index
+        ? null
+        : { kind: "month", index, label: MONTH_NAMES[index] }
     );
   };
 
@@ -290,26 +324,26 @@ export function AnnualBudgetCharts({
         />
         <Stat
           label="Peak month"
-          value={peak.amount > 0 ? peak.full : "—"}
+          value={peakTile.amount > 0 ? peakTile.full : "—"}
           caption={
-            peak.amount > 0
-              ? `${currency.format(peak.amount)} · ${share(peak.amount, total)}% of the total`
+            peakTile.amount > 0
+              ? `${currency.format(peakTile.amount)} · ${share(peakTile.amount, total)}% of the total`
               : "No spend recorded"
           }
         />
         <Stat
           label="Top section"
-          value={focusSections[0] ? focusSections[0].name : "—"}
+          value={effSections[0] ? effSections[0].name : "—"}
           caption={
-            focusSections[0]
-              ? `${currency.format(focusSections[0].amount)} · ${share(focusSections[0].amount, total)}% of the total`
+            effSections[0]
+              ? `${currency.format(effSections[0].amount)} · ${share(effSections[0].amount, total)}% of the total`
               : "No sections with spend"
           }
         />
         <Stat
           label="Activity"
           value={`${activeMonths} / 12`}
-          caption={`Months with spend · ${focusSpendingCount} line items`}
+          caption={`Months with spend · ${effSpendingCount} line items`}
         />
       </div>
 
@@ -323,7 +357,7 @@ export function AnnualBudgetCharts({
         >
           <h4 className="font-label text-sm font-medium">Spend by month</h4>
           <p className="text-xs text-muted-foreground">
-            Every reviewed line item, summed per month.
+            Summed per month. Click a month to filter the card.
           </p>
           {/* A phone cannot fit twelve month labels, and dropping every other
               one hides half the year. The plot keeps a floor width and scrolls
@@ -332,12 +366,18 @@ export function AnnualBudgetCharts({
           <div className="-mx-1 mt-4 overflow-x-auto px-1 pb-1">
             <ChartContainer
               config={chartConfig}
-              className="aspect-auto h-64 w-full min-w-[480px]"
+              className="aspect-auto h-64 w-full min-w-[480px] cursor-pointer"
             >
               <BarChart
                 accessibilityLayer
                 data={monthly}
                 margin={{ top: 20, right: 12, left: 12, bottom: 0 }}
+                // Whole-column click: recharts reports the month nearest the
+                // cursor, so the entire band is a target, not just the drawn bar.
+                onClick={(state) => {
+                  const index = state?.activeTooltipIndex;
+                  if (typeof index === "number") toggleMonth(index);
+                }}
               >
                 <CartesianGrid vertical={false} stroke="var(--border)" />
                 <XAxis
@@ -372,6 +412,17 @@ export function AnnualBudgetCharts({
                   maxBarSize={36}
                   animationDuration={450}
                 >
+                  {monthly.map((entry) => (
+                    <Cell
+                      key={entry.month}
+                      // A month focus lights only the chosen month; otherwise all.
+                      fillOpacity={
+                        monthFocus == null || monthFocus === entry.index
+                          ? 1
+                          : 0.25
+                      }
+                    />
+                  ))}
                   {/* Only the peak is direct-labelled; the axis and tooltip carry the rest. */}
                   <LabelList
                     dataKey="amount"
@@ -380,7 +431,7 @@ export function AnnualBudgetCharts({
                     className="fill-foreground tabular-nums"
                     fontSize={11}
                     formatter={(value) =>
-                      Number(value) > 0 && Number(value) === peak.amount
+                      Number(value) > 0 && Number(value) === monthlyPeak.amount
                         ? currency.format(Number(value))
                         : ""
                     }
@@ -397,11 +448,14 @@ export function AnnualBudgetCharts({
         >
           <h4 className="font-label text-sm font-medium">Biggest line items</h4>
           <p className="text-xs text-muted-foreground">
-            Full-year totals, largest first. Click a bar to filter the card.
+            {monthFocus == null
+              ? "Full-year totals, largest first."
+              : `${MONTH_NAMES[monthFocus]} totals, largest first.`}{" "}
+            Click a row to filter the card.
           </p>
           <ChartContainer
             config={chartConfig}
-            className="mt-4 aspect-auto w-full"
+            className="mt-4 aspect-auto w-full cursor-pointer"
             style={{ height: Math.max(160, ranked.length * 34 + 16) }}
           >
             <BarChart
@@ -409,6 +463,14 @@ export function AnnualBudgetCharts({
               layout="vertical"
               data={ranked}
               margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
+              // Whole-row click: recharts reports the row nearest the cursor, so
+              // even a tiny bar's full row is a target.
+              onClick={(state) => {
+                const index = state?.activeTooltipIndex;
+                if (typeof index !== "number") return;
+                const entry = ranked[index];
+                if (entry) toggleItem(entry.key, entry.name, entry.section);
+              }}
             >
               <CartesianGrid horizontal={false} stroke="var(--border)" />
               {/* Headroom past the largest bar so its right-hand value label has
@@ -439,21 +501,13 @@ export function AnnualBudgetCharts({
                 radius={[0, 4, 4, 0]}
                 maxBarSize={24}
                 animationDuration={450}
-                onClick={(_, index) => {
-                  const entry = ranked[index];
-                  if (entry) selectItem(entry.key, entry.name, entry.section);
-                }}
               >
-                {ranked.map((entry) => {
-                  const highlighted = focus ? focusItemIds.has(entry.key) : true;
-                  return (
-                    <Cell
-                      key={entry.key}
-                      fillOpacity={highlighted ? 1 : 0.25}
-                      cursor={entry.key === "other" ? "default" : "pointer"}
-                    />
-                  );
-                })}
+                {ranked.map((entry) => (
+                  <Cell
+                    key={entry.key}
+                    fillOpacity={highlighted(entry.key) ? 1 : 0.25}
+                  />
+                ))}
                 <LabelList
                   dataKey="amount"
                   position="right"
