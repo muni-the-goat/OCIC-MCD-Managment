@@ -234,3 +234,171 @@
     font-family: var(--font-label), var(--font-sans), sans-serif;
   }
 }
+
+/* Print-to-PDF budget report. PrintableBudgetReport renders a clean letterhead
+   document that is hidden on screen; when the browser prints (the "Export PDF"
+   button just calls window.print()), the app shell is hidden and only this
+   region prints. Colours are literal brand hex, not the theme tokens, because a
+   report always prints on white regardless of the viewer's light/dark theme. */
+.print-only {
+  display: none;
+}
+
+@media print {
+  /* Reveal only the letterhead region. visibility rather than display, so a
+     hidden ancestor's box does not collapse the region we are showing; the
+     region is then lifted to the page origin. */
+  body * {
+    visibility: hidden;
+  }
+  .print-only,
+  .print-only * {
+    visibility: visible;
+  }
+  .print-only {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  @page {
+    margin: 1.5cm;
+  }
+
+  /* The grey section/total bands and the red share column carry meaning, so keep
+     them when the browser would otherwise drop backgrounds to save ink. */
+  .print-doc {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color: #212721;
+    font-size: 12px;
+  }
+
+  .print-letterhead {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 2px solid #a42a28;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+  }
+  .print-logo {
+    height: 48px;
+    width: auto;
+  }
+  .print-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .print-subtitle {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: #4f5556;
+  }
+
+  .print-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 40px;
+    margin: 0 0 20px;
+  }
+  .print-meta > div {
+    display: flex;
+    gap: 8px;
+  }
+  .print-meta dt {
+    margin: 0;
+    font-weight: 700;
+  }
+  .print-meta dt::after {
+    content: ":";
+  }
+  .print-meta dd {
+    margin: 0;
+  }
+
+  .print-summary-title {
+    margin: 0 0 8px;
+    font-size: 15px;
+    font-weight: 700;
+    font-style: italic;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .print-table th,
+  .print-table td {
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .print-table thead th {
+    border-bottom: 1.5px solid #212721;
+    font-weight: 700;
+  }
+  .print-table .pt-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .print-table .pt-pct {
+    text-align: right;
+    color: #a42a28;
+    font-style: italic;
+    font-weight: 600;
+  }
+  /* Header cells stay dark and upright even in the share/number columns. */
+  .print-table thead .pt-pct {
+    color: #212721;
+    font-style: normal;
+    font-weight: 700;
+  }
+  .print-table tbody td {
+    border-bottom: 1px solid #e7e3d8;
+  }
+  .print-table .pt-section td {
+    background: #efe9dd;
+    border-top: 1px solid #d9d4c7;
+    font-weight: 700;
+  }
+  .print-table .pt-subtotal td {
+    font-weight: 600;
+  }
+  .print-table .pt-total td {
+    background: #efe9dd;
+    border-top: 2px solid #212721;
+    font-weight: 700;
+  }
+
+  .print-empty {
+    font-size: 12px;
+    color: #4f5556;
+  }
+  .print-footer {
+    margin-top: 24px;
+    padding-top: 8px;
+    border-top: 1px solid #e7e3d8;
+    font-size: 10px;
+    color: #4f5556;
+  }
+
+  /* Whole-budget document: each department starts its own block, and long tables
+     break across pages by row rather than mid-row, repeating their header. */
+  .print-department {
+    margin-top: 20px;
+  }
+  .print-summary-title {
+    break-after: avoid;
+  }
+  .print-table thead {
+    display: table-header-group;
+  }
+  .print-table tr {
+    break-inside: avoid;
+  }
+}

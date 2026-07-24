@@ -9,10 +9,12 @@ import {
 } from "@/components/ui/card";
 import { BudgetApprovalBar } from "@/components/budget-approval-bar";
 import { DepartmentBadge } from "@/components/department-badge";
+import { DepartmentMonthMatrix } from "@/components/department-month-matrix";
+import { ExportPdfButton } from "@/components/export-pdf-button";
 import {
-  DepartmentMonthMatrix,
-  type DepartmentMatrixItem,
-} from "@/components/department-month-matrix";
+  PrintableAnnualBudget,
+  type AnnualBudgetPrintItem,
+} from "@/components/printable-annual-budget";
 import {
   annualBudgetScope,
   canSetBudgetApproval,
@@ -200,7 +202,10 @@ export async function AnnualBudgetSummary({
   // query — which is also what guarantees it reconciles with the grids beneath
   // it. Same scope, same year, same author filter, one source of numbers.
   const showMatrix = canViewDepartmentMatrix(role);
-  const matrixItems: DepartmentMatrixItem[] = showMatrix
+  // One array feeds both the on-screen matrix and the print document, so the two
+  // can never disagree. Typed as the richer print item (section/name kept) since
+  // that is a superset of what the matrix reads.
+  const matrixItems: AnnualBudgetPrintItem[] = showMatrix
     ? sourceItems.map((item) => ({
         ...item,
         department: authorProfiles.get(item.report.author_id)?.department ?? null,
@@ -228,6 +233,7 @@ export async function AnnualBudgetSummary({
   );
 
   return (
+    <>
     <Card className="rounded-2xl">
       <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1.5">
@@ -241,13 +247,18 @@ export async function AnnualBudgetSummary({
               : "Automatically combines only your reviewed monthly budget reports."}
           </CardDescription>
         </div>
-        <SummaryFilters
-          years={years}
-          selectedYear={selectedYear}
-          authors={authors}
-          selectedAuthor={selectedAuthor}
-          allAuthorsLabel="All authors"
-        />
+        <div className="flex flex-wrap items-end gap-2">
+          {showMatrix && sourceItems.length > 0 ? (
+            <ExportPdfButton label="Export budget PDF" />
+          ) : null}
+          <SummaryFilters
+            years={years}
+            selectedYear={selectedYear}
+            authors={authors}
+            selectedAuthor={selectedAuthor}
+            allAuthorsLabel="All authors"
+          />
+        </div>
       </CardHeader>
       <CardContent>
         {itemsResult.error || yearsResult.error || authorsResult.error ? (
@@ -309,6 +320,16 @@ export async function AnnualBudgetSummary({
         )}
       </CardContent>
     </Card>
+    {showMatrix && sourceItems.length > 0 ? (
+      <PrintableAnnualBudget
+        year={selectedYear}
+        approval={approval}
+        spent={totalSpend}
+        items={matrixItems}
+        departments={departments}
+      />
+    ) : null}
+    </>
   );
 }
 

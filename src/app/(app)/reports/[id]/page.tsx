@@ -5,6 +5,8 @@ import { CommentForm } from "@/components/comment-form";
 import { DeleteAttachmentButton } from "@/components/delete-attachment-button";
 import { DeleteReportButton } from "@/components/delete-report-button";
 import { DepartmentBadge } from "@/components/department-badge";
+import { ExportPdfButton } from "@/components/export-pdf-button";
+import { PrintableBudgetReport } from "@/components/printable-budget-report";
 import { ReviewControls } from "@/components/review-controls";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -154,6 +156,7 @@ export default async function ReportDetailPage({
           ) : null}
         </div>
         <div className="flex gap-2">
+          {report.type === "budget" ? <ExportPdfButton /> : null}
           {canEdit ? (
             <Button asChild variant="outline" size="sm" className="gap-2">
               <Link href={`/reports/${report.id}/edit`}>
@@ -165,6 +168,18 @@ export default async function ReportDetailPage({
           {canDelete ? <DeleteReportButton reportId={report.id} /> : null}
         </div>
       </div>
+
+      {report.type === "budget" ? (
+        <PrintableBudgetReport
+          report={report}
+          items={items}
+          authorName={nameOf(report.author_id)}
+          departmentName={
+            departmentLabel(departmentOf(report.author_id), departments) ??
+            "Unassigned"
+          }
+        />
+      ) : null}
 
       {report.status === "rejected" && isAuthor ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">

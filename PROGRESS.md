@@ -528,6 +528,23 @@ Only office accounts may sign in. Both the rule and the post-login redirect chec
 - Report comments are displayed chronologically.
 - Rejection comments are required and saved transactionally with the decision.
 
+## PDF export (budget reports)
+
+There are **two** print-to-PDF exports, both browser-driven — the shared button `src/components/export-pdf-button.tsx` only calls `window.print()`, and the browser's own "Save as PDF" produces the file. This was chosen over a headless-Chromium download to avoid a heavy, cold-start-prone dependency on Vercel; the output is a real vector PDF with selectable text. Both reuse one set of `@media print` rules in `globals.css` that hide the app shell and reveal only the `.print-only` region on the page.
+
+1. **Single report** — an **Export PDF** button on a budget report's detail page. Layout in `src/components/printable-budget-report.tsx`; details below.
+2. **Whole annual budget** — an **Export budget PDF** button on the dashboard's Annual budget card, shown to the roles that see the department matrix (Admin, Head of Department) when the current selection has data. Layout in `src/components/printable-annual-budget.tsx`: the FY approval (approved / spent / remaining), the **department × month matrix** with its `% of budget` (or `% of year`) column, then **one line-item table per department** — the shape of the team's *Actual Expenses* workbook. It prints the current year/author selection (what you see is what you print), and reuses the exact `matrixItems` array the on-screen matrix is built from, so the printed totals reconcile with the page. Per-department tables show only the months a department actually spent in, so a portrait page is not overrun by empty columns.
+
+### Single-report layout
+
+- **The printed layout is its own component**, `src/components/printable-budget-report.tsx`, rendered on the detail page but `display:none` on screen. It mirrors the team's hand-made workbook: an OCIC letterhead, a **Name / Department / Date** block (Date is the report period), a **Summary** heading, and the line-item table with a red-italic **% of total** share column and grey section/Total bands. That share column does not exist on the interactive `BudgetGrid`, which is why the print view is a separate component rather than a print stylesheet over the on-screen grid.
+- **Monthly reports** print `Line item · <Month> · % of total`. **Legacy annual reports** print `Line item · Q1–Q4 · Total · % of total`, aggregating the twelve `m01`–`m12` columns into quarters — twelve money columns do not fit portrait, and the sample workbook is quarterly.
+- **The share denominator is the report grand total**, computed exactly as the on-screen grid computes it (a monthly report on its one month, an annual report across all twelve), so the printed numbers reconcile with the page.
+- **Print isolation lives in `globals.css`** under `@media print`: `visibility:hidden` on the whole app shell, `visible` on `.print-only`, which is then lifted to the page origin. Colours are literal brand hex, not the theme tokens, so the document prints on white regardless of the viewer's light/dark theme, and `print-color-adjust: exact` keeps the grey bands and red share column from being dropped to save ink.
+- **The letterhead logo uses `priority`** so it eager-loads despite sitting in a `display:none` container; a lazy image there can print blank.
+- **Only budget reports** get the button and the print component today. Activity reports are the next format to add (they need a different print body — the four narrative blocks), and the sample for them has not been supplied yet.
+- **Attachments are not embedded.** Print-to-PDF only captures the page's own HTML; attached files live in Supabase storage behind signed URLs. Merging them into the PDF would require the server-generated route this deliberately avoids.
+
 ## Database migration history
 
 1. `0001_init.sql` — creates roles, profiles, reports, budget items, comments, attachments, RLS policies, storage policies, and profile trigger.
@@ -601,6 +618,9 @@ Department is otherwise still an attribute of a person — **no query filters on
 - `src/components/summary-filters.tsx` — year, month, and author/Manager selects, shared by both tabs through the `yearParam`/`monthParam`/`authorParam`/`idPrefix` props. The month select only renders when a tab passes months.
 - `src/components/monthly-activity-summary.tsx` — the Monthly activity panel: reviewed-only report lookup, month resolution, role-specific author scope, and each report's narrative sections and attachment downloads.
 - `src/components/reports-table.tsx` — report list, accessible Admin selection controls, and bulk-delete confirmation.
+- `src/components/printable-budget-report.tsx` — the print-to-PDF letterhead layout for a single budget report; `display:none` on screen, revealed by the `@media print` rules in `globals.css`.
+- `src/components/printable-annual-budget.tsx` — the print-to-PDF layout for the whole annual budget (approval, department × month matrix, per-department line items), rendered inside `annual-budget-summary.tsx`.
+- `src/components/export-pdf-button.tsx` — the shared Export PDF button; calls `window.print()`, accepts an optional `label`.
 - `src/components/department-badge.tsx` — the one department chip, used everywhere a department appears.
 - `src/components/department-month-matrix.tsx` — the department × month spend table at the top of the Annual budget tab.
 - `src/components/budget-approval-bar.tsx` — the approved figure above that table, and the dialog that sets it.
@@ -668,7 +688,8 @@ These are production acceptance checks, not unfinished implementation:
 - The project is stored inside OneDrive, which can slow local dependency operations or cause file locks.
 - **Deleting a user destroys their entire reporting history**, silently and irreversibly — see **Deleting a user is a hard, cascading delete**. Phase 4 is the fix, and it is the one future item worth doing before it is needed rather than after.
 - The next planned work is the Marketing Communication alignment (Phases 1 and 2), chart cross-filtering (Phase 3), and archiving a leaver (Phase 4), all described above.
-- Possible future phases beyond it: departments/teams, canonical budget categories, notifications, audit logs, and Excel/PDF export. Export is worth reconsidering once Phase 1 lands, because the team still hand-assembles the PDF that the application would then hold all the data for.
+- Budget reports and the whole annual budget both export to PDF via browser print — see **PDF export (budget reports)**. Still open: a print body for **activity reports** (four narrative blocks, awaiting a sample of that format), an **Excel** export, and — only if attachments must be embedded — a server-generated PDF route.
+- Possible future phases beyond it: departments/teams, canonical budget categories, notifications, and audit logs.
 
 ## Local environment notes
 
