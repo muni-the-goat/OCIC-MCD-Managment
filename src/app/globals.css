@@ -461,3 +461,17 @@
     animation: none;
   }
 }
+
+/* recharts' accessibility layer makes the plot focusable, so clicking a chart
+   leaves a focus ring around it (the brand --ring, via the global outline base).
+   Suppress it on every recharts focus target — the bars, tooltip and cross-filter
+   already signal interaction. Unlayered + !important so it beats the base rule
+   and the UA :focus outline. */
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-visible,
+.recharts-surface:focus,
+.recharts-surface:focus-visible,
+.recharts-wrapper [tabindex]:focus,
+.recharts-wrapper [tabindex]:focus-visible {
+  outline: none !important;
+}

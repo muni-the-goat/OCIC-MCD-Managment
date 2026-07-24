@@ -372,11 +372,18 @@ export function AnnualBudgetCharts({
                 accessibilityLayer
                 data={monthly}
                 margin={{ top: 20, right: 12, left: 12, bottom: 0 }}
-                // Whole-column click: recharts reports the month nearest the
-                // cursor, so the entire band is a target, not just the drawn bar.
+                // Whole-column click: read the active datum (the month nearest
+                // the cursor) straight off the payload, so the entire band is a
+                // target and it does not depend on recharts' index field name.
                 onClick={(state) => {
-                  const index = state?.activeTooltipIndex;
-                  if (typeof index === "number") toggleMonth(index);
+                  const payload = (
+                    state as unknown as {
+                      activePayload?: Array<{ payload?: { index?: number } }>;
+                    }
+                  )?.activePayload?.[0]?.payload;
+                  if (payload && typeof payload.index === "number") {
+                    toggleMonth(payload.index);
+                  }
                 }}
               >
                 <CartesianGrid vertical={false} stroke="var(--border)" />
@@ -463,13 +470,20 @@ export function AnnualBudgetCharts({
               layout="vertical"
               data={ranked}
               margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
-              // Whole-row click: recharts reports the row nearest the cursor, so
-              // even a tiny bar's full row is a target.
+              // Whole-row click: read the active datum straight off the payload
+              // so even a tiny bar's full row is a target, without depending on
+              // recharts' index field name.
               onClick={(state) => {
-                const index = state?.activeTooltipIndex;
-                if (typeof index !== "number") return;
-                const entry = ranked[index];
-                if (entry) toggleItem(entry.key, entry.name, entry.section);
+                const payload = (
+                  state as unknown as {
+                    activePayload?: Array<{
+                      payload?: { key?: string; name?: string; section?: string };
+                    }>;
+                  }
+                )?.activePayload?.[0]?.payload;
+                if (payload?.key) {
+                  toggleItem(payload.key, payload.name ?? "", payload.section ?? "");
+                }
               }}
             >
               <CartesianGrid horizontal={false} stroke="var(--border)" />
