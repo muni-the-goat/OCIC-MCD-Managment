@@ -23,9 +23,9 @@ import { DashboardChartTabs } from "@/components/dashboard-chart-tabs";
 import { GaugeStatCard, StatusMix } from "@/components/dashboard-stats";
 import { DepartmentBadge } from "@/components/department-badge";
 import {
-  MonthlyTaskSummary,
-  MonthlyTaskSummarySkeleton,
-} from "@/components/monthly-task-summary";
+  MonthlyActivitySummary,
+  MonthlyActivitySummarySkeleton,
+} from "@/components/monthly-activity-summary";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -227,9 +227,9 @@ export default async function DashboardPage({
             </Suspense>
           ) : undefined
         }
-        tasks={
-          <Suspense fallback={<MonthlyTaskSummarySkeleton />}>
-            <MonthlyTaskSummary
+        activity={
+          <Suspense fallback={<MonthlyActivitySummarySkeleton />}>
+            <MonthlyActivitySummary
               userId={profile.id}
               role={profile.role}
               year={params.task_year}

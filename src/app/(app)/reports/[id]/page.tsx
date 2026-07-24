@@ -27,22 +27,13 @@ import { departmentLabel } from "@/lib/departments";
 import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
 import {
-  PLATFORM_IDS,
-  formatMetric,
-  metricLabel,
-  platformLabel,
   reportPeriodLabel,
   reportTypeLabel,
-  reportedMetrics,
-  taskTypeColor,
-  taskTypeLabel,
   type BudgetItem,
-  type PlatformMetrics,
   type Profile,
   type Report,
   type ReportAttachment,
   type ReportComment,
-  type ReportTask,
 } from "@/lib/types";
 
 export const metadata = { title: "Report" };
@@ -116,25 +107,6 @@ export default async function ReportDetailPage({
   };
   const departmentOf = (userId: string | null) =>
     userId ? (people.get(userId)?.department ?? null) : null;
-
-  // content is jsonb — a report written before tasks existed simply has no key.
-  const tasks = Array.isArray(report.content?.tasks)
-    ? (report.content.tasks as ReportTask[])
-    : [];
-  // Same for metrics, plus a guard on each row: this is hand-editable jsonb, so
-  // a row without a known platform or a `values` object is skipped rather than
-  // allowed to throw the whole page.
-  const metrics = (
-    Array.isArray(report.content?.metrics)
-      ? (report.content.metrics as PlatformMetrics[])
-      : []
-  ).filter(
-    (row) =>
-      PLATFORM_IDS.includes(row?.platform) &&
-      row.values !== null &&
-      typeof row.values === "object"
-  );
-  const columns = reportedMetrics(metrics);
 
   const isAuthor = report.author_id === profile.id;
   const privileged = canManageAnyReport(profile.role);
@@ -220,96 +192,6 @@ export default async function ReportDetailPage({
             <CardTitle>Report</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <h3 className="mb-1 text-sm font-semibold">
-                Tasks{tasks.length > 0 ? ` (${tasks.length})` : ""}
-              </h3>
-              {tasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No tasks were listed on this report.
-                </p>
-              ) : (
-                <ul className="space-y-1.5">
-                  {tasks.map((task, index) => (
-                    <li
-                      key={index}
-                      className="flex items-start justify-between gap-3 text-sm"
-                    >
-                      <span className="min-w-0">{task.name}</span>
-                      {/* The swatch echoes the dashboard's ring, but the type
-                          name is spelled out beside it — colour never carries
-                          the meaning on its own. */}
-                      <span className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
-                        <span
-                          className="size-2.5 shrink-0 rounded-full"
-                          style={{ backgroundColor: taskTypeColor(task.type) }}
-                        />
-                        {taskTypeLabel(task.type)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            {metrics.length > 0 ? (
-              <div>
-                <h3 className="mb-1 text-sm font-semibold">
-                  Social media performance
-                </h3>
-                {/* Only the metrics this month actually reported get a column,
-                    so a platform that measures four things does not drag six
-                    empty columns across the table. An em dash is "not
-                    measured"; a real 0 prints as 0. */}
-                <div className="-mx-1 overflow-x-auto px-1">
-                  <table className="w-full min-w-[32rem] text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th
-                          scope="col"
-                          className="py-1.5 pr-3 text-left font-medium"
-                        >
-                          Platform
-                        </th>
-                        {columns.map((metric) => (
-                          <th
-                            key={metric}
-                            scope="col"
-                            className="py-1.5 pl-3 text-right font-medium"
-                          >
-                            {metricLabel(metric)}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {metrics.map((row) => (
-                        <tr key={row.platform} className="border-b last:border-0">
-                          <th
-                            scope="row"
-                            className="py-1.5 pr-3 text-left font-normal"
-                          >
-                            {platformLabel(row.platform)}
-                          </th>
-                          {columns.map((metric) => {
-                            const value = row.values?.[metric];
-                            return (
-                              <td
-                                key={metric}
-                                className="py-1.5 pl-3 text-right tabular-nums text-muted-foreground"
-                              >
-                                {value === undefined
-                                  ? "—"
-                                  : formatMetric(metric, value)}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : null}
             {MONTHLY_SECTIONS.map(([key, label]) => (
               <div key={key}>
                 <h3 className="mb-1 text-sm font-semibold">{label}</h3>

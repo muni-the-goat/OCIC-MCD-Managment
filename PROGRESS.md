@@ -4,7 +4,9 @@
 
 The main reporting workflow is implemented, production-build verified, and pushed to GitHub `main`. Vercel is connected to the repository for automatic deployments.
 
-The monthly report tab, the office-domain sign-in restriction, and departments were developed on `feat/monthly-report-tab` (pull request #1) and merged to `main`. The most recent work on `main` prints each author's department as a chip wherever a report names them (see **Where department is shown**), and widens the Coordinator role to every budget report in the office while leaving monthly activity reports private (see **Coordinator**).
+The monthly report tab, the office-domain sign-in restriction, and departments were developed on `feat/monthly-report-tab` (pull request #1) and merged to `main`. Later work on `main` prints each author's department as a chip wherever a report names them (see **Where department is shown**), and widens the Coordinator role to every budget report in the office while leaving monthly activity reports private (see **Coordinator**).
+
+**The most recent work strips the monthly activity report back to prose and attachments**, removing the task list and the social performance figures ahead of launch — see **Monthly activity report — structured activity data**. That section records why, what a rebuild has to reckon with, and the one way old data can still be lost.
 
 Supabase migrations `0001` through `0012` have been applied to the production project.
 
@@ -28,7 +30,7 @@ Latest verification completed successfully:
 MCD Management is an internal office report tracker. Users create two kinds of reports:
 
 1. **Monthly budget report** — actual expenses for one selected month, grouped into freeform sections and line items.
-2. **Monthly activity report** — a task list, plus summary, accomplishments, challenges, and next-month plan.
+2. **Monthly activity report** — summary, accomplishments, challenges, and next-month plan, plus attached documents.
 
 Every report follows this lifecycle:
 
@@ -239,48 +241,43 @@ A ring, built as a **meter and not a two-slice donut**. The unspent portion is a
 - The empty state says different things to the two audiences: the Head of Department is told to set it, everyone else is told who will.
 - The bar's "spent" and the matrix's Total row are computed from the same array, so they cannot disagree.
 
-## Monthly activity report — task mix
+## Monthly activity report — structured activity data (removed, to return)
 
-Shipped and merged to `main`.
+**The task list and the per-platform social figures were built, shipped to `main`, and then removed before launch.** What remains of the monthly activity report is four blocks of prose — summary, accomplishments, challenges, next month plan — plus attached documents.
 
-The dashboard chart area became two tabs: the existing **Annual budget** summary and a new **Monthly report** summary. Each tab streams behind its own Suspense boundary and keeps its own filters in the URL (`task_year`, `task_month`, `task_author`) so switching tabs never re-filters the other. A user without annual-budget access sees the monthly card alone with no tab rail.
+### Why they were removed
 
-**The two tabs deliberately work at different time scales.** The budget tab rolls twelve months into one fiscal-year view, because that is what an annual budget is. The monthly report tab shows **one month at a time**, because that is what a monthly report is — and because the Marketing Communication alignment will add several more charts to this card, each of which would otherwise be stretched across a year it does not describe. The month selector sits beside the year and author filters and lists only months that actually have a reviewed report behind them, so it never offers a dead end. With no explicit month in the URL, the card opens on the newest month that has a report rather than on the calendar month, which would show an empty card whenever the team is behind on write-ups.
+Each team writes the month up differently, and the Head of Department wants the application in front of them now rather than after the structured fields are made to fit every team. A typed task list and a fixed metric grid both assume one shape of report; forcing that shape before the teams have agreed one would have made the form wrong for most of them and delayed the launch to fix it.
 
-The card holds a **Task mix** donut, a **What was done** list of the month's tasks grouped by type, and an **Activity trend** line chart. The task list scrolls inside a fixed card height so the card cannot grow without limit as Phase 1's charts join it.
+Attachments carry the burden instead. A team files whatever document they already produce, alongside the narrative — which is what the four text fields were always for.
 
-### Activity trend
+### What was removed, and where it went
 
-Twelve monthly task totals as a line, with the selected month marked by an enlarged dot. It is year-long by design and does not contradict the month scoping above: the question it answers is "is the month I am looking at a normal one", which is context for the selected month rather than a second subject.
+| Piece | Was | Now |
+| --- | --- | --- |
+| Tasks card on the form | `content.tasks: [{ name, type }]` | gone; `TASK_TYPES` deleted from `src/lib/types.ts` |
+| Social media performance card | `content.metrics: [{ platform, values }]` | gone; `PLATFORMS`, `METRICS`, `PlatformMetrics` deleted |
+| Task/metric validation in `saveReport` | zod schemas, coercion, dedupe | gone |
+| Tasks + figures on the report detail page | two blocks above the narrative | gone |
+| Dashboard **Monthly activity** tab | task-mix donut, "What was done" list, activity trend line | `monthly-activity-summary.tsx` — the month's reviewed reports, each with its four narrative sections and its attachments as download links |
 
-Four decisions in it are deliberate and should survive future edits:
+`monthly-task-summary.tsx` and `monthly-task-charts.tsx` were deleted. The tab itself, its Suspense boundary, and its URL filters (`task_year`, `task_month`, `task_author`) all survive unchanged, so the tab rail and the scoping rules below still describe the dashboard.
 
-- **Gaps, not zeros.** A month with no reviewed report is `null`, and `connectNulls` is off, so the line breaks. A month nobody has written up is unknown, not a month in which no work was done, and drawing zero through it asserts something the data does not support.
-- **Straight segments, not a spline.** `type="linear"`. These are twelve discrete monthly aggregates; a curve would draw values between months that were never measured.
-- **No text label on the marked dot.** The axis tick beneath it already names the month and the value is the hero figure at the top of the card. A label would be the third printing of the same number.
-- **A written explanation below two months of data**, rather than a lone dot in an empty frame. The section keeps its heading and says what is missing and when the line will appear. With one month of reviewed reports — which is the current production state — this is what renders.
+**Reports written before the removal still carry `tasks` and `metrics` keys in `reports.content`.** No migration touched them and none is planned — the column is jsonb, so the keys cost nothing and are the only surviving copy of that data in the application. Nothing reads them. Note that `saveReport` rebuilds `content` from the form on every save, so **editing an old monthly report through the UI drops its `tasks` and `metrics` for good.** If those figures matter, export them before anyone edits the reports holding them. The April 2026 seed (see below) writes both keys and remains a faithful transcription of the source PDF.
 
-The **Tasks completed** tile also carries a month-over-month delta (`↑ 3 vs March`). It is muted ink with an arrow rather than green/red: more tasks is not self-evidently better, and status colours would assert a judgement the data does not carry. The delta reuses the same previous-period lookup that Phase 2 needs for platform metrics.
+### The tab that remains
 
-### Chart inventory
+The dashboard chart area is two tabs: the existing **Annual budget** summary and the **Monthly activity** panel. Each streams behind its own Suspense boundary and keeps its own URL filters so switching tabs never re-filters the other. A user without annual-budget access — Staff — sees the activity panel alone with no tab rail, which is why that panel could not simply be deleted along with its charts.
 
-The dashboard now uses four forms, each chosen for its job rather than for variety:
+**The two tabs deliberately work at different time scales.** The budget tab rolls twelve months into one fiscal-year view, because that is what an annual budget is. The activity tab shows **one month at a time**, because that is what a monthly report is. The month selector lists only months that actually have a reviewed report behind them, so it never offers a dead end. With no explicit month in the URL, the panel opens on the newest month that has a report rather than on the calendar month, which would show an empty card whenever the team is behind on write-ups.
 
-| Chart | Form | Job | Colour |
-| --- | --- | --- | --- |
-| Spend by month (budget tab) | vertical bars | compare monthly magnitudes | `--series-1` red |
-| Biggest line items (budget tab) | horizontal bars | rank, with long labels | `--series-2` gold |
-| Task mix (monthly tab) | donut | part-to-whole, ≤ 6 segments | `--series-1…6` |
-| Activity trend (monthly tab) | line | shape of the year | `--series-neutral` |
+The panel shows **reviewed** monthly activity reports only, scoped exactly like the budget tab (Admin sees everyone, Head of Department sees Managers, everyone else sees only their own).
 
-Monthly activity reports gained a structured task list, stored in the existing `reports.content` jsonb as `tasks: [{ name, type }]`. No migration was required.
+### Bringing structured activity data back
 
-- The taxonomy is one array, `TASK_TYPES` in `src/lib/types.ts`, which drives the form's type picker, the chart legend, and the colour each type is painted with. Appending to it is the supported way to extend the list; renaming an `id` orphans tasks already saved under it.
-- Colour binds to a type's position in that array, never to its rank in a chart, so filtering never repaints the remaining types.
-- The Server Action validates the list with zod and coerces an unrecognised type to `other` rather than failing the whole save, so a stale browser tab cannot block a report.
-- Reads are defensive: a report written before this feature has no `tasks` key and counts as zero tasks.
+This is the same work as **Phase 1** and **Phase 2** below, with one lesson learned: the taxonomy has to come from the teams before it goes into an array. Whoever picks this up should start by collecting one real monthly report from each team and finding what they genuinely share, rather than restoring `TASK_TYPES` from git history and assuming it fits.
 
-The chart counts **reviewed** monthly activity reports only, scoped exactly like the budget tab (Admin sees everyone, Head of Department sees Managers, everyone else sees only their own).
+The deleted code is recoverable — `git log -- src/components/monthly-task-charts.tsx` — and the removal commit is the fastest way to see every touch point the feature had.
 
 ### Chart colour tokens
 
@@ -288,23 +285,18 @@ The chart counts **reviewed** monthly activity reports only, scoped exactly like
 
 `--series-1` through `--series-6` in `globals.css` are the palette the dashboard actually draws with, defined for both themes and validated as a set for lightness band, chroma floor, protanopia/deuteranopia separation, normal-vision separation, and contrast against the card surface. The order is the CVD-safety mechanism, so slots are never reordered or cycled.
 
-The palette does two jobs, both of them identity:
-
-1. **Within a chart.** The task mix donut takes slot N for the Nth entry in `TASK_TYPES`, via `taskTypeColor()`. A type keeps its colour whichever types happen to be present, so filtering never repaints the survivors.
-2. **Across charts.** Each single-series chart takes its own slot, so two cards side by side are not the same red. Assignments live beside each chart — `grep "var(--series-"` lists them.
+Six slots are still defined although only two are currently drawn with. The set was validated whole, and slots 3–6 existed for the task-mix donut's categorical series; keeping them means restoring that chart repaints identically rather than requiring the palette to be re-validated. **Do not trim the unused slots.**
 
 Current assignments:
 
-| Chart | Colour | Why |
-| --- | --- | --- |
-| Spend by month | `--series-1` red | brand mark leads the budget card |
-| Biggest line items | `--series-2` gold | second brand hue, distinct from the chart beside it |
-| Task mix | `--series-1…6` | genuinely categorical — one hue per task type |
-| Activity trend | `--series-neutral` graphite | see below |
+| Chart | Form | Colour | Why |
+| --- | --- | --- | --- |
+| Spend by month (budget tab) | vertical bars | `--series-1` red | brand mark leads the budget card |
+| Biggest line items (budget tab) | horizontal bars | `--series-2` gold | second brand hue, distinct from the chart beside it |
 
-`--series-neutral` exists because the trend line shares a card with the categorical donut. In any of the six hues it would rhyme with a slice — a blue line beneath a blue "Video & photo" arc reads as that one type plotted over time, which is not what it is. Graphite belongs to no category and reads as context, which is the line's actual job.
+`--series-neutral` graphite is currently unused. It existed so the activity trend line would not rhyme with a donut slice beneath it; it becomes relevant again the moment a context line shares a card with a categorical chart.
 
-**Contrast obligations.** `--series-2` (gold) sits at 2.17:1 on white, below the 3:1 mark threshold. It is legal on Biggest line items *only* because that chart prints a value on every bar; remove those labels and the colour must change. Slots 3 and 5 are likewise under 3:1 and appear only in the donut, whose legend prints every count and percentage as ordinary visible text. **Do not hand-edit a hex, reorder the slots, or move a colour to another chart without re-validating the set and checking the relief obligation travels with it.**
+**Contrast obligations.** `--series-2` (gold) sits at 2.17:1 on white, below the 3:1 mark threshold. It is legal on Biggest line items *only* because that chart prints a value on every bar; remove those labels and the colour must change. Slots 3 and 5 are likewise under 3:1 and carry the same obligation for whatever draws with them next. **Do not hand-edit a hex, reorder the slots, or move a colour to another chart without re-validating the set and checking the relief obligation travels with it.**
 
 ## Seeded data — Actual Expenses 2026
 
@@ -355,21 +347,21 @@ Planned, not started. Scope was derived from a real departmental report, `April2
 | 1.1.3 Media engagement (local/international outlets) | none | two tag lists |
 | 1.2 Achievements narrative | Summary field | none |
 | 1.2.1–1.2.3 Facebook/Instagram/TikTok performance | none | per-platform metric entry |
-| 2 Other tasks | task list (above) | none |
+| 2 Other tasks | none | structured task list |
 | 3 Problems (coordination; equipment and manpower) | Challenges field | split into named categories |
 | 4 Budget spent | monthly budget report | link the two records |
 | 5.1 Team management feedback | Challenges field | own field |
 | 5.2 Next month goals | Next month plan field | none |
 | 5.3 General feedback and discussion points | none | own field |
 
-The shipped task list corresponds to section 2 of that report, not to the section 1.1.1 pie. Those are two different countable things: 1.1.1 counts content pieces by **format**, while section 2 lists non-content work by **task type**. Both belong in the application, as separate lists.
+Section 2 and the section 1.1.1 pie are two different countable things: 1.1.1 counts content pieces by **format**, while section 2 lists non-content work by **task type**. Both belong in the application, as separate lists. A task list matching section 2 was built and then removed before launch — see **Monthly activity report — structured activity data** for why, and read that section before rebuilding either list.
 
 ### Phase 1 — content log and report structure
 
 The mechanical part of the report, and the part that removes the most manual chart-building.
 
-1. **Content log.** A repeating row on the monthly activity form: content title, format, and the platforms it was published to. Stored in `content.content_items` alongside `tasks`. Formats follow the same fixed-array pattern as `TASK_TYPES` (Reel/video, Photo album, Story, and room to append), so the taxonomy stays editable in one place.
-2. **Content creation chart.** A donut of pieces by format — the direct equivalent of report section 1.1.1 — reusing the existing `--series-N` palette and the legend/table treatment already built for the task mix.
+1. **Content log.** A repeating row on the monthly activity form: content title, format, and the platforms it was published to. Stored in `content.content_items`. Formats follow a fixed array in `src/lib/types.ts` (Reel/video, Photo album, Story, and room to append), so the taxonomy stays editable in one place — the pattern `TASK_TYPES` used before it was removed.
+2. **Content creation chart.** A donut of pieces by format — the direct equivalent of report section 1.1.1 — reusing the existing `--series-N` palette. The legend/table treatment built for the old task mix is in git history and is the reference to copy.
 3. **Content published chart.** A grouped bar of pieces per platform, split by format, matching report section 1.1.2. Platform is the axis; format is the series, capped at the validated palette.
 4. **Media engagement.** Two tag lists, local and international, entered as free text and rendered as chips on the report detail page.
 5. **Report structure.** Split the single Challenges textarea into the categories the real report uses — Coordination, Equipment and manpower, Team management feedback — and add General feedback and discussion points. Existing reports keep their current Challenges text; the new fields start empty.
@@ -420,21 +412,21 @@ Estimated at half a day, most of it in the session guard and in auditing the rea
 
 ## Phase 3 — chart cross-filtering (future build)
 
-Not started. Independent of Phases 1 and 2; it can be built before, between, or after them, and would automatically extend to whatever charts Phase 1 adds.
+Not started, and **now blocked on Phase 1**: the donut it was designed around was deleted with the task mix, so there is currently no categorical chart to filter. The budget half of the proposal still stands on its own. Everything below is kept because the reasoning survives the chart it was written for.
 
 ### What the charts do today
 
-Every chart in both dashboard tabs is read-only. There is no click handler anywhere in `monthly-task-charts.tsx` or `annual-budget-charts.tsx`.
+Every chart on the dashboard is read-only. There is no click handler in `annual-budget-charts.tsx`.
 
-- Hovering a donut slice or a bar shows a tooltip with the label and value.
+- Hovering a bar shows a tooltip with the label and value.
 - The bar charts pass `accessibilityLayer`, so they can be tabbed into and arrowed through from the keyboard.
-- The donut has no such layer. Its legend list is the keyboard and screen-reader readout instead, and prints every count and percentage.
+- The deleted donut had no such layer. Its legend list was the keyboard and screen-reader readout instead, and printed every count and percentage — a pattern any replacement donut should keep.
 
 ### Proposal
 
-Selecting a task type filters the other charts in the same card: choosing **Video & photo** narrows the per-month column chart, the four stat tiles, and the ring to that type alone. The same pattern applies to the budget tab, where selecting a line item in **Biggest line items** would narrow **Spend by month**.
+Selecting a category filters the other charts in the same card. On the budget tab — the half that is buildable today — selecting a line item in **Biggest line items** would narrow **Spend by month**. Once Phase 1 restores a categorical activity chart, the same pattern applies there: choosing a format or task type narrows the per-month chart, the stat tiles, and the ring to that one alone.
 
-No new query and no server round trip. `MonthlyTaskCharts` already receives every entry and does its grouping in the browser, so the filter is local component state over data that is already loaded.
+No new query and no server round trip. The chart components already receive every entry and do their grouping in the browser, so the filter is local component state over data that is already loaded.
 
 ### Build the control on the legend rows, not the slices
 
@@ -450,11 +442,11 @@ Whatever is built must keep a clear, visible way to return to the unfiltered vie
 
 ### Scope boundary
 
-Filtering stops at the card. The **Pending review** list, **Status mix**, and the three gauge tiles all count *reports*, while the task charts count *tasks*, and a single report contains several task types. "Show only Video & photo" has no coherent answer for a card whose unit is the report, so those must not be wired into the filter.
+Filtering stops at the card. The **Pending review** list, **Status mix**, and the three gauge tiles all count *reports*, while an activity chart counts *tasks or content pieces*, and a single report contains several. "Show only Video & photo" has no coherent answer for a card whose unit is the report, so those must not be wired into the filter.
 
 ### Constraint for whoever builds this
 
-Colour follows the entity, never its rank. Filtering the ring down to three types must not repaint the survivors. This already holds — `taskTypeColor()` resolves a type's colour from its index in `TASK_TYPES`, not from its position in the chart — and must not be replaced with rank-based assignment when the filtering is added.
+Colour follows the entity, never its rank. Filtering a ring down to three categories must not repaint the survivors. The deleted `taskTypeColor()` resolved a type's colour from its index in `TASK_TYPES` rather than from its position in the chart; whatever replaces it must do the same, and must not be built on rank-based assignment.
 
 Estimated at a few hours, most of it in the selected and cleared states and keyboard behaviour rather than in the filtering itself.
 
@@ -604,11 +596,10 @@ Department is otherwise still an attribute of a person — **no query filters on
 ## Main code locations
 
 - `src/app/(app)/dashboard/page.tsx` — role-aware dashboard and streamed summary boundaries.
-- `src/components/dashboard-chart-tabs.tsx` — annual budget / monthly report tab rail; both panels are rendered on the server and passed through as props.
+- `src/components/dashboard-chart-tabs.tsx` — annual budget / monthly activity tab rail; both panels are rendered on the server and passed through as props. With no budget access it renders the activity panel alone.
 - `src/components/annual-budget-summary.tsx` — reviewed-only annual aggregation and role-specific author scope.
 - `src/components/summary-filters.tsx` — year, month, and author/Manager selects, shared by both tabs through the `yearParam`/`monthParam`/`authorParam`/`idPrefix` props. The month select only renders when a tab passes months.
-- `src/components/monthly-task-summary.tsx` — reviewed-only task aggregation, month resolution, and role-specific author scope.
-- `src/components/monthly-task-charts.tsx` — task mix donut, the month's task list, and the activity trend line.
+- `src/components/monthly-activity-summary.tsx` — the Monthly activity panel: reviewed-only report lookup, month resolution, role-specific author scope, and each report's narrative sections and attachment downloads.
 - `src/components/reports-table.tsx` — report list, accessible Admin selection controls, and bulk-delete confirmation.
 - `src/components/department-badge.tsx` — the one department chip, used everywhere a department appears.
 - `src/components/department-month-matrix.tsx` — the department × month spend table at the top of the Annual budget tab.
@@ -624,7 +615,7 @@ Department is otherwise still an attribute of a person — **no query filters on
 - `src/lib/auth.ts` — session access (`getProfile`, `requireRole`) and a re-export of `roles.ts` for server callers.
 - `src/lib/departments.ts` — `DepartmentRecord`, `departmentLabel()`, `departmentId()`. Pure; safe in the browser.
 - `src/lib/departments-server.ts` — `getDepartments()`, the cached table read.
-- `src/lib/types.ts` — roles, reports, budget periods, month keys, the `TASK_TYPES` taxonomy, and shared data types. `Department` is a plain `string` here: departments are rows, so a closed union would be a lie.
+- `src/lib/types.ts` — roles, reports, budget periods, month keys, and shared data types. `Department` is a plain `string` here: departments are rows, so a closed union would be a lie.
 - `src/components/add-department-dialog.tsx` — the Add department button and its id preview.
 - `src/components/use-action-toasts.ts` — shared once-only toast for `useActionState` results.
 - `src/app/globals.css` — brand theme, the validated `--series-1…6` / `--series-neutral` chart palette, and the `--department*` chip tokens, all defined for both themes. The stock `--chart-N` slots remain for the generated components but no chart draws with them.

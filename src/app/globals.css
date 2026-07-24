@@ -121,13 +121,13 @@
 
   /* The dashboard's categorical palette. Eight-slot method, six slots filled:
      a fixed hue order, assigned by position and never cycled or reordered.
-     It does two jobs, both of them identity:
+     Its job is identity across charts: each single-series chart takes its own
+     slot, so two cards side by side are not the same red. Assignments live next
+     to each chart; grep "var(--series-" to see them all at once.
 
-       1. Within a chart — the task mix donut takes slot N for the Nth entry in
-          TASK_TYPES, so a type keeps its colour whichever types are present.
-       2. Across charts — each single-series chart takes its own slot, so two
-          cards side by side are not the same red. Assignments live next to each
-          chart; grep "var(--series-" to see them all at once.
+     Slots were sized for a categorical series too — the monthly task-mix donut,
+     which took slot N for the Nth task type. That chart is gone; the palette is
+     kept whole rather than trimmed, so restoring it repaints identically.
 
      Validated as a set against the card surface (#ffffff light, #212721 dark)
      for lightness band, chroma floor, protan/deutan separation, normal-vision

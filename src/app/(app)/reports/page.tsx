@@ -120,7 +120,7 @@ export default async function ReportsPage({
               ? "Every budget report across the office, plus your own reports."
               : reviewer
                 ? "All submitted reports across the office, plus your own."
-                : "Your budget and monthly reports."}
+                : "Your monthly budget and activity reports."}
           </p>
         </div>
         <Button asChild className="gap-2">

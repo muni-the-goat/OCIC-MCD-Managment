@@ -75,7 +75,7 @@ export default async function NewReportPage({
           <Card className="h-full transition-colors hover:border-primary">
             <CardHeader>
               <Wallet className="mb-2 size-8 text-primary" />
-              <CardTitle>Budget report</CardTitle>
+              <CardTitle>Monthly budget report</CardTitle>
               <CardDescription>
                 Monthly actual expenses with freeform sections and automatic
                 subtotals. Reviewed reports update the annual dashboard.
@@ -87,10 +87,10 @@ export default async function NewReportPage({
           <Card className="h-full transition-colors hover:border-primary">
             <CardHeader>
               <CalendarDays className="mb-2 size-8 text-primary" />
-              <CardTitle>Monthly report</CardTitle>
+              <CardTitle>Monthly activity report</CardTitle>
               <CardDescription>
-                Structured sections: summary, accomplishments, challenges, and
-                next month&apos;s plan.
+                Summary, accomplishments, challenges, and next month&apos;s
+                plan, plus any supporting documents you attach.
               </CardDescription>
             </CardHeader>
           </Card>

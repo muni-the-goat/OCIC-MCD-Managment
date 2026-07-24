@@ -8,19 +8,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // switching tabs costs no round trip.
 //
 // The inactive panel is left to unmount rather than hidden with forceMount: a
-// display:none panel measures zero width, and recharts' responsive container
-// would lay its charts out against that. Remounting replays the same server
-// output, so nothing is refetched.
+// display:none panel measures zero width, and the budget chart's responsive
+// container would lay itself out against that. Remounting replays the same
+// server output, so nothing is refetched.
 export function DashboardChartTabs({
   budget,
-  tasks,
+  activity,
 }: {
   budget?: React.ReactNode;
-  tasks: React.ReactNode;
+  activity: React.ReactNode;
 }) {
   // With no budget access there is nothing to switch between, and a one-tab
   // rail is just chrome around a single card.
-  if (!budget) return <>{tasks}</>;
+  if (!budget) return <>{activity}</>;
 
   return (
     <Tabs defaultValue="budget">
@@ -29,13 +29,13 @@ export function DashboardChartTabs({
           <Wallet aria-hidden="true" />
           Annual budget
         </TabsTrigger>
-        <TabsTrigger value="tasks">
+        <TabsTrigger value="activity">
           <ClipboardList aria-hidden="true" />
-          Monthly report
+          Monthly activity
         </TabsTrigger>
       </TabsList>
       <TabsContent value="budget">{budget}</TabsContent>
-      <TabsContent value="tasks">{tasks}</TabsContent>
+      <TabsContent value="activity">{activity}</TabsContent>
     </Tabs>
   );
 }

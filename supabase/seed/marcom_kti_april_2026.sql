@@ -25,13 +25,19 @@
 -- ---------------------------------------------------------------------------
 -- Nothing is invented. Two gaps in the source are worth knowing about:
 --
+-- 0. TASKS AND METRICS ARE NO LONGER READ. The app dropped the structured task
+--    list and the per-platform figures from the monthly activity report — see
+--    PROGRESS.md. The `tasks` and `metrics` keys below are still written, and
+--    are still a faithful transcription of the PDF, but nothing displays them
+--    and saving the report through the UI rewrites `content` without them.
+--    They are kept so the figures survive for whenever the feature returns.
+--
 -- 1. TASKS. The PDF itemises four tasks (section 2) and names two content
 --    pieces in its achievements text. It does NOT name the individual 13
 --    content pieces behind the pie chart — only their counts by format. Seven
---    tasks are seeded rather than twenty, so the dashboard's task count will
---    read 7. Add the missing content pieces from the team's content calendar
---    once their titles are known; the counts to reach are 5 reel/video,
---    4 photo album, 4 story.
+--    tasks are seeded rather than twenty. Add the missing content pieces from
+--    the team's content calendar once their titles are known; the counts to
+--    reach are 5 reel/video, 4 photo album, 4 story.
 --
 -- 2. TIKTOK. Two bars in the TikTok chart have labels truncated to "TOTAL …"
 --    in the source (values 140 and 6). They are left out rather than guessed.
