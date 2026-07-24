@@ -442,3 +442,22 @@
     animation-duration: 5s;
   }
 }
+
+/* The dashboard gauge arc draws itself in on load. pathLength is normalised to
+   100, so offsetting the dash by 100 hides it and 0 reveals the value. */
+@keyframes gaugeDraw {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.animate-gauge {
+  animation: gaugeDraw 900ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-gauge {
+    animation: none;
+  }
+}

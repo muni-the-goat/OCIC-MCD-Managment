@@ -1,5 +1,8 @@
-import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, type LucideIcon } from "lucide-react";
+import { CountUp } from "@/components/count-up";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export type StatTone = "good" | "warning" | "critical" | "neutral";
 
@@ -47,6 +50,9 @@ function Gauge({ percent, tone }: { percent: number; tone: StatTone }) {
           strokeLinecap="round"
           pathLength={100}
           strokeDasharray={`${percent} 100`}
+          // Draws the arc in on mount; collapses to the final state under
+          // prefers-reduced-motion. Keyframe lives in globals.css.
+          className="animate-gauge"
         />
       ) : null}
       <text
@@ -68,6 +74,7 @@ export function GaugeStatCard({
   total,
   tone,
   icon: Icon,
+  href,
 }: {
   label: string;
   caption: string;
@@ -75,24 +82,41 @@ export function GaugeStatCard({
   total: number;
   tone: StatTone;
   icon: LucideIcon;
+  // When set, the whole card links to a pre-filtered Reports list.
+  href?: string;
 }) {
-  return (
-    <Card className="rounded-2xl">
+  const card = (
+    <Card
+      className={cn(
+        "h-full rounded-2xl transition",
+        href &&
+          "group-hover:-translate-y-0.5 group-hover:shadow-md group-focus-visible:-translate-y-0.5 group-focus-visible:shadow-md"
+      )}
+    >
       <CardContent className="flex h-full flex-col justify-between gap-5">
-        <div className="flex items-center gap-2.5">
-          <span
-            className="grid size-8 shrink-0 place-items-center rounded-full"
-            style={{ backgroundColor: tint(tone, 16), color: TONE_COLOR[tone] }}
-          >
-            <Icon className="size-4" />
-          </span>
-          <p className="font-label text-sm font-medium">{label}</p>
+        <div className="flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="grid size-8 shrink-0 place-items-center rounded-full"
+              style={{
+                backgroundColor: tint(tone, 16),
+                color: TONE_COLOR[tone],
+              }}
+            >
+              <Icon className="size-4" />
+            </span>
+            <p className="font-label text-sm font-medium">{label}</p>
+          </div>
+          {href ? (
+            <ArrowUpRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+          ) : null}
         </div>
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-heading text-4xl font-semibold tabular-nums">
-              {value}
-            </p>
+            <CountUp
+              value={value}
+              className="block font-heading text-4xl font-semibold tabular-nums"
+            />
             <p className="mt-1 text-xs text-muted-foreground">{caption}</p>
           </div>
           <Gauge percent={share(value, total)} tone={tone} />
@@ -100,12 +124,26 @@ export function GaugeStatCard({
       </CardContent>
     </Card>
   );
+
+  if (!href) return card;
+
+  return (
+    <Link
+      href={href}
+      className="group block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      aria-label={`${label}: ${value}. View these reports.`}
+    >
+      {card}
+    </Link>
+  );
 }
 
 export interface MixSegment {
   label: string;
   value: number;
   tone: StatTone;
+  // When set, the legend row links to a pre-filtered Reports list.
+  href?: string;
 }
 
 export function StatusMix({
@@ -131,27 +169,42 @@ export function StatusMix({
           ) : null
         )}
       </div>
-      <ul className="space-y-2.5">
-        {segments.map((segment) => (
-          <li
-            key={segment.label}
-            className="flex items-center justify-between gap-3 text-sm"
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <span
-                className="size-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: TONE_COLOR[segment.tone] }}
-              />
-              <span className="truncate">{segment.label}</span>
-            </span>
-            <span className="shrink-0 tabular-nums text-muted-foreground">
-              <span className="font-medium text-foreground">
-                {segment.value}
-              </span>{" "}
-              · {share(segment.value, total)}%
-            </span>
-          </li>
-        ))}
+      <ul className="space-y-1">
+        {segments.map((segment) => {
+          const row = (
+            <>
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: TONE_COLOR[segment.tone] }}
+                />
+                <span className="truncate">{segment.label}</span>
+              </span>
+              <span className="shrink-0 tabular-nums text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {segment.value}
+                </span>{" "}
+                · {share(segment.value, total)}%
+              </span>
+            </>
+          );
+          return (
+            <li key={segment.label}>
+              {segment.href ? (
+                <Link
+                  href={segment.href}
+                  className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {row}
+                </Link>
+              ) : (
+                <span className="flex items-center justify-between gap-3 px-2 py-1.5 text-sm">
+                  {row}
+                </span>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
