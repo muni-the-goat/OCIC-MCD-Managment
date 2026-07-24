@@ -193,6 +193,7 @@ export default async function DashboardPage({
           total={total}
           tone="warning"
           icon={Clock}
+          href="/reports?status=submitted"
         />
         <GaugeStatCard
           label="Reviewed"
@@ -201,6 +202,7 @@ export default async function DashboardPage({
           total={total}
           tone="good"
           icon={CheckCircle2}
+          href="/reports?status=reviewed"
         />
         <GaugeStatCard
           label="Rejected"
@@ -209,6 +211,7 @@ export default async function DashboardPage({
           total={total}
           tone="critical"
           icon={XCircle}
+          href="/reports?status=rejected"
         />
       </div>
 
@@ -355,14 +358,30 @@ export default async function DashboardPage({
                 <StatusMix
                   total={total}
                   segments={[
-                    { label: "Reviewed", value: reviewed, tone: "good" },
+                    {
+                      label: "Reviewed",
+                      value: reviewed,
+                      tone: "good",
+                      href: "/reports?status=reviewed",
+                    },
                     {
                       label: "Awaiting review",
                       value: submitted,
                       tone: "warning",
+                      href: "/reports?status=submitted",
                     },
-                    { label: "Rejected", value: rejected, tone: "critical" },
-                    { label: "Draft", value: drafts, tone: "neutral" },
+                    {
+                      label: "Rejected",
+                      value: rejected,
+                      tone: "critical",
+                      href: "/reports?status=rejected",
+                    },
+                    {
+                      label: "Draft",
+                      value: drafts,
+                      tone: "neutral",
+                      href: "/reports?status=draft",
+                    },
                   ]}
                 />
                 <p className="border-t pt-4 text-xs text-muted-foreground">
