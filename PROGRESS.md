@@ -148,11 +148,8 @@ Drafts stay private from a Coordinator — a draft is a working copy, not a subm
 - The removed Annual/Monthly form toggle cannot be bypassed: the server action rejects attempts to create a new annual budget report.
 - Existing legacy annual reports remain readable and editable so historical data is preserved.
 - The database still retains `budget_period` to distinguish legacy annual records from current monthly records.
-- Each author is limited to one monthly budget for each month/year period.
-- When a period already has a report, the new-report form identifies it, disables duplicate submission, and links directly to its edit page.
-- The Server Action repeats the duplicate check, and migration `0009` adds a database trigger so direct API calls cannot create a new duplicate.
-- Changing an existing report's period to an already occupied author/month/year is also blocked.
-- Production currently contains three reviewed July 2026 reports for one author from before this rule. Migration `0009` preserves those records and blocks further duplicates; it does not delete or merge historical data.
+- **Multiple monthly budgets per author/month/year are allowed.** The office asked to lift the earlier one-per-period rule (a team may file more than one budget report for the same month, e.g. one per purchase). Migration `0016` drops the `0009` uniqueness trigger; the client form's duplicate banner + disabled buttons and the Server Action's duplicate check were removed with it. **`0016` must be applied in Supabase** — until it runs, the DB trigger still rejects a second budget for the same period with a 23505 the UI now surfaces as a raw error.
+- Aggregation already tolerates multiples: the annual summary and the department × month matrix sum every reviewed monthly budget, so several reports for one month simply add together. The `0009` lookup index (non-unique) is kept.
 
 ### Form structure
 
@@ -575,7 +572,9 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 
 15. `0015_budget_approval.sql` — adds `budget_approvals`, one approved figure per fiscal year, seeded with FY2026 = $150,000.00. **Not yet applied.**
 
-Migrations `0001`–`0014` are confirmed applied in Supabase; `0015` is pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+16. `0016_allow_multiple_monthly_budgets.sql` — drops the `0009` uniqueness trigger and its function, allowing multiple monthly budgets per author/month/year. Keeps the lookup index. **Not yet applied.**
+
+Migrations `0001`–`0014` are confirmed applied in Supabase; `0015` and `0016` are pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
@@ -695,7 +694,7 @@ These are production acceptance checks, not unfinished implementation:
 - The matrix reads a department off the author's **current** profile, so reassigning someone moves their whole spend history to the new column. Correct for "which team spends what", wrong for "what did the old team spend". Fixing the second question means stamping the department onto the report at submission time, which is a schema change and is not worth making until someone actually asks it.
 - The author filter dropdowns on both dashboard tabs still list names only. Adding the department would disambiguate two people who share a first name, but it risks truncating inside the select's width and wants a two-line item rather than a longer single line.
 - Annual aggregation matches normalized text names; it does not use permanent line-item IDs. Historical structure reuse reduces spelling drift, but a future canonical expense-category table would provide stronger guarantees.
-- One pre-existing July 2026 author/period contains three reviewed reports. The uniqueness trigger deliberately preserves them. After deciding which record is canonical, the duplicates can be reconciled and the trigger can later be upgraded to a partial unique index.
+- Multiple monthly budgets per author/month/year are now allowed (migration `0016`); duplicates for one period are expected, not an anomaly, and all of them feed the aggregates. The old note here about a single July 2026 author with three reviewed reports is moot.
 - Supabase is hosted in Seoul while users are primarily closer to Southeast Asia, which can add network latency. Moving regions requires creating a new project and migrating data/configuration.
 - The project is stored inside OneDrive, which can slow local dependency operations or cause file locks.
 - **Deleting a user destroys their entire reporting history**, silently and irreversibly — see **Deleting a user is a hard, cascading delete**. Phase 4 is the fix, and it is the one future item worth doing before it is needed rather than after.
