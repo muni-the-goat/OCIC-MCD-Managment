@@ -478,8 +478,16 @@ The Users page uses the server-only Supabase secret client for Auth Admin operat
 - Only the Admin server action can assign an elevated role after account creation.
 - Temporary passwords are displayed once and must be shared securely.
 - Users cannot change their own role through the management UI.
-- Users cannot reset their own password from the management page.
+- Users cannot reset their own password from the *management* page, but every signed-in user can set their own password on the **Profile page** (see below).
 - Coordinator restrictions are enforced again inside each Server Action, not only by hiding buttons.
+
+### Self-service profile and password
+
+`/profile` (in the `(app)` group, linked from the sidebar for every role) shows the signed-in user their name, email, role and department read-only — role and department stay admin-only — and lets them change their own password. This is the counterpart to the invite flow: an account is created with a temporary password the admin hands over, and the user replaces it here.
+
+- **The change re-checks the current password first.** `changePassword` in `src/app/(app)/profile/actions.ts` calls `signInWithPassword` with the submitted current password before `updateUser`, because `updateUser` trusts the session alone — without the re-check a borrowed or hijacked session could set a new password and lock the owner out. A wrong current password returns "Your current password is incorrect".
+- Validation (zod): new password ≥ 8 characters, must match its confirmation, and must differ from the current one. The form (`src/components/change-password-form.tsx`) clears its fields on success and reuses the shared `useActionToasts`.
+- No new dependency and no migration — it is Supabase Auth's own `updateUser` on the user's session.
 
 ### Deleting a user is a hard, cascading delete
 
@@ -631,6 +639,7 @@ Department is otherwise still an attribute of a person — **no query filters on
 - `src/components/report-form.tsx` — activity/budget form, historical structure reuse, calculations, and serialization.
 - `src/app/(app)/reports/actions.ts` — save, submit, delete, review, comment, and attachment actions.
 - `src/app/(app)/reports/[id]/page.tsx` — detail view and review-control visibility.
+- `src/app/(app)/profile/page.tsx` — the self-service profile page (read-only account details) and `actions.ts` — `changePassword`, which re-authenticates before updating.
 - `src/app/(app)/admin/users/page.tsx` — user list with role-specific controls, for Admin, Head of Department, and Coordinator.
 - `src/app/(app)/admin/users/actions.ts` — invite, role change, department change, department creation, password reset, and deletion authorization, plus the two guards that keep a Head of Department out of Admin accounts.
 - `src/lib/login-rules.ts` — the office-domain rule and the post-login redirect check, shared by the login page, the login action, the invite action, and the proxy.

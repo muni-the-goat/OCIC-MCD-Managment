@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  CircleUser,
   FilePlus2,
   Files,
   LayoutDashboard,
@@ -18,6 +19,7 @@ const ICONS: Record<string, LucideIcon> = {
   reports: Files,
   new: FilePlus2,
   users: Users,
+  profile: CircleUser,
 };
 
 export function AppNav({ role }: { role: AppRole }) {
@@ -30,6 +32,7 @@ export function AppNav({ role }: { role: AppRole }) {
     ...(canOpenUsersPage(role)
       ? [{ href: "/admin/users", label: "Users", icon: "users" }]
       : []),
+    { href: "/profile", label: "Profile", icon: "profile" },
   ];
 
   return (
