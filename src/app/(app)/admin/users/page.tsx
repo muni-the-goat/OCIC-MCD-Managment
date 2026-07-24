@@ -56,7 +56,9 @@ export default async function AdminUsersPage() {
           <p className="text-sm text-muted-foreground">
             {manages
               ? "Invite office members and manage their roles and departments."
-              : "View office members and reset eligible user passwords."}
+              : resets
+                ? "View office members and reset eligible user passwords."
+                : "View office members."}
           </p>
         </div>
         {manages ? (

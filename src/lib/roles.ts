@@ -113,9 +113,12 @@ export function canResetPasswords(role: AppRole) {
   return role === "admin" || role === "coordinator";
 }
 
-// Who may reach the Users page at all.
+// Who may reach the Users page at all. A Manager is included for read-only
+// access — they see the office directory but every control is disabled and every
+// server action refuses them, so they can neither manage accounts nor reset a
+// password. Staff still cannot open the page.
 export function canOpenUsersPage(role: AppRole) {
-  return canManageUsers(role) || canResetPasswords(role);
+  return canManageUsers(role) || canResetPasswords(role) || role === "manager";
 }
 
 export function canViewAnnualBudget(role: AppRole) {

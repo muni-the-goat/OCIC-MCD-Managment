@@ -84,6 +84,7 @@ Rejection sends a report back with required feedback — the one decision that c
 - **Cannot review or reject anything, including someone else's report.** Rejection was removed along with the visibility: a Manager can no longer see another author's submitted report, so a reject button would have had nothing in reach. `isReviewer()` no longer includes them.
 - Annual budget summary is restricted to their own reviewed monthly expenses, and has no Author filter.
 - Does not see the department × month matrix — with one author in scope it would be a single column.
+- **Can open the Users page read-only.** They see the office directory but every control is disabled — the role select is greyed, the department shows a chip, and there is no reset-password or delete button — so they can neither manage accounts nor reset a password. `canOpenUsersPage()` includes them; `canManageUsers()` and `canResetPasswords()` do not, and every user Server Action refuses them (`requireUserManager()` / the reset guard), so hiding the controls is presentation over an enforced boundary, not the boundary itself. Reading the list needs no RLS change: `profiles: read all` is already `using (true)`. Staff still cannot open the page.
 - Ranks above Staff and below Coordinator in the hierarchy, which governs account management, not report capability.
 
 `profiles.department` records which department a person belongs to, but no visibility rule reads it. A Manager account is still treated as the expense owner for their department. See **Departments** and **Known limitations**.
