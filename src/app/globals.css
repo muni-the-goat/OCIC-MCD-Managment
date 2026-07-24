@@ -34,6 +34,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -72,6 +73,9 @@
   --accent: #f5e5e8; /* ocic-red-pale */
   --accent-foreground: #7d1f1d; /* ocic-red-dark */
   --destructive: #a42a28;
+  /* Ink for text sitting on --destructive, which is dark enough in both themes
+     to want white rather than the page foreground. */
+  --destructive-foreground: #ffffff;
   --border: #e7e3d8;
   --input: #d9d4c7;
   --ring: #a42a28;
@@ -170,6 +174,7 @@
   --accent: #2b231e;
   --accent-foreground: #edd060;
   --destructive: #c24a3e;
+  --destructive-foreground: #ffffff;
   --border: rgba(255, 255, 255, 0.16);
   --input: rgba(255, 255, 255, 0.2);
   --ring: #dab428;

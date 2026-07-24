@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge-2";
 import { cn } from "@/lib/utils";
 
 // Every department shares one chip style, deliberately. Department is an
@@ -14,6 +14,13 @@ import { cn } from "@/lib/utils";
 //
 // Takes a resolved label rather than an id, because resolving needs the
 // department list and that is a server-side read.
+//
+// Built on the `badge-2` primitive for its geometry — a small, squared chip
+// rather than a full pill, which reads as a label beside a name instead of as a
+// status pill competing with one. The colours stay on the --department tokens
+// rather than any of that primitive's variants: those tokens were validated at
+// 7.5:1 light and 6.8:1 dark against the card, and none of the stock variants
+// carries that guarantee.
 export function DepartmentBadge({
   label,
   className,
@@ -23,7 +30,8 @@ export function DepartmentBadge({
 }) {
   return (
     <Badge
-      variant="outline"
+      appearance="light"
+      size="sm"
       className={cn(
         label
           ? "border-department-edge bg-department text-department-foreground"
