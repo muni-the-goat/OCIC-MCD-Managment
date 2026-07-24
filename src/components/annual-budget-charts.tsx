@@ -357,7 +357,7 @@ export function AnnualBudgetCharts({
         >
           <h4 className="font-label text-sm font-medium">Spend by month</h4>
           <p className="text-xs text-muted-foreground">
-            Summed per month. Click a month to filter the card.
+            Summed per month. Click a bar to filter the card.
           </p>
           {/* A phone cannot fit twelve month labels, and dropping every other
               one hides half the year. The plot keeps a floor width and scrolls
@@ -366,25 +366,12 @@ export function AnnualBudgetCharts({
           <div className="-mx-1 mt-4 overflow-x-auto px-1 pb-1">
             <ChartContainer
               config={chartConfig}
-              className="aspect-auto h-64 w-full min-w-[480px] cursor-pointer"
+              className="aspect-auto h-64 w-full min-w-[480px]"
             >
               <BarChart
                 accessibilityLayer
                 data={monthly}
                 margin={{ top: 20, right: 12, left: 12, bottom: 0 }}
-                // Whole-column click: read the active datum (the month nearest
-                // the cursor) straight off the payload, so the entire band is a
-                // target and it does not depend on recharts' index field name.
-                onClick={(state) => {
-                  const payload = (
-                    state as unknown as {
-                      activePayload?: Array<{ payload?: { index?: number } }>;
-                    }
-                  )?.activePayload?.[0]?.payload;
-                  if (payload && typeof payload.index === "number") {
-                    toggleMonth(payload.index);
-                  }
-                }}
               >
                 <CartesianGrid vertical={false} stroke="var(--border)" />
                 <XAxis
@@ -418,10 +405,12 @@ export function AnnualBudgetCharts({
                   radius={[4, 4, 0, 0]}
                   maxBarSize={36}
                   animationDuration={450}
+                  onClick={(_, index) => toggleMonth(index)}
                 >
                   {monthly.map((entry) => (
                     <Cell
                       key={entry.month}
+                      cursor="pointer"
                       // A month focus lights only the chosen month; otherwise all.
                       fillOpacity={
                         monthFocus == null || monthFocus === entry.index
@@ -458,11 +447,11 @@ export function AnnualBudgetCharts({
             {monthFocus == null
               ? "Full-year totals, largest first."
               : `${MONTH_NAMES[monthFocus]} totals, largest first.`}{" "}
-            Click a row to filter the card.
+            Click a bar to filter the card.
           </p>
           <ChartContainer
             config={chartConfig}
-            className="mt-4 aspect-auto w-full cursor-pointer"
+            className="mt-4 aspect-auto w-full"
             style={{ height: Math.max(160, ranked.length * 34 + 16) }}
           >
             <BarChart
@@ -470,21 +459,6 @@ export function AnnualBudgetCharts({
               layout="vertical"
               data={ranked}
               margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
-              // Whole-row click: read the active datum straight off the payload
-              // so even a tiny bar's full row is a target, without depending on
-              // recharts' index field name.
-              onClick={(state) => {
-                const payload = (
-                  state as unknown as {
-                    activePayload?: Array<{
-                      payload?: { key?: string; name?: string; section?: string };
-                    }>;
-                  }
-                )?.activePayload?.[0]?.payload;
-                if (payload?.key) {
-                  toggleItem(payload.key, payload.name ?? "", payload.section ?? "");
-                }
-              }}
             >
               <CartesianGrid horizontal={false} stroke="var(--border)" />
               {/* Headroom past the largest bar so its right-hand value label has
@@ -515,10 +489,15 @@ export function AnnualBudgetCharts({
                 radius={[0, 4, 4, 0]}
                 maxBarSize={24}
                 animationDuration={450}
+                onClick={(_, index) => {
+                  const entry = ranked[index];
+                  if (entry) toggleItem(entry.key, entry.name, entry.section);
+                }}
               >
                 {ranked.map((entry) => (
                   <Cell
                     key={entry.key}
+                    cursor={entry.key === "other" ? "default" : "pointer"}
                     fillOpacity={highlighted(entry.key) ? 1 : 0.25}
                   />
                 ))}
