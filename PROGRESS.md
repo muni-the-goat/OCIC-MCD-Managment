@@ -520,6 +520,7 @@ Only office accounts may sign in. Both the rule and the post-login redirect chec
 ## Attachments and comments
 
 - Attachments are uploaded inside the report save action.
+- The report form's picker is `src/components/ui/file-upload-card.tsx` — a drag-and-drop dropzone with a removable selected-file list. It has **no progress bars**: the form posts to a Server Action, so nothing uploads until submit, and a simulated bar would lie. It stays compatible with native submission by mirroring its `File[]` selection into a hidden `<input type="file" name="files">` via the DataTransfer API, so `saveReport` reads the files unchanged. Over-limit files are flagged client-side; the server remains the enforcement.
 - Next.js Server Action request limit is configured to 20 MB.
 - Each individual attachment is limited to 15 MB.
 - Files are stored in the private `attachments` bucket.
@@ -621,6 +622,7 @@ Department is otherwise still an attribute of a person — **no query filters on
 - `src/components/printable-budget-report.tsx` — the print-to-PDF letterhead layout for a single budget report; `display:none` on screen, revealed by the `@media print` rules in `globals.css`.
 - `src/components/printable-annual-budget.tsx` — the print-to-PDF layout for the whole annual budget (approval, department × month matrix, per-department line items), rendered inside `annual-budget-summary.tsx`.
 - `src/components/export-pdf-button.tsx` — the shared Export PDF button; calls `window.print()`, accepts an optional `label`.
+- `src/components/ui/luma-spin.tsx` — the loading spinner (size-scalable, `currentColor`-tinted; keyframes in `globals.css`). Used by `src/app/(app)/loading.tsx` (page-navigation loader), `src/components/login-submit.tsx` (sign-in overlay via `useFormStatus`), and `src/components/summary-filters.tsx` (a small spinner shown during the filter-change transition). Tab switching itself is instant and needs none — both panels are pre-rendered.
 - `src/components/department-badge.tsx` — the one department chip, used everywhere a department appears.
 - `src/components/department-month-matrix.tsx` — the department × month spend table at the top of the Annual budget tab.
 - `src/components/budget-approval-bar.tsx` — the approved figure above that table, and the dialog that sets it.

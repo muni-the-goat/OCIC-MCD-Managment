@@ -1,7 +1,9 @@
 "use client";
 
+import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Label } from "@/components/ui/label";
+import { LumaSpin } from "@/components/ui/luma-spin";
 import {
   Select,
   SelectContent,
@@ -46,6 +48,10 @@ export function SummaryFilters({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  // router.replace keeps the stale summary on screen while the server refetches,
+  // with no sign anything is happening. Running it in a transition surfaces that
+  // wait as isPending, so a small spinner can sit beside the filters.
+  const [isPending, startTransition] = useTransition();
 
   const setParam = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -57,11 +63,19 @@ export function SummaryFilters({
     // Changing the year can land on a month that year has no report for, so the
     // month is cleared and left for the server to re-resolve to a real one.
     if (key === yearParam) params.delete(monthParam);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
 
   return (
     <div className="flex flex-wrap items-end gap-3">
+      {isPending ? (
+        <LumaSpin
+          size={22}
+          className="mb-1.5 self-center text-muted-foreground"
+        />
+      ) : null}
       <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-year`}>Year</Label>
         <Select

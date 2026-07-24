@@ -1,5 +1,4 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LoginSubmit } from "@/components/login-submit";
 import { OcicLogo } from "@/components/ocic-logo";
 import { ALLOWED_EMAIL_DOMAIN, safeNextPath } from "@/lib/login-rules";
 import { login } from "./actions";
@@ -62,9 +62,7 @@ export default async function LoginPage({
                 required
               />
             </div>
-            <Button type="submit" className="w-full">
-              Sign in
-            </Button>
+            <LoginSubmit />
           </form>
         </CardContent>
       </Card>

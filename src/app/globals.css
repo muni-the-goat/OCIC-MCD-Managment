@@ -395,3 +395,50 @@
     break-inside: avoid;
   }
 }
+
+/* LumaSpin loader (src/components/ui/luma-spin.tsx). The moving inset gap is
+   driven by --loader-gap so one keyframe set scales to any size, and the arms
+   draw in currentColor so a caller can tint it (text-foreground by default). */
+@keyframes lumaSpin {
+  0% {
+    inset: 0 var(--loader-gap) var(--loader-gap) 0;
+  }
+  12.5% {
+    inset: 0 var(--loader-gap) 0 0;
+  }
+  25% {
+    inset: var(--loader-gap) var(--loader-gap) 0 0;
+  }
+  37.5% {
+    inset: var(--loader-gap) 0 0 0;
+  }
+  50% {
+    inset: var(--loader-gap) 0 0 var(--loader-gap);
+  }
+  62.5% {
+    inset: 0 0 0 var(--loader-gap);
+  }
+  75% {
+    inset: 0 0 var(--loader-gap) var(--loader-gap);
+  }
+  87.5% {
+    inset: 0 0 var(--loader-gap) 0;
+  }
+  100% {
+    inset: 0 var(--loader-gap) var(--loader-gap) 0;
+  }
+}
+.luma-span {
+  position: absolute;
+  border-radius: 50px;
+  box-shadow: inset 0 0 0 3px currentColor;
+  animation: lumaSpin 2.5s infinite;
+}
+.luma-span-delayed {
+  animation-delay: -1.25s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .luma-span {
+    animation-duration: 5s;
+  }
+}
