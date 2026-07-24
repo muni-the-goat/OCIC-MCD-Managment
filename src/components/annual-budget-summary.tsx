@@ -11,6 +11,7 @@ import { BudgetApprovalBar } from "@/components/budget-approval-bar";
 import { DepartmentBadge } from "@/components/department-badge";
 import { DepartmentMonthMatrix } from "@/components/department-month-matrix";
 import { ExportPdfButton } from "@/components/export-pdf-button";
+import { PrintPortal } from "@/components/print-portal";
 import {
   PrintableAnnualBudget,
   type AnnualBudgetPrintItem,
@@ -321,13 +322,15 @@ export async function AnnualBudgetSummary({
       </CardContent>
     </Card>
     {showMatrix && sourceItems.length > 0 ? (
-      <PrintableAnnualBudget
-        year={selectedYear}
-        approval={approval}
-        spent={totalSpend}
-        items={matrixItems}
-        departments={departments}
-      />
+      <PrintPortal>
+        <PrintableAnnualBudget
+          year={selectedYear}
+          approval={approval}
+          spent={totalSpend}
+          items={matrixItems}
+          departments={departments}
+        />
+      </PrintPortal>
     ) : null}
     </>
   );

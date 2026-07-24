@@ -7,6 +7,7 @@ import { DeleteReportButton } from "@/components/delete-report-button";
 import { DepartmentBadge } from "@/components/department-badge";
 import { ExportPdfButton } from "@/components/export-pdf-button";
 import { PrintableBudgetReport } from "@/components/printable-budget-report";
+import { PrintPortal } from "@/components/print-portal";
 import { ReviewControls } from "@/components/review-controls";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -170,15 +171,17 @@ export default async function ReportDetailPage({
       </div>
 
       {report.type === "budget" ? (
-        <PrintableBudgetReport
-          report={report}
-          items={items}
-          authorName={nameOf(report.author_id)}
-          departmentName={
-            departmentLabel(departmentOf(report.author_id), departments) ??
-            "Unassigned"
-          }
-        />
+        <PrintPortal>
+          <PrintableBudgetReport
+            report={report}
+            items={items}
+            authorName={nameOf(report.author_id)}
+            departmentName={
+              departmentLabel(departmentOf(report.author_id), departments) ??
+              "Unassigned"
+            }
+          />
+        </PrintPortal>
       ) : null}
 
       {report.status === "rejected" && isAuthor ? (

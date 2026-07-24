@@ -245,22 +245,15 @@
 }
 
 @media print {
-  /* Reveal only the letterhead region. visibility rather than display, so a
-     hidden ancestor's box does not collapse the region we are showing; the
-     region is then lifted to the page origin. */
-  body * {
-    visibility: hidden;
-  }
-  .print-only,
-  .print-only * {
-    visibility: visible;
+  /* The print doc is portalled to <body>, so hiding every other body child
+     leaves only the letterhead document, in normal flow. Using display (not
+     visibility) removes the app shell's height too — an absolutely-positioned
+     region would leave its hidden siblings padding the PDF with blank pages. */
+  body > *:not(.print-only) {
+    display: none !important;
   }
   .print-only {
     display: block;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
   }
 
   @page {
