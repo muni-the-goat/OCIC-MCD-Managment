@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { FileUploadCard } from "@/components/ui/file-upload-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -156,6 +157,7 @@ export function ReportForm({
   const [loadedHistoryId, setLoadedHistoryId] = useState<string | null>(
     initialHistory?.id ?? null
   );
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
 
   const historySource = useMemo(
     () => findPreviousBudget(budgetHistory, budgetMonth, budgetYear),
@@ -812,7 +814,13 @@ export function ReportForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Input type="file" name="files" multiple />
+          <FileUploadCard
+            name="files"
+            files={attachmentFiles}
+            onFilesChange={setAttachmentFiles}
+            maxSizeMb={15}
+            hint="Excel, PDF, images and documents."
+          />
         </CardContent>
       </Card>
 
