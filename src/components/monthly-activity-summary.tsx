@@ -1,5 +1,6 @@
 import { Download, Paperclip } from "lucide-react";
 import Link from "next/link";
+import { DepartmentBadge } from "@/components/department-badge";
 import { SummaryFilters } from "@/components/summary-filters";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { departmentLabel } from "@/lib/departments";
+import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
 import {
   MONTH_NAMES,
@@ -190,7 +193,7 @@ export async function MonthlyActivitySummary({
   const authorIds = Array.from(
     new Set(monthReports.map((report) => report.author_id))
   );
-  const [attachmentsResult, peopleResult] = await Promise.all([
+  const [attachmentsResult, peopleResult, departments] = await Promise.all([
     reportIds.length > 0
       ? supabase
           .from("report_attachments")
@@ -201,9 +204,10 @@ export async function MonthlyActivitySummary({
     authorIds.length > 0
       ? supabase
           .from("profiles")
-          .select("id, full_name, email")
+          .select("id, full_name, email, department")
           .in("id", authorIds)
       : Promise.resolve({ data: [], error: null }),
+    getDepartments(),
   ]);
 
   const attachments = (attachmentsResult.data ?? []) as SourceAttachment[];
@@ -218,9 +222,15 @@ export async function MonthlyActivitySummary({
     (
       (peopleResult.data ?? []) as Pick<
         Profile,
-        "id" | "full_name" | "email"
+        "id" | "full_name" | "email" | "department"
       >[]
-    ).map((person) => [person.id, person.full_name || person.email])
+    ).map((person) => [
+      person.id,
+      {
+        name: person.full_name || person.email,
+        department: departmentLabel(person.department, departments),
+      },
+    ])
   );
 
   const failed =
@@ -277,18 +287,24 @@ export async function MonthlyActivitySummary({
           <ul className="space-y-4">
             {monthReports.map((report) => {
               const files = byReport.get(report.id) ?? [];
+              const author = people.get(report.author_id);
               return (
                 <li key={report.id} className="rounded-xl border p-4">
-                  <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  {/* Who filed it leads, because that is what a reviewer scans
+                      by — the title repeats the month they already picked. */}
+                  <div className="mb-3 border-b pb-3">
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                      <span className="font-heading text-base font-semibold">
+                        {author?.name ?? "Unknown"}
+                      </span>
+                      <DepartmentBadge label={author?.department ?? null} />
+                    </div>
                     <Link
                       href={`/reports/${report.id}`}
-                      className="font-medium hover:underline"
+                      className="text-sm text-muted-foreground hover:text-foreground hover:underline"
                     >
                       {report.title}
                     </Link>
-                    <span className="text-xs text-muted-foreground">
-                      {people.get(report.author_id) ?? "Unknown"}
-                    </span>
                   </div>
 
                   <dl className="space-y-2.5">
