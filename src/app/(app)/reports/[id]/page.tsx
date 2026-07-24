@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Download, Pencil, Trash2 } from "lucide-react";
+import { Download, Pencil } from "lucide-react";
 import { CommentForm } from "@/components/comment-form";
+import { DeleteAttachmentButton } from "@/components/delete-attachment-button";
 import { DeleteReportButton } from "@/components/delete-report-button";
 import { DepartmentBadge } from "@/components/department-badge";
 import { ReviewControls } from "@/components/review-controls";
@@ -15,7 +16,6 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { BudgetGrid } from "@/components/budget-grid";
-import { deleteAttachment } from "../actions";
 import {
   canDecideOnReport,
   canManageAnyReport,
@@ -231,26 +231,11 @@ export default async function ReportDetailPage({
                       </a>
                     </Button>
                     {canEdit ? (
-                      <form action={deleteAttachment}>
-                        <input
-                          type="hidden"
-                          name="attachment_id"
-                          value={attachment.id}
-                        />
-                        <input
-                          type="hidden"
-                          name="report_id"
-                          value={report.id}
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive"
-                          aria-label={`Delete ${attachment.file_name}`}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </form>
+                      <DeleteAttachmentButton
+                        attachmentId={attachment.id}
+                        reportId={report.id}
+                        fileName={attachment.file_name}
+                      />
                     ) : null}
                   </span>
                 </li>
