@@ -405,7 +405,17 @@ export function AnnualBudgetCharts({
                   radius={[4, 4, 0, 0]}
                   maxBarSize={36}
                   animationDuration={450}
-                  onClick={(_, index) => toggleMonth(index)}
+                  // Read the month off the datum, never off the index argument.
+                  // recharts drops zero-height bars from its rects array and
+                  // then numbers the click handler against that compacted array
+                  // (see Bar.js `computeBarRectangles` .filter(Boolean)), so one
+                  // empty month shifts every later month's index down by one —
+                  // clicking Jul filtered on Jun. `index` here is our own field
+                  // on the `monthly` rows, so it survives that filtering.
+                  onClick={(data) => {
+                    const row = data.payload as { index?: number } | undefined;
+                    if (typeof row?.index === "number") toggleMonth(row.index);
+                  }}
                 >
                   {monthly.map((entry) => (
                     <Cell
@@ -489,8 +499,11 @@ export function AnnualBudgetCharts({
                 radius={[0, 4, 4, 0]}
                 maxBarSize={24}
                 animationDuration={450}
-                onClick={(_, index) => {
-                  const entry = ranked[index];
+                // Same reason as the month chart: the datum, not the index.
+                onClick={(data) => {
+                  const entry = data.payload as
+                    | (typeof ranked)[number]
+                    | undefined;
                   if (entry) toggleItem(entry.key, entry.name, entry.section);
                 }}
               >
