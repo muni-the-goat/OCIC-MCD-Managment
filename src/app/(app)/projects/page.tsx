@@ -62,15 +62,31 @@ export default async function ProjectsPage({
   // buildings, and a merged row set would be a table that exists nowhere in the
   // business.
   const blocks = await Promise.all(
-    shownProjects.map(async (project) => ({
-      project,
-      streams: await Promise.all(
+    shownProjects.map(async (project) => {
+      const streams = await Promise.all(
         shownStreams.map(async (stream) => ({
           stream,
           ...(await getStreamYears(project.id, stream, year)),
         }))
-      ),
-    }))
+      );
+      return {
+        project,
+        // A stream a project has never reported is dropped rather than shown
+        // empty. Chroy Changvar Bay files no property management report at all,
+        // and a card reading "nothing recorded for 2026" would describe a
+        // report nobody has filled in — which is a different and wronger claim
+        // than "this project does not produce one".
+        //
+        // Either year counts, so viewing a year ahead of the data still shows
+        // the stream with its own empty state rather than making the card
+        // vanish and reappear as the year picker moves.
+        streams: streams.filter(
+          (entry) =>
+            (entry.current?.items.length ?? 0) > 0 ||
+            (entry.previous?.items.length ?? 0) > 0
+        ),
+      };
+    })
   );
 
   const scopeLabel = [
@@ -121,15 +137,21 @@ export default async function ProjectsPage({
                 {project.label}
               </h2>
             ) : null}
-            {streams.map(({ stream, current, previous }) => (
-              <ProjectStreamCard
-                key={`${project.id}:${stream}`}
-                stream={stream}
-                year={year}
-                current={current}
-                previous={previous}
-              />
-            ))}
+            {streams.length === 0 ? (
+              <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
+                {project.label} has nothing recorded for {year}.
+              </p>
+            ) : (
+              streams.map(({ stream, current, previous }) => (
+                <ProjectStreamCard
+                  key={`${project.id}:${stream}`}
+                  stream={stream}
+                  year={year}
+                  current={current}
+                  previous={previous}
+                />
+              ))
+            )}
           </section>
         ))
       )}

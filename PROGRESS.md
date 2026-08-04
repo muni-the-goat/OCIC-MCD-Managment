@@ -166,6 +166,10 @@ A Head of Department is absent, which is the separation running both ways: they 
 
 Three filters, all in the URL so a view can be linked: **project**, **category** (the stream) and **year**. "All" is the default for the first two and stays out of the query string, so a pasted link carries only what was actually chosen.
 
+**A project shows only the streams it actually reports.** Chroy Changvar Bay files no property management report at all, so no card appears for it — an absent report is not an empty one, and a card reading "nothing recorded for 2026" would describe a report nobody has filled in rather than one that does not exist. The rule is data-driven, not a special case: a stream with no rows in either the chosen year or the one before it is dropped.
+
+**Projects do not have to report alike.** Koh Pich sells Land, House and Condo; Chroy Changvar Bay adds Commercial Building. Koh Pich reports leasing per property across seven buildings; Chroy Changvar Bay reports one "External" line. Item rows are held per report rather than in a shared list, so this needed no schema change — it is the case `0018`'s note about Connexion Hub anticipated.
+
 **All projects renders each project as its own block** rather than merging them into one table. Koh Pich's Elysee and Chroy Changvar Bay's properties are different buildings; a merged row set would be a table that exists nowhere in the business.
 
 **Export PDF** prints exactly what the filters select, so the document and the screen can never disagree about what the reader was looking at when they pressed the button. It reuses the same `print-only` region, letterhead and `print-table` rules as the MCD annual budget export — the two PDFs come out of the same house rather than looking like documents from two companies.
@@ -634,11 +638,13 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 
 17. `0018_project_reports.sql` — adds `project_reports` and `project_report_items`, the read/write predicates for them, the VP Assistant narrowing, and the seeded 2025–2026 Jan–June figures. Validated by running it against a scratch Postgres 17 and checking every aggregate against the workbook. **Not yet applied.**
 
+19. `0021_chroy_changvar_bay.sql` — seeds Chroy Changvar Bay's sales and leasing for 2025 and 2026 from the CCV workbooks. No property management: that project does not file one. **Applied.**
+
 18. `0020_projects_dimension.sql` — makes projects rows in `public.projects` rather than an assumption, adds `project_id` to `project_reports`, backfills every seeded row to Koh Pich (the workbook is "KP Sale Performance" and "KOH PICH LEASING REPORT"), and moves uniqueness to `(project_id, stream, period_year)`. The constraint it drops was looked up in a scratch database rather than guessed. **Not yet applied; run after `0019`.**
 
 17. `0019_vice_president_projects_only.sql` — narrows `is_privileged()` to Admin and Head of Department, and names the project-report predicates outright so the Vice President keeps the side they were given. Three function bodies; nine policies follow. **Not yet applied; run after `0018`.**
 
-Migrations `0001`–`0017` are confirmed applied in Supabase; `0018`, `0019` and `0020` are pending — run them in order. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0021` are confirmed applied in Supabase, with `0021` pending at the time of writing. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
