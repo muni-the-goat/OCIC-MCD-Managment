@@ -58,12 +58,45 @@ export function isPrivileged(role: AppRole) {
 }
 
 // Reads every report in the office, of either type, without deciding on any.
-// The VP Assistant's whole shape: wider visibility than a Coordinator, who stops
-// at budget reports, and strictly less authority, because a Coordinator can
-// approve. Migration 0017 is the enforcement — drafts stay private to their
-// author there, as they do for every non-privileged reader.
+//
+// Only the privileged tier now. The VP Assistant briefly had this in 0017, when
+// the role was "reads the whole office and decides nothing"; 0018 narrowed them
+// to the projects side once it became clear the three project reports *are* the
+// job. They compile those and read no marketing report but their own.
 export function seesAllReports(role: AppRole) {
+  return isPrivileged(role);
+}
+
+// ---------------------------------------------------------------------------
+// The projects side
+//
+// Sales, leasing and property management across OCIC's projects. A different
+// subject from the rest of this file, which is all about the marketing
+// department's own reporting, and deliberately its own pair of predicates
+// rather than another clause bolted onto the ones above.
+// ---------------------------------------------------------------------------
+
+export function seesProjectReports(role: AppRole) {
   return isPrivileged(role) || role === "vp_assistant";
+}
+
+// Compiling the figures. The VP Assistant does the work; the Vice President and
+// an Admin can correct it. A Head of Department is absent on purpose — they are
+// admin-equivalent over the marketing department's reporting, and project
+// revenue is not that.
+export function canEditProjectReports(role: AppRole) {
+  return (
+    role === "admin" || role === "vice_president" || role === "vp_assistant"
+  );
+}
+
+// A VP Assistant has no marketing reporting at all, so the office dashboard, the
+// Reports list and the New report form would all be empty or refused for them.
+// They land on the projects dashboard instead and never see the other tabs.
+//
+// Everyone else, the Vice President included, keeps both sides.
+export function livesOnProjectsOnly(role: AppRole) {
+  return role === "vp_assistant";
 }
 
 // Holds some decision power over a submitted report, which is what earns the
@@ -139,17 +172,13 @@ export function canResetPasswords(role: AppRole) {
   return role === "admin" || role === "coordinator";
 }
 
-// Who may reach the Users page at all. A Manager and a VP Assistant are included
-// for read-only access — they see the office directory but every control is
-// disabled and every server action refuses them, so they can neither manage
-// accounts nor reset a password. Staff still cannot open the page.
+// Who may reach the Users page at all. A Manager is included for read-only
+// access — they see the office directory but every control is disabled and every
+// server action refuses them, so they can neither manage accounts nor reset a
+// password. Staff still cannot open the page, and neither can a VP Assistant:
+// the office directory is part of the marketing side they no longer inhabit.
 export function canOpenUsersPage(role: AppRole) {
-  return (
-    canManageUsers(role) ||
-    canResetPasswords(role) ||
-    role === "manager" ||
-    role === "vp_assistant"
-  );
+  return canManageUsers(role) || canResetPasswords(role) || role === "manager";
 }
 
 // Everyone who reads budgets beyond their own, plus the Manager reading their

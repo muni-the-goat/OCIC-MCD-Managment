@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Building2,
   CircleUser,
   FilePlus2,
   Files,
@@ -10,7 +11,11 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { canOpenUsersPage } from "@/lib/roles";
+import {
+  canOpenUsersPage,
+  livesOnProjectsOnly,
+  seesProjectReports,
+} from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/types";
 
@@ -20,20 +25,35 @@ const ICONS: Record<string, LucideIcon> = {
   new: FilePlus2,
   users: Users,
   profile: CircleUser,
+  projects: Building2,
 };
 
 export function AppNav({ role }: { role: AppRole }) {
   const pathname = usePathname();
 
-  const items = [
-    { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-    { href: "/reports", label: "Reports", icon: "reports" },
-    { href: "/reports/new", label: "New report", icon: "new" },
-    ...(canOpenUsersPage(role)
-      ? [{ href: "/admin/users", label: "Users", icon: "users" }]
-      : []),
-    { href: "/profile", label: "Profile", icon: "profile" },
-  ];
+  // A VP Assistant has no marketing reporting to reach, so offering them a
+  // Dashboard, a Reports list and a New report form would be three links to
+  // pages that would show them nothing. Their nav is the projects side and
+  // their profile, which is the whole of their job here.
+  const projectsOnly = livesOnProjectsOnly(role);
+
+  const items = projectsOnly
+    ? [
+        { href: "/projects", label: "Projects", icon: "projects" },
+        { href: "/profile", label: "Profile", icon: "profile" },
+      ]
+    : [
+        { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+        ...(seesProjectReports(role)
+          ? [{ href: "/projects", label: "Projects", icon: "projects" }]
+          : []),
+        { href: "/reports", label: "Reports", icon: "reports" },
+        { href: "/reports/new", label: "New report", icon: "new" },
+        ...(canOpenUsersPage(role)
+          ? [{ href: "/admin/users", label: "Users", icon: "users" }]
+          : []),
+        { href: "/profile", label: "Profile", icon: "profile" },
+      ];
 
   return (
     <nav className="flex flex-col gap-1">

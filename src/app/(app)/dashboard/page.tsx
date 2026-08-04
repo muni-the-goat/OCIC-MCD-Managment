@@ -35,10 +35,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { redirect } from "next/navigation";
 import {
   canViewAnnualBudget,
   getProfile,
   isReviewer,
+  livesOnProjectsOnly,
   seesOtherAuthors,
 } from "@/lib/auth";
 import { departmentLabel } from "@/lib/departments";
@@ -94,10 +96,16 @@ export default async function DashboardPage({
   }>;
 }) {
   const [profile, params] = await Promise.all([getProfile(), searchParams]);
+  // A VP Assistant has no marketing reporting, so this page would greet them
+  // with four zeroes and an empty list. The projects dashboard is their home;
+  // src/proxy.ts sends "/" here for everyone, so the redirect belongs here
+  // rather than in the middleware, which would have to read a profile to know.
+  if (livesOnProjectsOnly(profile.role)) redirect("/projects");
+
   const supabase = await createClient();
-  // Two questions this page kept asking as one. A VP Assistant reads the whole
-  // office and decides on none of it, so the scope of the numbers and the
-  // "here is your queue" framing had to come apart:
+  // Two questions this page kept asking as one. A Coordinator reads every
+  // budget report and decides on none of the activity ones, so the scope of the
+  // numbers and the "here is your queue" framing had to come apart:
   //
   //   officeWide  whose reports the counts and the list cover
   //   reviewer    whether the list is a pending-decision queue

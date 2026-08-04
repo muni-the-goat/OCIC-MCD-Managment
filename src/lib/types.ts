@@ -7,6 +7,46 @@ export type AppRole =
   | "manager"
   | "staff";
 export type ReportType = "budget" | "monthly";
+
+// The Vice President's three reports. A different subject from everything else
+// here — what OCIC's projects earned, rather than what the marketing department
+// spent — which is why they are their own tables rather than a third ReportType.
+export type ProjectStream = "sales" | "leasing" | "property_management";
+
+export const PROJECT_STREAMS: readonly ProjectStream[] = [
+  "sales",
+  "leasing",
+  "property_management",
+];
+
+const PROJECT_STREAM_LABELS: Record<ProjectStream, string> = {
+  sales: "Sales performance",
+  leasing: "Leasing",
+  property_management: "Property management",
+};
+
+export function projectStreamLabel(stream: ProjectStream) {
+  return PROJECT_STREAM_LABELS[stream];
+}
+
+// What each stream's rows are, for column headers and empty states — "Add a
+// property" is a better prompt than "Add an item", and on the sales report
+// neither would be right.
+const PROJECT_STREAM_NOUNS: Record<ProjectStream, string> = {
+  sales: "property type",
+  leasing: "property",
+  property_management: "property",
+};
+
+export function projectStreamNoun(stream: ProjectStream) {
+  return PROJECT_STREAM_NOUNS[stream];
+}
+
+// Only the sales report counts units. The other two have amounts alone, and
+// showing them a units column of zeros would be a column that means nothing.
+export function streamTracksUnits(stream: ProjectStream) {
+  return stream === "sales";
+}
 export type BudgetPeriod = "annual" | "monthly";
 export type ReportStatus = "draft" | "submitted" | "reviewed" | "rejected";
 
@@ -115,6 +155,58 @@ export interface BudgetItem extends MonthlyAmounts {
   section: string;
   name: string;
   sort_order: number;
+}
+
+export const UNIT_KEYS = [
+  "u01",
+  "u02",
+  "u03",
+  "u04",
+  "u05",
+  "u06",
+  "u07",
+  "u08",
+  "u09",
+  "u10",
+  "u11",
+  "u12",
+] as const;
+export type UnitKey = (typeof UNIT_KEYS)[number];
+export type MonthlyUnits = Record<UnitKey, number>;
+
+export interface ProjectReportItem extends MonthlyAmounts, MonthlyUnits {
+  id: string;
+  report_id: string;
+  name: string;
+  sort_order: number;
+}
+
+export interface ProjectReport {
+  id: string;
+  stream: ProjectStream;
+  period_year: number;
+  updated_at: string;
+  items: ProjectReportItem[];
+}
+
+export function itemUnitTotal(item: MonthlyUnits): number {
+  return UNIT_KEYS.reduce((sum, key) => sum + Number(item[key] ?? 0), 0);
+}
+
+// A month with no figures is an unreported month, not a month in which nothing
+// happened, and the two must not look the same. Everything downstream — the
+// cell renderer, the year-to-date range, the comparison — asks this rather than
+// testing for zero, so the distinction is made once.
+export function isReportedMonth(
+  items: readonly (MonthlyAmounts & Partial<MonthlyUnits>)[],
+  monthIndex: number
+): boolean {
+  const amountKey = MONTH_KEYS[monthIndex];
+  const unitKey = UNIT_KEYS[monthIndex];
+  return items.some(
+    (item) =>
+      Number(item[amountKey] ?? 0) !== 0 || Number(item[unitKey] ?? 0) !== 0
+  );
 }
 
 export interface BudgetHistoryReport {

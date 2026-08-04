@@ -28,6 +28,7 @@ Built with Next.js 16 (App Router) + Supabase (Auth, Postgres with Row Level Sec
    15. [`supabase/migrations/0015_budget_approval.sql`](supabase/migrations/0015_budget_approval.sql) — adds the approved annual budget figure, one row per fiscal year
    16. [`supabase/migrations/0016_allow_multiple_monthly_budgets.sql`](supabase/migrations/0016_allow_multiple_monthly_budgets.sql) — allows more than one monthly budget report per author, month, and year
    17. [`supabase/migrations/0017_vice_president_roles.sql`](supabase/migrations/0017_vice_president_roles.sql) — adds the Vice President and VP Assistant roles, and replaces the hand-copied privileged-role lists with `public.is_privileged()`
+   18. [`supabase/migrations/0018_project_reports.sql`](supabase/migrations/0018_project_reports.sql) — adds the project reports (sales, leasing, property management), narrows the VP Assistant to that side, and seeds the 2025–2026 Jan–June figures
 
 ### 2. Configure environment variables
 
@@ -70,9 +71,9 @@ Least senior first. Each row assumes the report-authoring capabilities of **Staf
 | **Staff** | Create reports, edit any report they authored, submit revisions for review, and comment on their reports; revising a reviewed report requires a new review |
 | **Manager** | Sees only their own reports, and only their own reviewed expenses in the annual summary; can open the Users page read-only |
 | **Coordinator** | Reads every non-draft **budget** report across the office and may mark one reviewed, including their own; cannot reject anything, and sees no one else's activity reports. Can open the Users page and reset non-privileged passwords; cannot invite, change roles, delete users, or add a department |
-| **VP Assistant** | Reads every non-draft report of **both** types across the office, plus the annual summary and the department × month matrix — and decides on none of it. No approve, no reject, no edit, no delete, no account management. Can open the Users page read-only |
+| **VP Assistant** | Lives entirely on the **Projects** side: compiles and edits the sales, leasing and property management reports, and sees nothing else. No marketing reports, no dashboard, no Users page. Narrowed from an office-wide reader in `0018` once the role's actual job became clear |
 | **Head of Department** | Admin-equivalent on reports and accounts, with one exception: cannot reset a password. Sets the approved annual budget |
-| **Vice President** | Identical to Head of Department in every capability; a separate role because the org chart distinguishes them |
+| **Vice President** | Everything a Head of Department can do, plus the **Projects** dashboard — sales, leasing and property management across OCIC's projects, each year against the one before |
 | **Admin** | Unrestricted user and report management, including bulk report deletion and full review authority. The only role that can grant Admin or reset any password, and the only one that **cannot** set the approved annual budget |
 
 Access control is enforced by server-side role guards and Postgres Row Level Security, not just by hidden UI controls. `src/lib/roles.ts` is the single statement of the policy; `PROGRESS.md` explains the reasoning behind each carve-out.

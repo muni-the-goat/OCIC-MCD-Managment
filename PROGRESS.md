@@ -120,34 +120,43 @@ Note that a Head of Department can grant the Vice President role and vice versa.
 
 ### VP Assistant
 
-**Reads the whole office and decides nothing.** The widest read in the application short of privileged, paired with no authority at all.
+**Lives entirely on the projects side.** They compile the three project reports and see nothing else in the application.
 
-- Sees every non-draft report across the office, of **both** types — wider than a Coordinator, whose cross-office reach stops at budget — plus line items, comments, and attachments. `seesAllReports()` is the predicate; the `reports: select` policy and `can_view_report()` in migration 0017 are the enforcement.
-- **Drafts stay private.** A draft is a working copy, not a submission, exactly as for a Coordinator.
-- Annual budget summary and the department × month matrix both cover all authors, with the author filter.
-- The dashboard shows office-wide counts and the office's most recently updated reports — not a pending-review queue, which they could not act on. This is why `dashboard/page.tsx` asks `seesOtherAuthors()` for the scope of the numbers and `isReviewer()` for the framing; the two used to be one flag and had to come apart to place this role.
-- **Cannot mark reviewed, reject, edit, or delete anything they did not author.** They appear in no update, delete, or review path in the database.
-- **Cannot manage accounts or reset passwords.** They can open the Users page read-only, exactly as a Manager can — every control disabled, every Server Action refusing them.
-- **Can still comment** on any report they can read, since `comments: insert` gates on `can_view_report()`. A comment is not a decision, so this was left as-is; narrowing it would need a policy of its own.
+- Authors and edits the sales, leasing and property management reports — `canEditProjectReports()`, alongside the Vice President and an Admin.
+- **Sees no marketing report but their own.** Migration `0018` removed the office-wide read that `0017` had granted; the `reports: select` clause is now exactly what it is for a Coordinator.
+- No Users page, no office dashboard, no Reports list, no New report form. `livesOnProjectsOnly()` is the single predicate: the nav renders Projects and Profile only, and `/dashboard` redirects them to `/projects`.
+- The redirect lives on the dashboard page rather than in `src/proxy.ts`, because the middleware would have to read a profile to know the role, and it deliberately does not.
 
-### Coordinator
+The role was briefly defined as "reads the whole office and decides nothing" in `0017`. That was the right shape for the information available at the time; once the three project reports turned out to *be* the job, the office-wide read was reach the role had no use for.
 
-- Has normal report-author capabilities.
-- **Sees every budget report across the office**, monthly and legacy annual, in every non-draft status — plus its line items, comments, and attachments.
-- **Annual budget summary covers all authors**, the same reach an Admin has, with the same author filter.
-- **Sees only their own monthly activity reports.** Cross-office visibility stops at budget; the activity tab on their dashboard is their own tasks.
-- Read-only on other people's reports. `can_edit_report()` is untouched, so a Coordinator can open a budget report and change nothing in it.
-- Cannot review or reject. They are not a reviewer, so their dashboard keeps the personal "Recent reports" framing rather than a pending-review queue they could not act on.
-- **Can mark a budget report reviewed**, including one they authored. Approval is the natural end of budget oversight: a budget they already read across every team is a budget they can sign off.
-- **Cannot reject anything.** Sending a report back with feedback stays with the Head of Department and the Admin above them.
-- Their review reach is **budget reports plus their own** — the same rows they can see. `canDecideOnReport()` keeps the detail page from offering a control the database would refuse, and the `reports: review submitted` policy is scoped to match, because an UPDATE policy's `USING` clause is evaluated on its own and does not inherit the narrower `SELECT` policy.
-- Gets the pending-review queue on their dashboard and the department × month matrix.
-- Can open the Users page and view the user list.
-- Can reset passwords for Staff, Manager, and Coordinator accounts — one of only two roles that can, the other being Admin.
-- Cannot invite users, change roles or departments, delete accounts, or add a department. Departments render as read-only chips on their Users page, not as controls.
-- Cannot reset Admin or Head of Department passwords, preventing privilege escalation.
+## The projects side
 
-Drafts stay private from a Coordinator — a draft is a working copy, not a submission. Note that they are **not** private from an Admin or a Head of Department: `0013` put the Head of Department into the same unrestricted clause as the Admin, who has always read drafts. That follows from "admin-equivalent", but it is a widening worth knowing about, and the `reports: select` policy is where to narrow it if drafts should stay private from everyone but their author.
+Sales, leasing and property management across OCIC's projects — Koh Pich, Airway Complex, KSP and Cross Department. A different subject from every other report here, which is why it is its own pair of tables rather than a third `ReportType`.
+
+Three deliberate differences from a budget report, each the reason `project_reports` exists:
+
+1. **A unit count beside every amount.** "11 condos for $791,807" is the sales report's actual content; the amount alone loses half of it. Only the sales stream fills `u01`–`u12`; leasing and property management leave them at zero, which is honest — a leasing month has no unit count, and NULL would invite a sum that silently skips rows.
+2. **No review workflow.** These are recorded facts, not work someone approves — nobody rejects what June's leasing income was. There is no status column and no reviewer, which is precisely why they are not `reports`.
+3. **One report per stream per year**, enforced by `unique (stream, period_year)`. Two people filing "Leasing 2026" would be two halves of one truth.
+
+### Totals are computed, never stored
+
+Not a preference. The source workbook's April 2025 property-management row totals **$193,603.87** against components summing to **$193,608.87**, and its own Jan–June summary silently used the correct figure — so the sheet disagrees with itself by five dollars. Seeding the components and computing every total makes that class of error unrepresentable. Verified: the seeded data reproduces every published figure exactly, and property management 2025 comes out at $1,288,356.32.
+
+### Comparing years
+
+`compareYears()` compares only the months **both** years have reported. A half-finished 2026 set against a complete 2025 would show a collapse that is really just the calendar — exactly the kind of number someone repeats in a meeting before anyone checks it. The workbook does this by hand and mislabelled its own block "Jan-May" while summing Jan–June; deriving the range is how that stops being possible, and the card states the range it used.
+
+An unreported month renders as an em dash, never `$0.00`. `isReportedMonth()` is the single place that distinction is made, because "July has not happened" and "July earned nothing" are different facts and must not look the same.
+
+### Access
+
+- **Read** — `seesProjectReports()`: the privileged tier plus the VP Assistant.
+- **Write** — `canEditProjectReports()`: Admin, Vice President, VP Assistant. A Head of Department is deliberately absent; they are admin-equivalent over the *marketing department's* reporting, which this is not.
+
+### Still to build
+
+**The entry form.** The schema, the access rules, the dashboard and the seeded 2025–2026 Jan–June figures are in place, but there is no UI yet for a VP Assistant to add July onward — they can currently read the seeded data and nothing more. That form is the next piece, and until it ships the answer to "who enters this data" is true in the permissions and not yet true in the interface.
 
 ### Admin
 
@@ -598,7 +607,9 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 
 17. `0017_vice_president_roles.sql` — adds the `vice_president` and `vp_assistant` enum values, introduces `public.is_privileged()` and rewrites every policy and function that used to spell out `('admin', 'head_of_department')` to call it, and widens `reports: select` / `can_view_report()` so a VP Assistant reads every non-draft report of either type. Depends only on `0013`/`0014`, so its position relative to `0015` and `0016` does not matter. **Applied.**
 
-Migrations `0001`–`0017` are confirmed applied in Supabase. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+17. `0018_project_reports.sql` — adds `project_reports` and `project_report_items`, the read/write predicates for them, the VP Assistant narrowing, and the seeded 2025–2026 Jan–June figures. Validated by running it against a scratch Postgres 17 and checking every aggregate against the workbook. **Not yet applied.**
+
+Migrations `0001`–`0017` are confirmed applied in Supabase; `0018` is pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
