@@ -12,7 +12,7 @@ Supabase migrations `0001` through `0012` have been applied to the production pr
 
 `0013` and `0014` were applied and confirmed: the `departments` table holds its eight rows, every assigned department resolves through the new foreign key, and the seeded January–June spend came through the migration to the cent.
 
-> **`0015_budget_approval.sql` has NOT been applied.** Until it runs, the annual budget card fails to read `budget_approvals` and the percentage column stays on its "% of year" fallback. Run it in the Supabase SQL editor or via `supabase db push`.
+Every migration through `0017` has been applied to the production project. The annual budget card reads `budget_approvals` and the percentage column shows "% of budget" rather than its "% of year" fallback.
 
 `0017` was applied ahead of the code that uses it, so the `vice_president` and `vp_assistant` enum values exist in production before either role can be assigned from the app.
 
@@ -588,17 +588,17 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 10. `0010_profile_department.sql` — adds `profiles.department`, the `user_department()` helper, and a self-update policy that pins department the way it already pins role.
 11. `0011_event_marketing_department.sql` — widens the department check constraint to include Event Marketing.
 12. `0012_coordinator_budget_visibility.sql` — widens `reports: select` and `can_view_report()` so a Coordinator reads every non-draft budget report across the office. Monthly activity reports and `can_edit_report()` are untouched.
-13. `0013_departments_table_and_role_powers.sql` — three changes at once, because they overlap on the same policies: departments become `public.departments` with a foreign key from `profiles`; a Manager loses cross-office visibility and every review power; Head of Department becomes admin-equivalent on reports and accounts. **Not yet applied.**
+13. `0013_departments_table_and_role_powers.sql` — three changes at once, because they overlap on the same policies: departments become `public.departments` with a foreign key from `profiles`; a Manager loses cross-office visibility and every review power; Head of Department becomes admin-equivalent on reports and accounts. **Applied.**
 
-14. `0014_coordinator_review.sql` — splits approving from rejecting. A Coordinator may mark reviewed (budget reports and their own) but never reject. **Not yet applied; run after `0013`.**
+14. `0014_coordinator_review.sql` — splits approving from rejecting. A Coordinator may mark reviewed (budget reports and their own) but never reject. **Applied, after `0013`.**
 
-15. `0015_budget_approval.sql` — adds `budget_approvals`, one approved figure per fiscal year, seeded with FY2026 = $150,000.00. **Not yet applied.**
+15. `0015_budget_approval.sql` — adds `budget_approvals`, one approved figure per fiscal year, seeded with FY2026 = $150,000.00. **Applied.**
 
-16. `0016_allow_multiple_monthly_budgets.sql` — drops the `0009` uniqueness trigger and its function, allowing multiple monthly budgets per author/month/year. Keeps the lookup index. **Not yet applied.**
+16. `0016_allow_multiple_monthly_budgets.sql` — drops the `0009` uniqueness trigger and its function, allowing multiple monthly budgets per author/month/year. Keeps the lookup index. **Applied.**
 
 17. `0017_vice_president_roles.sql` — adds the `vice_president` and `vp_assistant` enum values, introduces `public.is_privileged()` and rewrites every policy and function that used to spell out `('admin', 'head_of_department')` to call it, and widens `reports: select` / `can_view_report()` so a VP Assistant reads every non-draft report of either type. Depends only on `0013`/`0014`, so its position relative to `0015` and `0016` does not matter. **Applied.**
 
-Migrations `0001`–`0014` and `0017` are confirmed applied in Supabase; `0015` and `0016` are pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0017` are confirmed applied in Supabase. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
