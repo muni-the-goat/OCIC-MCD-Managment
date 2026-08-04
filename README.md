@@ -33,6 +33,7 @@ Built with Next.js 16 (App Router) + Supabase (Auth, Postgres with Row Level Sec
    20. [`supabase/migrations/0020_projects_dimension.sql`](supabase/migrations/0020_projects_dimension.sql) — makes projects a table (Koh Pich, Chroy Changvar Bay) and keys every project report to one
    21. [`supabase/migrations/0021_chroy_changvar_bay.sql`](supabase/migrations/0021_chroy_changvar_bay.sql) — seeds Chroy Changvar Bay's 2025–2026 sales and leasing figures
    22. [`supabase/migrations/0022_project_categories.sql`](supabase/migrations/0022_project_categories.sql) — gives every project report the same four headings (Land, House, Condo, Commercial) with units beneath them
+   23. [`supabase/migrations/0023_koh_pich_categories.sql`](supabase/migrations/0023_koh_pich_categories.sql) — files the Koh Pich buildings under their categories and adds Diamond Bay Garden
 
 ### 2. Configure environment variables
 

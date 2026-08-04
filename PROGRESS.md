@@ -176,6 +176,10 @@ This is the `section` level `budget_items` has carried since `0001` and `0018` d
 - A **subtotal column appears only when a category holds two or more units**. With one, it would restate the column beside it.
 - `groupByCategory()` and `columnsFor()` are shared by the screen and the PDF, so the two cannot drift into disagreeing about how many columns a category occupies.
 
+**Two spellings of one building.** The leasing report says `The Elysee`, property management says `The Elysée` — both straight from the source workbooks. `0023` categorises both rather than picking one, because renaming somebody's data is a separate decision from categorising it. Worth resolving when someone decides which spelling is correct.
+
+**Still unassigned after `0023`:** Night Market, Commercial Lease and Connexion Hub on Koh Pich leasing, and `External` on Chroy Changvar Bay's. Their names suggest an answer; suggestion is not knowledge.
+
 **Leasing and property-management units start in `Unassigned`.** Which category The Elysee or Connexion Hub belongs to is a fact about OCIC's portfolio, not something derivable from a spreadsheet — so `0022` does not guess. They sit in a visibly-labelled group, ordered last, until someone sets them from the Project report form. A wrong category printed in a document presented to the Chairwoman is worse than an obviously empty one.
 
 The form's fields are indexed (`row:<stream>:<index>:category`) rather than keyed by unit name, precisely so a row can move between categories without appearing to be a different row.
@@ -652,6 +656,8 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 
 17. `0018_project_reports.sql` — adds `project_reports` and `project_report_items`, the read/write predicates for them, the VP Assistant narrowing, and the seeded 2025–2026 Jan–June figures. Validated by running it against a scratch Postgres 17 and checking every aggregate against the workbook. **Applied.**
 
+21. `0023_koh_pich_categories.sql` — files the Koh Pich buildings: The Elysée as Commercial, La Seine / Elite Cove / Elite Garden as House, across both the leasing and property-management reports. Adds Diamond Bay Garden as a Condo on property management. **Applied.**
+
 20. `0022_project_categories.sql` — adds `category` to `project_report_items`, moves uniqueness to `(report_id, category, name)`, maps the sales rows onto themselves, and adds an empty Commercial row to the Koh Pich sales report. Leasing and property-management units land in `Unassigned`. **Applied.**
 
 19. `0021_chroy_changvar_bay.sql` — seeds Chroy Changvar Bay's sales and leasing for 2025 and 2026 from the CCV workbooks. No property management: that project does not file one. **Applied.**
@@ -660,7 +666,7 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 
 17. `0019_vice_president_projects_only.sql` — narrows `is_privileged()` to Admin and Head of Department, and names the project-report predicates outright so the Vice President keeps the side they were given. Three function bodies; nine policies follow. **Applied.**
 
-Migrations `0001`–`0022` are confirmed applied in Supabase. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0023` are confirmed applied in Supabase. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
