@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { LumaSpin } from "@/components/ui/luma-spin";
 
 // The sign-in Server Action authenticates and then redirects, a round trip with
@@ -13,9 +13,16 @@ export function LoginSubmit() {
 
   return (
     <>
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Signing in…" : "Sign in"}
-      </Button>
+      {/* No success state: a successful sign-in redirects, so the only
+          completion that matters is the dashboard arriving. */}
+      <ActionButton
+        type="submit"
+        className="w-full"
+        pending={pending}
+        pendingLabel="Signing in…"
+      >
+        Sign in
+      </ActionButton>
       {pending ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-5">

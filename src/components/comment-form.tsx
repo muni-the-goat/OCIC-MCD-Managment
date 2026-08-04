@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { addComment, type ActionState } from "@/app/(app)/reports/actions";
-import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Textarea } from "@/components/ui/textarea";
 
 export function CommentForm({ reportId }: { reportId: string }) {
@@ -33,9 +33,17 @@ export function CommentForm({ reportId }: { reportId: string }) {
         maxLength={4000}
         placeholder="Add a comment…"
       />
-      <Button type="submit" size="sm" disabled={pending}>
-        {pending ? "Posting…" : "Post comment"}
-      </Button>
+      {/* Pending only, no checkmark: the comment appearing in the thread above
+          and the box emptying are the completion signal, and they say it
+          better than a button could. */}
+      <ActionButton
+        type="submit"
+        size="sm"
+        pending={pending}
+        pendingLabel="Posting…"
+      >
+        Post comment
+      </ActionButton>
     </form>
   );
 }

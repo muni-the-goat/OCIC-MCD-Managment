@@ -6,10 +6,11 @@ import {
   changePassword,
   type ProfileActionState,
 } from "@/app/(app)/profile/actions";
-import { Button } from "@/components/ui/button";
+import { ActionButton, ActionMessage } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToasts } from "@/components/use-action-toasts";
+import { useSuccessFlash } from "@/components/use-success-flash";
 
 export function ChangePasswordForm() {
   const formRef = useRef<HTMLFormElement>(null);
@@ -17,6 +18,7 @@ export function ChangePasswordForm() {
     ProfileActionState,
     FormData
   >(changePassword, null);
+  const succeeded = useSuccessFlash(state);
   // Clear the fields on success rather than leaving passwords sitting in the
   // inputs; the toast still confirms it worked.
   useActionToasts(state, (s) => {
@@ -59,9 +61,23 @@ export function ChangePasswordForm() {
           minLength={8}
         />
       </div>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Updating…" : "Update password"}
-      </Button>
+      <div className="space-y-2">
+        <ActionButton
+          type="submit"
+          pending={pending}
+          success={succeeded}
+          pendingLabel="Updating…"
+          successLabel="Password updated"
+        >
+          Update password
+        </ActionButton>
+        {/* The three fields clear themselves on success, which on its own is
+            ambiguous — an emptied form looks the same as a form that reset
+            because something went wrong. This is what tells the two apart, and
+            it is why the error is worth repeating here as well as in the
+            toast: this is the spot the reader is already looking at. */}
+        <ActionMessage error={state && "error" in state ? state.error : null} />
+      </div>
     </form>
   );
 }

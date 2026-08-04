@@ -4,12 +4,31 @@ import { Slot } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+// Press feedback follows the first rule of fluid interfaces: it happens on
+// pointer-*down*, not on release, and it happens instantly. `:active` fires on
+// mousedown/touchstart, so the scale is already applied before the click event
+// the action listens to — the button acknowledges you before it does anything.
+//
+// The two durations are deliberate and asymmetric. Pressing takes 100ms (the
+// value Apple's own examples use) so it reads as immediate; releasing takes
+// 200ms so the button settles rather than snapping back. Same curve, different
+// speed in each direction, which is what a physical key feels like.
+//
+// scale rather than the translate-y it replaced: a button that moves down is a
+// button that moves *somewhere*, and at 1px it mostly reads as a rendering
+// wobble. Scaling from the centre reads as depression under a finger, and it
+// survives being wrapped in a table cell or a flex row without shifting its
+// neighbours. aria-haspopup triggers keep opting out — a menu button that
+// shrinks while its menu opens fights the menu's own entrance.
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap outline-none select-none transition-[transform,background-color,border-color,color,box-shadow,opacity] duration-200 ease-out focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] active:duration-100 motion-reduce:transition-[background-color,border-color,color,box-shadow,opacity] motion-reduce:active:not-aria-[haspopup]:scale-100 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        // /90 rather than /80. At /80 the brand red lifts far enough that the
+        // hover reads as a different colour rather than the same button under a
+        // cursor; hover is meant to say "this is live", not to repaint.
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
         outline:
           "border-border bg-background shadow-xs hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:

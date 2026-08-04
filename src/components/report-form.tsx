@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { History, Plus, Trash2 } from "lucide-react";
 import { saveReport, type ActionState } from "@/app/(app)/reports/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -128,6 +129,8 @@ export function ReportForm({
     saveReport,
     null
   );
+  // Which of the two submit buttons was pressed, so only that one reports work.
+  const [intent, setIntent] = useState<"draft" | "submit" | null>(null);
 
   const now = new Date();
   const content = report?.content ?? {};
@@ -798,24 +801,33 @@ export function ReportForm({
         </CardContent>
       </Card>
 
+      {/* Two submits, one `pending`. Without recording which was pressed, the
+          spinner would appear on both and the form would claim to be saving a
+          draft and submitting for review at the same moment. */}
       <div className="flex gap-3">
-        <Button
+        <ActionButton
           type="submit"
           name="intent"
           value="draft"
           variant="outline"
+          pending={pending && intent === "draft"}
+          pendingLabel="Saving…"
           disabled={pending}
+          onClick={() => setIntent("draft")}
         >
           Save draft
-        </Button>
-        <Button
+        </ActionButton>
+        <ActionButton
           type="submit"
           name="intent"
           value="submit"
+          pending={pending && intent === "submit"}
+          pendingLabel="Submitting…"
           disabled={pending}
+          onClick={() => setIntent("submit")}
         >
-          {pending ? "Saving…" : "Submit for review"}
-        </Button>
+          Submit for review
+        </ActionButton>
       </div>
     </form>
   );

@@ -8,6 +8,7 @@ import {
   type BudgetApprovalState,
 } from "@/app/(app)/dashboard/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -227,9 +228,14 @@ export function BudgetApprovalBar({
                     $150,000.00 works.
                   </p>
                 </div>
-                <Button type="submit" disabled={pending} className="w-full">
-                  {pending ? "Saving…" : "Save approved budget"}
-                </Button>
+                <ActionButton
+                  type="submit"
+                  pending={pending}
+                  pendingLabel="Saving…"
+                  className="w-full"
+                >
+                  Save approved budget
+                </ActionButton>
               </form>
             </DialogContent>
           </Dialog>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { reviewReport, type ActionState } from "@/app/(app)/reports/actions";
-import { Button } from "@/components/ui/button";
+import { ActionButton, ActionMessage } from "@/components/ui/action-button";
 import {
   Card,
   CardContent,
@@ -28,6 +28,17 @@ export function ReviewControls({
     null
   );
   const lastError = useRef<string | null>(null);
+  // Both buttons submit the same form, so `pending` is true for whichever was
+  // pressed — spinning both would say the app is doing two contradictory things
+  // at once. Recording the decision on the way down makes the feedback point
+  // back at the button that caused it.
+  //
+  // Nothing clears this on failure and nothing needs to: the spinner is gated
+  // on `pending && submitted === …`, so a refused decision drops both buttons
+  // back to rest on its own and the next click overwrites the value.
+  const [submitted, setSubmitted] = useState<"reviewed" | "rejected" | null>(
+    null
+  );
 
   useEffect(() => {
     if (state?.error && state.error !== lastError.current) {
@@ -64,27 +75,34 @@ export function ReviewControls({
               />
             </div>
           ) : null}
+          <ActionMessage error={state?.error} />
           <div className="flex gap-3">
             {canMarkReviewed ? (
-              <Button
+              <ActionButton
                 type="submit"
                 name="decision"
                 value="reviewed"
+                pending={pending && submitted === "reviewed"}
+                pendingLabel="Approving…"
                 disabled={pending}
+                onClick={() => setSubmitted("reviewed")}
               >
-                {pending ? "Saving…" : "Mark as reviewed"}
-              </Button>
+                Mark as reviewed
+              </ActionButton>
             ) : null}
             {canReject ? (
-              <Button
+              <ActionButton
                 type="submit"
                 name="decision"
                 value="rejected"
                 variant="destructive"
+                pending={pending && submitted === "rejected"}
+                pendingLabel="Rejecting…"
                 disabled={pending}
+                onClick={() => setSubmitted("rejected")}
               >
-                {pending ? "Saving…" : "Reject"}
-              </Button>
+                Reject
+              </ActionButton>
             ) : null}
           </div>
         </form>

@@ -7,6 +7,7 @@ import {
   type UserActionState,
 } from "@/app/(app)/admin/users/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -128,9 +129,18 @@ export function InviteUserDialog({
                 </SelectContent>
               </Select>
             </div>
-            <Button type="submit" disabled={pending} className="w-full">
-              {pending ? "Creating…" : "Create account"}
-            </Button>
+            {/* No success state on this one: creating an account swaps the
+                whole dialog for the temporary password, which is a stronger
+                completion signal than a checkmark could be — and the password
+                is the thing the reader now has to act on. */}
+            <ActionButton
+              type="submit"
+              pending={pending}
+              pendingLabel="Creating…"
+              className="w-full"
+            >
+              Create account
+            </ActionButton>
           </form>
         )}
       </DialogContent>

@@ -7,6 +7,7 @@ import {
   type UserActionState,
 } from "@/app/(app)/admin/users/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -103,9 +104,14 @@ export function AddDepartmentDialog() {
               where full names make it too wide to read. Defaults to the name.
             </p>
           </div>
-          <Button type="submit" disabled={pending} className="w-full">
-            {pending ? "Adding…" : "Add department"}
-          </Button>
+          <ActionButton
+            type="submit"
+            pending={pending}
+            pendingLabel="Adding…"
+            className="w-full"
+          >
+            Add department
+          </ActionButton>
         </form>
       </DialogContent>
     </Dialog>

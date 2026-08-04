@@ -10,6 +10,7 @@ import {
 } from "@/app/(app)/reports/actions";
 import { DepartmentBadge } from "@/components/department-badge";
 import { StatusBadge } from "@/components/status-badge";
+import { ActionButton, ActionMessage } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -50,11 +51,14 @@ function DeleteSelectedButton({ count }: { count: number }) {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" variant="destructive" disabled={pending}>
-      {pending
-        ? "Deleting…"
-        : `Delete ${count} ${count === 1 ? "report" : "reports"}`}
-    </Button>
+    <ActionButton
+      type="submit"
+      variant="destructive"
+      pending={pending}
+      pendingLabel="Deleting…"
+    >
+      {`Delete ${count} ${count === 1 ? "report" : "reports"}`}
+    </ActionButton>
   );
 }
 
@@ -135,11 +139,7 @@ export function ReportsTable({
                   undone.
                 </DialogDescription>
               </DialogHeader>
-              {state?.error ? (
-                <p className="text-sm text-destructive" role="alert">
-                  {state.error}
-                </p>
-              ) : null}
+              <ActionMessage error={state?.error} />
               <DialogFooter>
                 <DialogClose asChild>
                   <Button type="button" variant="outline">

@@ -9,6 +9,7 @@ import {
   updateUserRole,
   type UserActionState,
 } from "@/app/(app)/admin/users/actions";
+import { ActionButton, ActionMessage } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -69,7 +70,7 @@ export function RoleSelect({
   // account already holds it, so the select can still show its current value.
   canGrantAdmin?: boolean;
 }) {
-  const [state, formAction] = useActionState<UserActionState, FormData>(
+  const [state, formAction, pending] = useActionState<UserActionState, FormData>(
     updateUserRole,
     null
   );
@@ -153,19 +154,27 @@ export function RoleSelect({
                 : `${name} becomes a ${targetLabel} and immediately loses their ${roleLabel(role)} powers — deciding on other people's reports, managing accounts, and setting the approved annual budget.`}
             </DialogDescription>
           </DialogHeader>
+          <ActionMessage error={state && "error" in state ? state.error : null} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirming(false)}>
               Cancel
             </Button>
-            <Button
+            {/* The dialog closes on click rather than waiting for the round
+                trip: the change is optimistic in the honest sense — the row's
+                select still shows the old role until the server confirms, and
+                a failure surfaces as a toast. Holding a modal open over a
+                sub-second request would be the slower, worse version. */}
+            <ActionButton
               variant={granting ? "default" : "destructive"}
+              pending={pending}
+              pendingLabel="Saving…"
               onClick={() => {
                 if (pendingRole) submit(pendingRole);
                 setConfirming(false);
               }}
             >
               {granting ? `Make ${targetLabel}` : `Change to ${targetLabel}`}
-            </Button>
+            </ActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -261,15 +270,25 @@ export function ResetPasswordButton({
               you do, they cannot sign in.
             </DialogDescription>
           </DialogHeader>
+          {/* Kept in the dialog rather than only in a toast. If the reset is
+              refused — a Coordinator aiming at a privileged account — the
+              refusal has to appear where the decision was made, not behind the
+              modal that is still covering the screen. */}
+          <ActionMessage error={state && "error" in state ? state.error : null} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirming(false)}>
               Cancel
             </Button>
             <form action={formAction}>
               <input type="hidden" name="user_id" value={userId} />
-              <Button type="submit" variant="destructive" disabled={pending}>
-                {pending ? "Resetting…" : "Reset password"}
-              </Button>
+              <ActionButton
+                type="submit"
+                variant="destructive"
+                pending={pending}
+                pendingLabel="Resetting…"
+              >
+                Reset password
+              </ActionButton>
             </form>
           </DialogFooter>
         </DialogContent>
@@ -333,15 +352,21 @@ export function DeleteUserButton({
               attachments and comments) will be permanently removed.
             </DialogDescription>
           </DialogHeader>
+          <ActionMessage error={state && "error" in state ? state.error : null} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
             <form action={formAction}>
               <input type="hidden" name="user_id" value={userId} />
-              <Button type="submit" variant="destructive" disabled={pending}>
-                {pending ? "Deleting…" : "Delete user"}
-              </Button>
+              <ActionButton
+                type="submit"
+                variant="destructive"
+                pending={pending}
+                pendingLabel="Deleting…"
+              >
+                Delete user
+              </ActionButton>
             </form>
           </DialogFooter>
         </DialogContent>
