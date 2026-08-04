@@ -650,17 +650,17 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 
 17. `0017_vice_president_roles.sql` — adds the `vice_president` and `vp_assistant` enum values, introduces `public.is_privileged()` and rewrites every policy and function that used to spell out `('admin', 'head_of_department')` to call it, and widens `reports: select` / `can_view_report()` so a VP Assistant reads every non-draft report of either type. Depends only on `0013`/`0014`, so its position relative to `0015` and `0016` does not matter. **Applied.**
 
-17. `0018_project_reports.sql` — adds `project_reports` and `project_report_items`, the read/write predicates for them, the VP Assistant narrowing, and the seeded 2025–2026 Jan–June figures. Validated by running it against a scratch Postgres 17 and checking every aggregate against the workbook. **Not yet applied.**
+17. `0018_project_reports.sql` — adds `project_reports` and `project_report_items`, the read/write predicates for them, the VP Assistant narrowing, and the seeded 2025–2026 Jan–June figures. Validated by running it against a scratch Postgres 17 and checking every aggregate against the workbook. **Applied.**
 
-20. `0022_project_categories.sql` — adds `category` to `project_report_items`, moves uniqueness to `(report_id, category, name)`, maps the sales rows onto themselves, and adds an empty Commercial row to the Koh Pich sales report. Leasing and property-management units land in `Unassigned`. **Not yet applied.**
+20. `0022_project_categories.sql` — adds `category` to `project_report_items`, moves uniqueness to `(report_id, category, name)`, maps the sales rows onto themselves, and adds an empty Commercial row to the Koh Pich sales report. Leasing and property-management units land in `Unassigned`. **Applied.**
 
 19. `0021_chroy_changvar_bay.sql` — seeds Chroy Changvar Bay's sales and leasing for 2025 and 2026 from the CCV workbooks. No property management: that project does not file one. **Applied.**
 
-18. `0020_projects_dimension.sql` — makes projects rows in `public.projects` rather than an assumption, adds `project_id` to `project_reports`, backfills every seeded row to Koh Pich (the workbook is "KP Sale Performance" and "KOH PICH LEASING REPORT"), and moves uniqueness to `(project_id, stream, period_year)`. The constraint it drops was looked up in a scratch database rather than guessed. **Not yet applied; run after `0019`.**
+18. `0020_projects_dimension.sql` — makes projects rows in `public.projects` rather than an assumption, adds `project_id` to `project_reports`, backfills every seeded row to Koh Pich (the workbook is "KP Sale Performance" and "KOH PICH LEASING REPORT"), and moves uniqueness to `(project_id, stream, period_year)`. The constraint it drops was looked up in a scratch database rather than guessed. **Applied.**
 
-17. `0019_vice_president_projects_only.sql` — narrows `is_privileged()` to Admin and Head of Department, and names the project-report predicates outright so the Vice President keeps the side they were given. Three function bodies; nine policies follow. **Not yet applied; run after `0018`.**
+17. `0019_vice_president_projects_only.sql` — narrows `is_privileged()` to Admin and Head of Department, and names the project-report predicates outright so the Vice President keeps the side they were given. Three function bodies; nine policies follow. **Applied.**
 
-Migrations `0001`–`0021` are confirmed applied in Supabase, with `0021` pending at the time of writing. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0022` are confirmed applied in Supabase. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
