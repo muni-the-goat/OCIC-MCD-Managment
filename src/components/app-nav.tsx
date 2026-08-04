@@ -40,6 +40,13 @@ export function AppNav({ role }: { role: AppRole }) {
   const items = projectsOnly
     ? [
         { href: "/projects", label: "Projects", icon: "projects" },
+        { href: "/projects/new", label: "Project report", icon: "new" },
+        // A Vice President keeps account management, so the Users link
+        // survives the projects-only nav on its own predicate. A VP Assistant
+        // fails canOpenUsersPage() and simply does not see it.
+        ...(canOpenUsersPage(role)
+          ? [{ href: "/admin/users", label: "Users", icon: "users" }]
+          : []),
         { href: "/profile", label: "Profile", icon: "profile" },
       ]
     : [
@@ -59,10 +66,16 @@ export function AppNav({ role }: { role: AppRole }) {
     <nav className="flex flex-col gap-1">
       {items.map((item) => {
         const Icon = ICONS[item.icon];
+        // "/projects" must not light up while on "/projects/new", the same way
+        // "/reports" already steps aside for "/reports/new" — a parent that
+        // stays highlighted under its own child makes the nav lie about where
+        // you are.
         const active =
           item.href === "/reports"
             ? pathname === "/reports" || /^\/reports\/(?!new)/.test(pathname)
-            : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            : item.href === "/projects"
+              ? pathname === "/projects"
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
           <Link
             key={item.href}

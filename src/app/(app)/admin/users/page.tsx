@@ -21,7 +21,7 @@ import {
   canOpenUsersPage,
   canResetPasswords,
   getProfile,
-  isPrivileged,
+  isProtectedAccount,
 } from "@/lib/auth";
 import { departmentLabel } from "@/lib/departments";
 import { getDepartments } from "@/lib/departments-server";
@@ -132,7 +132,7 @@ export default async function AdminUsersPage() {
                   <TableCell className="text-right">
                     {isMe ? null : (
                       <span className="inline-flex items-center gap-1">
-                        {resets && (isAdmin || !isPrivileged(user.role)) ? (
+                        {resets && (isAdmin || !isProtectedAccount(user.role)) ? (
                           <ResetPasswordButton
                             userId={user.id}
                             name={user.full_name || user.email}

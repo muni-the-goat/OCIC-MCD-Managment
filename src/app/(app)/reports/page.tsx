@@ -3,9 +3,11 @@ import { Plus } from "lucide-react";
 import { ReportFilters } from "@/components/report-filters";
 import { ReportsTable } from "@/components/reports-table";
 import { Button } from "@/components/ui/button";
+import { redirect } from "next/navigation";
 import {
   canManageAnyReport,
   getProfile,
+  livesOnProjectsOnly,
   seesOtherAuthors,
 } from "@/lib/auth";
 import { departmentLabel } from "@/lib/departments";
@@ -44,6 +46,9 @@ export default async function ReportsPage({
   searchParams: Promise<{ type?: string; status?: string; author?: string }>;
 }) {
   const [profile, params] = await Promise.all([getProfile(), searchParams]);
+  // The projects side has its own reports and does not read the office's.
+  if (livesOnProjectsOnly(profile.role)) redirect("/projects");
+
   const supabase = await createClient();
   // Neither a Coordinator nor a VP Assistant is a reviewer, and both read past
   // their own reports, so the Author/Department columns, the author filter and

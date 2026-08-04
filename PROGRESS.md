@@ -95,11 +95,11 @@ Rejection sends a report back with required feedback — the one decision that c
 
 `profiles.department` records which department a person belongs to, but no visibility rule reads it. A Manager account is still treated as the expense owner for their department. See **Departments** and **Known limitations**.
 
-### Head of Department and Vice President
+### Head of Department
 
-**Admin-equivalent, with exactly one exception: they cannot reset a password.** Everything else an Admin can do to a report or an account, they can do.
+**Admin-equivalent over the MCD office's reporting, with exactly one exception: they cannot reset a password.** Everything else an Admin can do to a report or an account, they can do. They do not see the projects side — the separation runs both ways.
 
-A **Vice President** is a Head of Department in capability terms — identical reads, decisions, account management, and exceptions — and holds a separate role because the org chart distinguishes the two, not the permissions. Everything in this section applies to both, and `isPrivileged()` is the single place either is named.
+The **Vice President** was in this section from `0017` until `0019`, on the reasoning that they outrank a Head of Department and so should be able to do everything one can. That described the org chart rather than the job; see **The Vice President** below.
 
 - Sees every non-draft report across the office, and the department × month spend matrix across every author.
 - Can mark reviewed and reject, including on a report they authored themselves.
@@ -118,16 +118,23 @@ Both are checked against the *target's* current role, read server-side — the c
 
 Note that a Head of Department can grant the Vice President role and vice versa. That is not an escalation — the two hold identical capabilities — but it is worth knowing that the privileged tier can extend itself sideways. Only the Admin boundary is guarded.
 
-### VP Assistant
+### The Vice President and the VP Assistant
 
-**Lives entirely on the projects side.** They compile the three project reports and see nothing else in the application.
+Both live on the projects side and read no MCD report but their own. `livesOnProjectsOnly()` is the single predicate: the nav renders Projects, Project report and Profile, `/dashboard` and `/reports` redirect to `/projects`, and `/reports/new` redirects to `/projects/new` — hiding the two MCD cards would not be enough, since `?type=budget` is a URL anyone can type.
 
-- Authors and edits the sales, leasing and property management reports — `canEditProjectReports()`, alongside the Vice President and an Admin.
-- **Sees no marketing report but their own.** Migration `0018` removed the office-wide read that `0017` had granted; the `reports: select` clause is now exactly what it is for a Coordinator.
-- No Users page, no office dashboard, no Reports list, no New report form. `livesOnProjectsOnly()` is the single predicate: the nav renders Projects and Profile only, and `/dashboard` redirects them to `/projects`.
-- The redirect lives on the dashboard page rather than in `src/proxy.ts`, because the middleware would have to read a profile to know the role, and it deliberately does not.
+**Vice President**
 
-The role was briefly defined as "reads the whole office and decides nothing" in `0017`. That was the right shape for the information available at the time; once the three project reports turned out to *be* the job, the office-wide read was reach the role had no use for.
+- Reads and edits the three project reports; files the project monthly report.
+- **Keeps account management.** Inviting people and assigning roles is an org-chart authority rather than a reporting one, so `canManageUsers()` names them explicitly rather than going through `isPrivileged()`.
+- **Lost the approved annual budget in `0019`**, along with the reports it measures. That figure is the denominator for spend they can no longer see, and signing off a number you have no view of is a formality rather than an authority. It is the Head of Department's alone again.
+- Can still grant themselves Head of Department and read everything `0019` took away. Not an oversight — inherent to holding account management, exactly as it is for a Head of Department, and the point of the boundary is that crossing it is a visible act recorded on a profile.
+
+**VP Assistant**
+
+- The same projects side without account management: no Users page, no role or password controls.
+- Briefly an office-wide reader in `0017`, narrowed in `0018` once the three project reports turned out to *be* the job.
+
+Note the shape of `isPrivileged()` after `0019`: it means *authority over the marketing department's reporting*, which is Admin and Head of Department. Every report policy since `0017` calls `public.is_privileged()` rather than spelling out a role list, so `0019` narrowed nine policies and functions by editing one function body. That is what the `0017` refactor was for.
 
 ## The projects side
 
@@ -151,12 +158,20 @@ An unreported month renders as an em dash, never `$0.00`. `isReportedMonth()` is
 
 ### Access
 
-- **Read** — `seesProjectReports()`: the privileged tier plus the VP Assistant.
-- **Write** — `canEditProjectReports()`: Admin, Vice President, VP Assistant. A Head of Department is deliberately absent; they are admin-equivalent over the *marketing department's* reporting, which this is not.
+Read and write are the same set — Admin, Vice President, VP Assistant — because there is nobody who can see a project report and should not fix a number in it. `canEditProjectReports()` is defined as `seesProjectReports()` rather than restating the list.
 
-### Still to build
+A Head of Department is absent, which is the separation running both ways: they are admin-equivalent over the *marketing department's* reporting, and this is not that. An Admin sees both sides, because an Admin runs the system rather than either half of it.
 
-**The entry form.** The schema, the access rules, the dashboard and the seeded 2025–2026 Jan–June figures are in place, but there is no UI yet for a VP Assistant to add July onward — they can currently read the seeded data and nothing more. That form is the next piece, and until it ships the answer to "who enters this data" is true in the permissions and not yet true in the interface.
+### The form
+
+`/projects/new` — one month across all three streams, which is how the workbook is compiled: somebody sits down in early July and fills in June. A whole-year grid was the alternative and would have put eleven months the reader is not thinking about within one mis-key of the one they are.
+
+- **Only the chosen month's columns are written.** Correcting June cannot blank May, which is what makes the form safe to reopen.
+- **Reopening a saved month loads what is in it.** An empty form over saved data would overwrite it on save.
+- **A fresh year carries forward last year's row names, never last year's money** — the portfolio rarely changes overnight, but the figures always do.
+- Rows are dynamic, so the field name carries the row name (`amount:leasing:The Elysee`) rather than an id a just-typed row does not have.
+- `$1,234.56`, `1,234.56` and `1234.56` all parse. Refusing two of the three would be pedantry dressed as validation, given the figures are pasted out of Excel.
+- Zero renders as an empty box, never `0.00`, for the same reason the dashboard shows an em dash: an unreported month must not look like a reported nothing.
 
 ### Admin
 
@@ -609,7 +624,9 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 
 17. `0018_project_reports.sql` — adds `project_reports` and `project_report_items`, the read/write predicates for them, the VP Assistant narrowing, and the seeded 2025–2026 Jan–June figures. Validated by running it against a scratch Postgres 17 and checking every aggregate against the workbook. **Not yet applied.**
 
-Migrations `0001`–`0017` are confirmed applied in Supabase; `0018` is pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+18. `0019_vice_president_projects_only.sql` — narrows `is_privileged()` to Admin and Head of Department, and names the project-report predicates outright so the Vice President keeps the side they were given. Three function bodies; nine policies follow. **Not yet applied; run after `0018`.**
+
+Migrations `0001`–`0017` are confirmed applied in Supabase; `0018` and `0019` are pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 

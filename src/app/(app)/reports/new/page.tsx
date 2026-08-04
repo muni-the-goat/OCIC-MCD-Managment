@@ -7,7 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getProfile } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { getProfile, livesOnProjectsOnly } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { BudgetHistoryReport, BudgetItem } from "@/lib/types";
 
@@ -20,18 +21,24 @@ export default async function NewReportPage({
 }) {
   const { type } = await searchParams;
 
+  // Hiding the two cards would not be enough — /reports/new?type=budget is a
+  // URL anyone can type. The Vice President and their Assistant file the
+  // project monthly report and nothing else, so this sends them there rather
+  // than to a form whose Server Action would refuse them at the end.
+  const me = await getProfile();
+  if (livesOnProjectsOnly(me.role)) redirect("/projects/new");
+
   if (type === "budget" || type === "monthly") {
     let budgetHistory: BudgetHistoryReport[] = [];
 
     if (type === "budget") {
-      const profile = await getProfile();
       const supabase = await createClient();
       const { data } = await supabase
         .from("reports")
         .select(
           "id, title, status, period_month, period_year, updated_at, items:budget_items(*)"
         )
-        .eq("author_id", profile.id)
+        .eq("author_id", me.id)
         .eq("type", "budget")
         .eq("budget_period", "monthly")
         .order("period_year", { ascending: false })

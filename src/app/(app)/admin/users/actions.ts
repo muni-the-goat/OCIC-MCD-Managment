@@ -6,7 +6,7 @@ import {
   canManageUsers,
   canResetPasswords,
   getProfile,
-  isPrivileged,
+  isProtectedAccount,
 } from "@/lib/auth";
 import { departmentId } from "@/lib/departments";
 import { ALLOWED_EMAIL_DOMAIN, isAllowedEmail } from "@/lib/login-rules";
@@ -332,7 +332,9 @@ export async function resetUserPassword(
       .maybeSingle();
     if (targetError) return { error: targetError.message };
     if (!target) return { error: "User not found" };
-    if (isPrivileged(target.role)) {
+    // Anyone who can manage users can grant roles, so resetting their password
+    // is a route to any role at all. The set is asked for rather than restated.
+    if (isProtectedAccount(target.role)) {
       return {
         error:
           "Coordinators cannot reset the password of an Admin, Vice President or Head of Department",

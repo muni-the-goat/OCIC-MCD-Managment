@@ -37,24 +37,27 @@ export function outranksOrEquals(actor: AppRole, target: AppRole) {
   return RANK[actor] >= RANK[target];
 }
 
-// Admin, Vice President and Head of Department are equivalent everywhere except
-// two places, both of which are their own function below:
+// Authority over the *marketing department's* reporting: reading every report,
+// deciding on them, editing and deleting them. Admin and Head of Department.
 //
-//   canResetPasswords()    Admin yes, the other two no
-//   canSetBudgetApproval() the other two yes, Admin no
+// The Vice President was here from 0017 until 0019, on the reasoning that they
+// outrank a Head of Department and so should be able to do everything one can.
+// That turned out to describe the org chart rather than the job. The VP's
+// reporting is the projects side — sales, leasing, property management — and the
+// marketing department's monthly spend was never something they read. Giving
+// them reach they never use is not seniority, it is just surface area.
 //
-// A Vice President is a Head of Department in capability terms — same reads,
-// same decisions, same account management, same two exceptions. It exists as a
-// separate role because the org chart distinguishes them, not the permissions.
+// They keep account management (canManageUsers below names them explicitly),
+// because inviting and assigning people is an org-chart authority rather than a
+// reporting one. They lost the approved annual budget with the reports it
+// measures: setting a figure you cannot see the spend against is a signature on
+// a document you are not shown.
 //
-// Every other "can they do the powerful thing" question routes through here, so
-// those two exceptions stay visible instead of scattered across a dozen checks.
+// One exception remains inside this pair: canResetPasswords() excludes a Head of
+// Department. It stays its own function so the exception is visible rather than
+// scattered.
 export function isPrivileged(role: AppRole) {
-  return (
-    role === "admin" ||
-    role === "head_of_department" ||
-    role === "vice_president"
-  );
+  return role === "admin" || role === "head_of_department";
 }
 
 // Reads every report in the office, of either type, without deciding on any.
@@ -76,27 +79,32 @@ export function seesAllReports(role: AppRole) {
 // rather than another clause bolted onto the ones above.
 // ---------------------------------------------------------------------------
 
+// The two sides of the office do not read each other. A Head of Department is
+// absent here for the same reason the Vice President is absent from the
+// marketing predicates above: the separation runs both ways. An Admin sees
+// everything, because an Admin runs the system.
 export function seesProjectReports(role: AppRole) {
-  return isPrivileged(role) || role === "vp_assistant";
-}
-
-// Compiling the figures. The VP Assistant does the work; the Vice President and
-// an Admin can correct it. A Head of Department is absent on purpose — they are
-// admin-equivalent over the marketing department's reporting, and project
-// revenue is not that.
-export function canEditProjectReports(role: AppRole) {
   return (
     role === "admin" || role === "vice_president" || role === "vp_assistant"
   );
 }
 
-// A VP Assistant has no marketing reporting at all, so the office dashboard, the
-// Reports list and the New report form would all be empty or refused for them.
-// They land on the projects dashboard instead and never see the other tabs.
+// Compiling the figures. The VP Assistant does the work; the Vice President and
+// an Admin can correct it. The same set that reads them — there is no one who
+// can see a project report and not fix a number in it.
+export function canEditProjectReports(role: AppRole) {
+  return seesProjectReports(role);
+}
+
+// Neither the Vice President nor their Assistant has any marketing reporting, so
+// the office dashboard, the Reports list and the two MCD report forms would all
+// be empty or refused for them. They land on the projects dashboard instead and
+// are never shown those tabs.
 //
-// Everyone else, the Vice President included, keeps both sides.
+// This is about *reporting*, not about the whole application: a Vice President
+// still manages accounts, so the Users link survives this on its own predicate.
 export function livesOnProjectsOnly(role: AppRole) {
-  return role === "vp_assistant";
+  return role === "vice_president" || role === "vp_assistant";
 }
 
 // Holds some decision power over a submitted report, which is what earns the
@@ -160,9 +168,19 @@ export function canManageAnyReport(role: AppRole) {
 }
 
 // Inviting accounts, changing roles and departments, deleting users, and adding
-// a department.
+// a department. The Vice President is named explicitly rather than through
+// isPrivileged(): they manage the office's people without reading its reports,
+// which is the whole shape of the role after 0019.
 export function canManageUsers(role: AppRole) {
-  return isPrivileged(role);
+  return isPrivileged(role) || role === "vice_president";
+}
+
+// Accounts a Coordinator may not reset the password of. Exactly the set that can
+// manage users, which is the point — a Coordinator who could reset the password
+// of anyone able to grant roles has a route to any role they like. This tracks
+// canManageUsers() rather than restating a list, so the two cannot drift.
+export function isProtectedAccount(role: AppRole) {
+  return canManageUsers(role);
 }
 
 // The one thing a Head of Department or Vice President cannot do. A Coordinator
@@ -188,18 +206,22 @@ export function canViewAnnualBudget(role: AppRole) {
   return seesAllBudgetReports(role) || role === "manager";
 }
 
-// Setting the approved annual budget. The Head of Department and the Vice
-// President above them — the only capability in this file that an Admin does
-// not have.
+// Setting the approved annual budget. The Head of Department alone — the only
+// capability in this file that an Admin does not have.
 //
 // That is deliberate and was asked for explicitly. Approving a budget is a
 // financial authority, not an administrative one: an Admin runs the system, and
 // running the system is not the same as deciding what the office may spend. An
-// Admin can still read the figure, and can still grant themselves one of these
-// two roles if they genuinely need to change it — the point is that doing so is
-// a visible act rather than a quiet one.
+// Admin can still read the figure, and can still grant themselves the Head of
+// Department role if they genuinely need to change it — the point is that doing
+// so is a visible act rather than a quiet one.
+//
+// The Vice President held this briefly, between 0017 and 0019. It went back when
+// they stopped reading the marketing department's reports: the approved budget
+// is the denominator for spend they can no longer see, and signing off a figure
+// you have no view of is not authority, it is a formality.
 export function canSetBudgetApproval(role: AppRole) {
-  return role === "head_of_department" || role === "vice_president";
+  return role === "head_of_department";
 }
 
 // The department × month matrix that sits above the per-author budget grids.
