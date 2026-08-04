@@ -18,6 +18,7 @@ export type ProjectActionState = { error: string } | { success: string } | null;
 // category reassigned — so the field names carry the structure:
 //
 //   row:<stream>:<index>:category|name|amount|units
+//   present:<stream>            marks a stream the form actually rendered
 //
 // Indexed rather than keyed by name, which is what the first version did. A
 // name-keyed field cannot express "this row is now a Condo rather than
@@ -25,6 +26,12 @@ export type ProjectActionState = { error: string } | { success: string } | null;
 // the leasing properties out of Unassigned is the first thing anyone will do.
 const FIELD =
   /^row:(sales|leasing|property_management):(\d+):(category|name|amount|units)$/;
+
+// Which streams the form put on screen. Needed because "this stream posted no
+// rows" and "this stream was not on the form" look identical in a FormData, and
+// they call for opposite behaviour: the first means every row was removed and
+// should be deleted, the second means leave the report alone.
+const PRESENT = /^present:(sales|leasing|property_management)$/;
 
 const schema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
@@ -121,7 +128,13 @@ export async function saveProjectMonth(
   // kinder than refusing the whole save over an empty line nobody filled in.
   for (const [key, row] of rows) if (!row.name) rows.delete(key);
 
-  if (rows.size === 0) return { error: "Nothing to save" };
+  const presentStreams = new Set<ProjectStream>();
+  for (const key of formData.keys()) {
+    const match = PRESENT.exec(key);
+    if (match) presentStreams.add(match[1] as ProjectStream);
+  }
+
+  if (presentStreams.size === 0) return { error: "Nothing to save" };
 
   const supabase = await createClient();
 
@@ -137,10 +150,10 @@ export async function saveProjectMonth(
   const unitColumn = `u${String(month).padStart(2, "0")}`;
 
   for (const stream of PROJECT_STREAMS) {
+    if (!presentStreams.has(stream)) continue;
     const streamRows = [...rows.values()].filter(
       (row) => row.stream === stream
     );
-    if (streamRows.length === 0) continue;
 
     // The year's report is created on first save rather than up front, so a
     // year nobody has reported yet leaves no empty shell behind.
@@ -165,19 +178,50 @@ export async function saveProjectMonth(
     // Only this month's columns are written. Every other month on the row is
     // left exactly as it was, which is what makes the form safe to reopen: an
     // assistant correcting March cannot blank out April by saving.
-    const payload = streamRows.map((row, index) => ({
-      report_id: report.id,
-      category: row.category,
-      name: row.name,
-      sort_order: (index + 1) * 10,
-      [amountColumn]: row.amount,
-      ...(tracksUnits ? { [unitColumn]: row.units } : {}),
-    }));
+    //
+    // Keyed on (report_id, name) since 0024, so a row whose category changed is
+    // updated in place and arrives in its new category still carrying all
+    // twelve months. Keying on the category as well used to insert a second row
+    // and leave the first behind.
+    if (streamRows.length > 0) {
+      const payload = streamRows.map((row, index) => ({
+        report_id: report.id,
+        category: row.category,
+        name: row.name,
+        sort_order: (index + 1) * 10,
+        [amountColumn]: row.amount,
+        ...(tracksUnits ? { [unitColumn]: row.units } : {}),
+      }));
 
-    const { error: itemError } = await supabase
+      const { error: itemError } = await supabase
+        .from("project_report_items")
+        .upsert(payload, { onConflict: "report_id,name" });
+      if (itemError) return { error: itemError.message };
+    }
+
+    // Anything the form did not send back was removed from it, so it goes.
+    // Without this the remove button did nothing at all: the row simply was not
+    // posted, and an upsert-only save has no opinion about rows it never saw.
+    //
+    // Safe because the form always renders every row the report holds — it is
+    // seeded from exactly this query — so an absent name is a deliberate
+    // removal rather than a row the form never knew about. This deletes the
+    // unit and all twelve of its months, which is what removing a unit from a
+    // report means; a month you simply have no figure for is left blank, not
+    // removed.
+    const keptNames = streamRows.map((row) => row.name);
+    const deletion = supabase
       .from("project_report_items")
-      .upsert(payload, { onConflict: "report_id,category,name" });
-    if (itemError) return { error: itemError.message };
+      .delete()
+      .eq("report_id", report.id);
+    const { error: deleteError } = await (keptNames.length > 0
+      ? deletion.not(
+          "name",
+          "in",
+          `(${keptNames.map((name) => `"${name.replace(/"/g, '""')}"`).join(",")})`
+        )
+      : deletion);
+    if (deleteError) return { error: deleteError.message };
   }
 
   revalidatePath("/projects");

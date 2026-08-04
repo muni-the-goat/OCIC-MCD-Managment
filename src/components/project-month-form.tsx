@@ -109,7 +109,8 @@ export function ProjectMonthForm({
           <CardDescription>
             The project and month these figures cover. Reopening a month you
             have already saved loads what is in it — only the month you pick is
-            written, so correcting June never touches May.
+            written, so correcting June never touches May. Removing a row, or
+            changing its category, applies to the whole report.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-4">
@@ -193,6 +194,11 @@ export function ProjectMonthForm({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* Tells the action this stream was on the form. Without it a
+                  stream whose rows were all removed is indistinguishable from
+                  one the form never rendered, and the two want opposite
+                  handling. */}
+              <input type="hidden" name={`present:${stream}`} value="1" />
               {rows[stream].map((row, index) => (
                 <div
                   key={index}
@@ -295,15 +301,17 @@ export function ProjectMonthForm({
                   ) : (
                     <div className="hidden sm:block" />
                   )}
-                  {/* Removing a row takes it off this month's form; it does not
-                      delete the property's other months, which is why the label
-                      says remove rather than delete. */}
+                  {/* Removes the unit from the report on save — all twelve of
+                      its months, not just this one. A month you have no figure
+                      for is left blank; this is for a row that should not be on
+                      the report at all. */}
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     onClick={() => removeRow(stream, index)}
-                    aria-label={`Remove ${row.name || "this row"}`}
+                    aria-label={`Remove ${row.name || "this row"} from the report`}
+                    title="Remove from the report"
                   >
                     <Trash2 className="size-4" />
                   </Button>

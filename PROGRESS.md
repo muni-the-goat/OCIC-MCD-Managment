@@ -182,7 +182,17 @@ This is the `section` level `budget_items` has carried since `0001` and `0018` d
 
 **Leasing and property-management units start in `Unassigned`.** Which category The Elysee or Connexion Hub belongs to is a fact about OCIC's portfolio, not something derivable from a spreadsheet — so `0022` does not guess. They sit in a visibly-labelled group, ordered last, until someone sets them from the Project report form. A wrong category printed in a document presented to the Chairwoman is worse than an obviously empty one.
 
-The form's fields are indexed (`row:<stream>:<index>:category`) rather than keyed by unit name, precisely so a row can move between categories without appearing to be a different row.
+The form's fields are indexed (`row:<stream>:<index>:category`) rather than keyed by unit name, so a row can move between categories without appearing to be a different row.
+
+### Two bugs the first real use of the form found
+
+**A category change cloned the row instead of moving it.** `0022` keyed items on `(report_id, category, name)`, which makes the category part of what a row *is* rather than something it *has*. The upsert matched on the category too, found nothing, and inserted a second row beside the original — which is where the Koh Pich sales report's phantom `Unassigned / Commercial` came from. `0024` moves the key back to `(report_id, name)`; a category is now an attribute, and changing it updates the row in place with all twelve months intact.
+
+**Removing a row did nothing.** The save action only upserted what the form posted and had no opinion about rows it never saw, so a removed row was simply left alone. It now deletes any row the form did not send back.
+
+Those two had to be fixed together. Reconcile-delete on its own would have made the first bug destructive: a category change creates a new empty row, and deleting "everything not posted" would then have thrown away the original row and its eleven other months of figures.
+
+The form posts a hidden `present:<stream>` marker per section, because "this stream sent no rows" and "this stream was not on the form" are identical in a `FormData` and call for opposite handling — delete everything, or touch nothing.
 
 **A project shows only the streams it actually reports.** Chroy Changvar Bay files no property management report at all, so no card appears for it — an absent report is not an empty one, and a card reading "nothing recorded for 2026" would describe a report nobody has filled in rather than one that does not exist. The rule is data-driven, not a special case: a stream with no rows in either the chosen year or the one before it is dropped.
 
@@ -656,6 +666,8 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 
 17. `0018_project_reports.sql` — adds `project_reports` and `project_report_items`, the read/write predicates for them, the VP Assistant narrowing, and the seeded 2025–2026 Jan–June figures. Validated by running it against a scratch Postgres 17 and checking every aggregate against the workbook. **Applied.**
 
+22. `0024_item_identity_is_name.sql` — de-duplicates `project_report_items` and moves uniqueness from `(report_id, category, name)` back to `(report_id, name)`. **Not yet applied.**
+
 21. `0023_koh_pich_categories.sql` — files the Koh Pich buildings: The Elysée as Commercial, La Seine / Elite Cove / Elite Garden as House, across both the leasing and property-management reports. Adds Diamond Bay Garden as a Condo on property management. **Applied.**
 
 20. `0022_project_categories.sql` — adds `category` to `project_report_items`, moves uniqueness to `(report_id, category, name)`, maps the sales rows onto themselves, and adds an empty Commercial row to the Koh Pich sales report. Leasing and property-management units land in `Unassigned`. **Applied.**
@@ -666,7 +678,7 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 
 17. `0019_vice_president_projects_only.sql` — narrows `is_privileged()` to Admin and Head of Department, and names the project-report predicates outright so the Vice President keeps the side they were given. Three function bodies; nine policies follow. **Applied.**
 
-Migrations `0001`–`0023` are confirmed applied in Supabase. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0023` are confirmed applied in Supabase; `0024` is pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
