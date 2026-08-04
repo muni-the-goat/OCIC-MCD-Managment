@@ -105,6 +105,7 @@ export default async function AdminUsersPage() {
                   <TableCell>
                     <RoleSelect
                       userId={user.id}
+                      name={user.full_name || user.email}
                       role={user.role}
                       disabled={isMe || locked}
                       canGrantAdmin={isAdmin}
@@ -132,7 +133,10 @@ export default async function AdminUsersPage() {
                     {isMe ? null : (
                       <span className="inline-flex items-center gap-1">
                         {resets && (isAdmin || !isPrivileged(user.role)) ? (
-                          <ResetPasswordButton userId={user.id} />
+                          <ResetPasswordButton
+                            userId={user.id}
+                            name={user.full_name || user.email}
+                          />
                         ) : null}
                         {manages && !locked ? (
                           <DeleteUserButton

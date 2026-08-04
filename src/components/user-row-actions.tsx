@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { useActionToasts } from "@/components/use-action-toasts";
 import type { DepartmentRecord } from "@/lib/departments";
+import { isPrivileged } from "@/lib/roles";
 import {
   ASSIGNABLE_ROLES,
   roleLabel,
@@ -39,13 +40,29 @@ import {
 // sentinel instead.
 const UNASSIGNED = "unassigned";
 
+// What the confirm dialog tells you that you are about to hand over. Written
+// per role rather than as one generic line, because "manage accounts" and "is
+// the only role that can grant Admin" are different sizes of decision and the
+// dialog is the last place either can be reconsidered.
+function grantWarning(role: AppRole) {
+  if (role === "admin") {
+    return "An Admin has unrestricted control: they decide on any report, manage every account, reset passwords, and are the only role that can grant Admin to someone else.";
+  }
+  return `A ${roleLabel(role)} can mark reviewed or reject any report, edit and delete anyone's work, manage every account, and set the approved annual budget.`;
+}
+
 export function RoleSelect({
   userId,
+  name,
   role,
   disabled,
   canGrantAdmin = true,
 }: {
   userId: string;
+  // For the confirm dialog. A role change is one of the few things here done
+  // *to* a named person, and "Make Sokchea Heng a Vice President?" is a
+  // question you can actually check against the row you meant to click.
+  name: string;
   role: AppRole;
   disabled?: boolean;
   // A Head of Department cannot grant Admin. The option stays visible when the
@@ -56,32 +73,103 @@ export function RoleSelect({
     updateUserRole,
     null
   );
+  // Two pieces of state rather than one nullable role, because Radix animates
+  // the dialog closed: if confirming cleared the role, the fading panel would
+  // re-render with nothing to name and flash "Make Sophal Chan a undefined?" on
+  // the way out. `pendingRole` survives the close and is simply overwritten the
+  // next time the dialog opens.
+  const [pendingRole, setPendingRole] = useState<AppRole | null>(null);
+  const [confirming, setConfirming] = useState(false);
   useActionToasts(state);
 
+  const submit = (next: AppRole) => {
+    const formData = new FormData();
+    formData.set("user_id", userId);
+    formData.set("role", next);
+    formAction(formData);
+  };
+
+  // Only a change that crosses the privileged boundary stops for confirmation.
+  // Moving someone between Staff, Manager, Coordinator and VP Assistant is
+  // routine and fully reversible — nothing happened in the meantime that
+  // setting it back does not undo. Granting Admin, Vice President or Head of
+  // Department is neither: the account can act on every report and every
+  // account from that moment, and demoting it later does not un-do what it did.
+  // Taking those roles away is equally worth a beat, since it silently removes
+  // someone's ability to approve a budget.
+  //
+  // Confirming every change instead would be safer on paper and worse in
+  // practice — a dialog you dismiss without reading protects nothing.
+  const needsConfirmation = (next: AppRole) =>
+    isPrivileged(next) || isPrivileged(role);
+
+  const granting = pendingRole !== null && isPrivileged(pendingRole);
+  const targetLabel = pendingRole ? roleLabel(pendingRole) : "";
+
   return (
-    <Select
-      value={role}
-      disabled={disabled}
-      onValueChange={(newRole) => {
-        const formData = new FormData();
-        formData.set("user_id", userId);
-        formData.set("role", newRole);
-        formAction(formData);
-      }}
-    >
-      <SelectTrigger className="w-48" size="sm">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {ASSIGNABLE_ROLES.filter(
-          (option) => option !== "admin" || canGrantAdmin || role === "admin"
-        ).map((option) => (
-          <SelectItem key={option} value={option}>
-            {roleLabel(option)}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <>
+      <Select
+        value={role}
+        disabled={disabled}
+        onValueChange={(value) => {
+          const next = value as AppRole;
+          if (next === role) return;
+          if (needsConfirmation(next)) {
+            setPendingRole(next);
+            setConfirming(true);
+          } else {
+            submit(next);
+          }
+        }}
+      >
+        <SelectTrigger className="w-48" size="sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {ASSIGNABLE_ROLES.filter(
+            (option) => option !== "admin" || canGrantAdmin || role === "admin"
+          ).map((option) => (
+            <SelectItem key={option} value={option}>
+              {roleLabel(option)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* The Select is controlled by the `role` prop, which only changes once
+          the server action revalidates. Cancelling therefore needs no explicit
+          revert — the trigger never stopped showing the current role. */}
+      <Dialog open={confirming} onOpenChange={setConfirming}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {granting
+                ? `Make ${name} a ${targetLabel}?`
+                : `Remove ${name}'s ${roleLabel(role)} access?`}
+            </DialogTitle>
+            <DialogDescription>
+              {granting && pendingRole
+                ? grantWarning(pendingRole)
+                : `${name} becomes a ${targetLabel} and immediately loses their ${roleLabel(role)} powers — deciding on other people's reports, managing accounts, and setting the approved annual budget.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirming(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant={granting ? "default" : "destructive"}
+              onClick={() => {
+                if (pendingRole) submit(pendingRole);
+                setConfirming(false);
+              }}
+            >
+              {granting ? `Make ${targetLabel}` : `Change to ${targetLabel}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -128,29 +216,64 @@ export function DepartmentSelect({
   );
 }
 
-export function ResetPasswordButton({ userId }: { userId: string }) {
+export function ResetPasswordButton({
+  userId,
+  name,
+}: {
+  userId: string;
+  name: string;
+}) {
+  const [confirming, setConfirming] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [state, formAction, pending] = useActionState<UserActionState, FormData>(
     resetUserPassword,
     null
   );
-  useActionToasts(state, (s) => setTempPassword(s.tempPassword ?? null));
+  useActionToasts(state, (s) => {
+    setConfirming(false);
+    setTempPassword(s.tempPassword ?? null);
+  });
 
   return (
     <>
-      <form action={formAction} className="inline">
-        <input type="hidden" name="user_id" value={userId} />
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-2"
-          disabled={pending}
-          title="Reset password"
-        >
-          <KeyRound className="size-4" />
-          Reset password
-        </Button>
-      </form>
+      {/* This used to submit on click. It rotates a colleague's password the
+          instant it fires and there is no undo — the old password is gone, and
+          the only remedy is walking the new one over to them. One row's worth
+          of mis-aim was enough to lock someone out of a live system, so the
+          click now opens a question instead of doing the thing. */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="gap-2"
+        onClick={() => setConfirming(true)}
+        title="Reset password"
+      >
+        <KeyRound className="size-4" />
+        Reset password
+      </Button>
+      <Dialog open={confirming} onOpenChange={setConfirming}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset {name}&apos;s password?</DialogTitle>
+            <DialogDescription>
+              Their current password stops working immediately, and cannot be
+              recovered. You&apos;ll get a temporary one to hand to them — until
+              you do, they cannot sign in.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirming(false)}>
+              Cancel
+            </Button>
+            <form action={formAction}>
+              <input type="hidden" name="user_id" value={userId} />
+              <Button type="submit" variant="destructive" disabled={pending}>
+                {pending ? "Resetting…" : "Reset password"}
+              </Button>
+            </form>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={tempPassword !== null}
         onOpenChange={(open) => !open && setTempPassword(null)}
