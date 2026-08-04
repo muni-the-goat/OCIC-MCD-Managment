@@ -60,6 +60,28 @@ function parseUnits(raw: string): number | null {
   return value;
 }
 
+// Postgres 42P10: the ON CONFLICT target names no unique constraint. Here it
+// has exactly one cause — the running code and the database disagree about what
+// identifies a row — and it fires in *both* directions, which is what makes it
+// worth naming rather than passing through:
+//
+//   code ahead of the database   0024 not run; the code asks for
+//                                (report_id, name), which does not exist yet
+//   database ahead of the code   0024 run against an older deployment; the old
+//                                code asks for (report_id, category, name),
+//                                which 0024 removed
+//
+// Both present identically to whoever is looking at the screen: a save that
+// changes nothing. The raw message ("there is no unique or exclusion constraint
+// matching the ON CONFLICT specification") gives them nothing to act on, and
+// the fix is never in the form — it is to get the two into step.
+function describeWriteError(error: { code?: string; message: string }): string {
+  if (error.code === "42P10" || /ON CONFLICT/i.test(error.message)) {
+    return "Nothing was saved: this version of the app and the database are out of step over migration 0024. Both need to be up to date — check that 0024 has run and that the latest deployment is live.";
+  }
+  return error.message;
+}
+
 interface Row {
   stream: ProjectStream;
   category: string;
@@ -196,7 +218,7 @@ export async function saveProjectMonth(
       const { error: itemError } = await supabase
         .from("project_report_items")
         .upsert(payload, { onConflict: "report_id,name" });
-      if (itemError) return { error: itemError.message };
+      if (itemError) return { error: describeWriteError(itemError) };
     }
 
     // Anything the form did not send back was removed from it, so it goes.
@@ -221,7 +243,7 @@ export async function saveProjectMonth(
           `(${keptNames.map((name) => `"${name.replace(/"/g, '""')}"`).join(",")})`
         )
       : deletion);
-    if (deleteError) return { error: deleteError.message };
+    if (deleteError) return { error: describeWriteError(deleteError) };
   }
 
   revalidatePath("/projects");
