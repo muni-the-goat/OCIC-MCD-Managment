@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DepartmentRecord } from "@/lib/departments";
+import { ASSIGNABLE_ROLES, roleLabel } from "@/lib/types";
 
 // Matches the sentinel the server action expects; Radix Select cannot carry an
 // empty-string value.
@@ -101,15 +102,13 @@ export function InviteUserDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="staff">Staff</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="head_of_department">
-                    Head of Department
-                  </SelectItem>
-                  <SelectItem value="coordinator">Coordinator</SelectItem>
-                  {canGrantAdmin ? (
-                    <SelectItem value="admin">Admin</SelectItem>
-                  ) : null}
+                  {ASSIGNABLE_ROLES.filter(
+                    (option) => option !== "admin" || canGrantAdmin
+                  ).map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {roleLabel(option)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

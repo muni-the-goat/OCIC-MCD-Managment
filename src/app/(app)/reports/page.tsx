@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   canManageAnyReport,
   getProfile,
-  isReviewer,
   seesOtherAuthors,
 } from "@/lib/auth";
 import { departmentLabel } from "@/lib/departments";
@@ -46,9 +45,10 @@ export default async function ReportsPage({
 }) {
   const [profile, params] = await Promise.all([getProfile(), searchParams]);
   const supabase = await createClient();
-  const reviewer = isReviewer(profile.role);
-  // A Coordinator is not a reviewer but does see every budget report, so the
-  // Author/Department columns and the author filter follow the wider question.
+  // Neither a Coordinator nor a VP Assistant is a reviewer, and both read past
+  // their own reports, so the Author/Department columns, the author filter and
+  // the page's own description all follow the wider question rather than
+  // isReviewer().
   const showsOtherAuthors = seesOtherAuthors(profile.role);
   const isCoordinator = profile.role === "coordinator";
 
@@ -118,7 +118,7 @@ export default async function ReportsPage({
           <p className="text-sm text-muted-foreground">
             {isCoordinator
               ? "Every budget report across the office, plus your own reports."
-              : reviewer
+              : showsOtherAuthors
                 ? "All submitted reports across the office, plus your own."
                 : "Your monthly budget and activity reports."}
           </p>

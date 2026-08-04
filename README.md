@@ -1,6 +1,6 @@
 # MCD Management
 
-Internal office report tracker. Staff submit **monthly budget reports** and **monthly activity reports** with file attachments, flowing through a **draft → submitted → reviewed/rejected** workflow. Reviewed monthly budgets automatically roll up into the Jan–Dec annual dashboard. Access is controlled through **Admin / Head of Department / Coordinator / Manager / Staff** roles.
+Internal office report tracker. Staff submit **monthly budget reports** and **monthly activity reports** with file attachments, flowing through a **draft → submitted → reviewed/rejected** workflow. Reviewed monthly budgets automatically roll up into the Jan–Dec annual dashboard. Access is controlled through **Admin / Vice President / Head of Department / VP Assistant / Coordinator / Manager / Staff** roles.
 
 Built with Next.js 16 (App Router) + Supabase (Auth, Postgres with Row Level Security, Storage) + Tailwind v4 + shadcn/ui.
 
@@ -20,6 +20,14 @@ Built with Next.js 16 (App Router) + Supabase (Auth, Postgres with Row Level Sec
    7. [`supabase/migrations/0007_coordinator_and_admin_review.sql`](supabase/migrations/0007_coordinator_and_admin_review.sql) — adds the Coordinator role and allows Admins or the Head of Department to mark reports reviewed
    8. [`supabase/migrations/0008_admin_self_review.sql`](supabase/migrations/0008_admin_self_review.sql) — gives Admins unrestricted review authority, including for their own submitted reports
    9. [`supabase/migrations/0009_monthly_budget_uniqueness_and_revisions.sql`](supabase/migrations/0009_monthly_budget_uniqueness_and_revisions.sql) — blocks new duplicate author/month budgets and lets authors revise submitted or reviewed reports for re-review
+   10. [`supabase/migrations/0010_profile_department.sql`](supabase/migrations/0010_profile_department.sql) — adds `profiles.department` and pins it against self-service changes
+   11. [`supabase/migrations/0011_event_marketing_department.sql`](supabase/migrations/0011_event_marketing_department.sql) — adds Event Marketing to the department list
+   12. [`supabase/migrations/0012_coordinator_budget_visibility.sql`](supabase/migrations/0012_coordinator_budget_visibility.sql) — lets a Coordinator read every non-draft budget report across the office
+   13. [`supabase/migrations/0013_departments_table_and_role_powers.sql`](supabase/migrations/0013_departments_table_and_role_powers.sql) — turns departments into a table, narrows a Manager to their own reports, and makes Head of Department admin-equivalent
+   14. [`supabase/migrations/0014_coordinator_review.sql`](supabase/migrations/0014_coordinator_review.sql) — splits approving from rejecting; a Coordinator may approve but never reject
+   15. [`supabase/migrations/0015_budget_approval.sql`](supabase/migrations/0015_budget_approval.sql) — adds the approved annual budget figure, one row per fiscal year
+   16. [`supabase/migrations/0016_allow_multiple_monthly_budgets.sql`](supabase/migrations/0016_allow_multiple_monthly_budgets.sql) — allows more than one monthly budget report per author, month, and year
+   17. [`supabase/migrations/0017_vice_president_roles.sql`](supabase/migrations/0017_vice_president_roles.sql) — adds the Vice President and VP Assistant roles, and replaces the hand-copied privileged-role lists with `public.is_privileged()`
 
 ### 2. Configure environment variables
 
@@ -55,15 +63,19 @@ Open http://localhost:3000 and sign in.
 
 ## Roles
 
+Least senior first. Each row assumes the report-authoring capabilities of **Staff**.
+
 | Role | Can do |
 |---|---|
 | **Staff** | Create reports, edit any report they authored, submit revisions for review, and comment on their reports; revising a reviewed report requires a new review |
-| **Manager** | Everything staff can, plus see all non-draft reports, reject another author's submitted report with a required comment, and see only their own reviewed expenses in the annual summary |
-| **Coordinator** | Everything staff can, plus view the Users page and reset non-privileged users' passwords; cannot invite, change roles, delete users, or reset Admin/Head of Department passwords |
-| **Head of Department** | Everything staff can, plus see all non-draft reports, mark another author's submitted report reviewed or rejected, and see/filter every Manager's annual expenses; cannot self-review |
-| **Admin** | Unrestricted user/report management, including selecting and deleting multiple reports; full review authority and annual expense visibility, including reviewing Admin-authored submitted reports |
+| **Manager** | Sees only their own reports, and only their own reviewed expenses in the annual summary; can open the Users page read-only |
+| **Coordinator** | Reads every non-draft **budget** report across the office and may mark one reviewed, including their own; cannot reject anything, and sees no one else's activity reports. Can open the Users page and reset non-privileged passwords; cannot invite, change roles, delete users, or add a department |
+| **VP Assistant** | Reads every non-draft report of **both** types across the office, plus the annual summary and the department × month matrix — and decides on none of it. No approve, no reject, no edit, no delete, no account management. Can open the Users page read-only |
+| **Head of Department** | Admin-equivalent on reports and accounts, with one exception: cannot reset a password. Sets the approved annual budget |
+| **Vice President** | Identical to Head of Department in every capability; a separate role because the org chart distinguishes them |
+| **Admin** | Unrestricted user and report management, including bulk report deletion and full review authority. The only role that can grant Admin or reset any password, and the only one that **cannot** set the approved annual budget |
 
-Access control is enforced by server-side role guards and Postgres Row Level Security, not just by hidden UI controls.
+Access control is enforced by server-side role guards and Postgres Row Level Security, not just by hidden UI controls. `src/lib/roles.ts` is the single statement of the policy; `PROGRESS.md` explains the reasoning behind each carve-out.
 
 ## Project layout
 

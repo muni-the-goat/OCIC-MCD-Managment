@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { canResetPasswords, getProfile } from "@/lib/auth";
+import {
+  canManageUsers,
+  canResetPasswords,
+  getProfile,
+  isPrivileged,
+} from "@/lib/auth";
 import { departmentId } from "@/lib/departments";
 import { ALLOWED_EMAIL_DOMAIN, isAllowedEmail } from "@/lib/login-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,7 +17,9 @@ const UNASSIGNED = "unassigned";
 
 const ROLES = [
   "admin",
+  "vice_president",
   "head_of_department",
+  "vp_assistant",
   "coordinator",
   "manager",
   "staff",
@@ -23,15 +30,15 @@ export type UserActionState =
   | { success: string; tempPassword?: string }
   | null;
 
-// A Head of Department manages accounts exactly as an Admin does, with two
-// carve-outs that exist to keep "cannot reset passwords" from being decorative:
-// they cannot grant the admin role, and cannot touch an admin account. Without
-// both, the restriction is one promotion away from meaningless.
+// A Head of Department or Vice President manages accounts exactly as an Admin
+// does, with two carve-outs that exist to keep "cannot reset passwords" from
+// being decorative: they cannot grant the admin role, and cannot touch an admin
+// account. Without both, the restriction is one promotion away from meaningless.
 async function requireUserManager(): Promise<
   { profile: Profile } | { error: string }
 > {
   const profile = await getProfile();
-  if (profile.role !== "admin" && profile.role !== "head_of_department") {
+  if (!canManageUsers(profile.role)) {
     return { error: "You do not have permission to manage accounts" };
   }
   return { profile };
@@ -325,10 +332,10 @@ export async function resetUserPassword(
       .maybeSingle();
     if (targetError) return { error: targetError.message };
     if (!target) return { error: "User not found" };
-    if (target.role === "admin" || target.role === "head_of_department") {
+    if (isPrivileged(target.role)) {
       return {
         error:
-          "Coordinators cannot reset Admin or Head of Department passwords",
+          "Coordinators cannot reset the password of an Admin, Vice President or Head of Department",
       };
     }
   }

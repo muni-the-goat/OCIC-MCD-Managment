@@ -81,9 +81,17 @@ export async function MonthlyActivitySummary({
   author?: string;
 }) {
   const supabase = await createClient();
-  const isAdmin = role === "admin";
-  const isHeadOfDepartment = role === "head_of_department";
-  const canFilterAuthors = isAdmin || isHeadOfDepartment;
+  // Three shapes on this card, and the middle one is a display choice rather
+  // than a permission — a Head of Department may read every activity report, and
+  // this card still points them at the Managers who report to them.
+  //
+  //   every author     Admin, VP Assistant
+  //   Managers only    Head of Department, Vice President
+  //   own reports      everyone else
+  const scopesToManagers =
+    role === "head_of_department" || role === "vice_president";
+  const seesEveryAuthor = role === "admin" || role === "vp_assistant";
+  const canFilterAuthors = seesEveryAuthor || scopesToManagers;
   const selectedYear = validYear(year);
 
   const authorsResult = canFilterAuthors
@@ -92,7 +100,7 @@ export async function MonthlyActivitySummary({
           .from("profiles")
           .select("id, full_name, email, role")
           .order("full_name");
-        if (isHeadOfDepartment) query = query.eq("role", "manager");
+        if (scopesToManagers) query = query.eq("role", "manager");
         return query;
       })()
     : { data: [], error: null };
@@ -128,7 +136,7 @@ export async function MonthlyActivitySummary({
     .eq("status", "reviewed")
     .limit(1000);
 
-  const scopedAuthorIds = isHeadOfDepartment
+  const scopedAuthorIds = scopesToManagers
     ? authors.length > 0
       ? authors.map((profile) => profile.id)
       : ["00000000-0000-0000-0000-000000000000"]
@@ -138,13 +146,13 @@ export async function MonthlyActivitySummary({
     reportQuery = reportQuery.eq("author_id", selectedAuthor);
   } else if (scopedAuthorIds) {
     reportQuery = reportQuery.in("author_id", scopedAuthorIds);
-  } else if (!isAdmin) {
+  } else if (!seesEveryAuthor) {
     reportQuery = reportQuery.eq("author_id", userId);
   }
 
   if (scopedAuthorIds) {
     yearQuery = yearQuery.in("author_id", scopedAuthorIds);
-  } else if (!isAdmin) {
+  } else if (!seesEveryAuthor) {
     yearQuery = yearQuery.eq("author_id", userId);
   }
 
@@ -251,9 +259,9 @@ export async function MonthlyActivitySummary({
             Monthly activity · {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
           </CardTitle>
           <CardDescription>
-            {isAdmin
+            {seesEveryAuthor
               ? "What each team reported this month, and the documents they filed with it."
-              : isHeadOfDepartment
+              : scopesToManagers
                 ? "What each Manager reported this month, and the documents they filed with it."
                 : "What you reported this month, and the documents you filed with it."}
           </CardDescription>
@@ -265,7 +273,7 @@ export async function MonthlyActivitySummary({
           selectedMonth={selectedMonth}
           authors={authors}
           selectedAuthor={selectedAuthor}
-          allAuthorsLabel={isHeadOfDepartment ? "All managers" : "All authors"}
+          allAuthorsLabel={scopesToManagers ? "All managers" : "All authors"}
           yearParam="task_year"
           monthParam="task_month"
           authorParam="task_author"

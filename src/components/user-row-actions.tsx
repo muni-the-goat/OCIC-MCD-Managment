@@ -27,7 +27,12 @@ import {
 } from "@/components/ui/select";
 import { useActionToasts } from "@/components/use-action-toasts";
 import type { DepartmentRecord } from "@/lib/departments";
-import type { AppRole, Department } from "@/lib/types";
+import {
+  ASSIGNABLE_ROLES,
+  roleLabel,
+  type AppRole,
+  type Department,
+} from "@/lib/types";
 
 // Radix Select forbids an empty-string item value, and the server needs to tell
 // "clear the department" apart from "field missing", so both ends agree on a
@@ -68,13 +73,13 @@ export function RoleSelect({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="staff">Staff</SelectItem>
-        <SelectItem value="manager">Manager</SelectItem>
-        <SelectItem value="head_of_department">Head of Department</SelectItem>
-        <SelectItem value="coordinator">Coordinator</SelectItem>
-        {canGrantAdmin || role === "admin" ? (
-          <SelectItem value="admin">Admin</SelectItem>
-        ) : null}
+        {ASSIGNABLE_ROLES.filter(
+          (option) => option !== "admin" || canGrantAdmin || role === "admin"
+        ).map((option) => (
+          <SelectItem key={option} value={option}>
+            {roleLabel(option)}
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   );

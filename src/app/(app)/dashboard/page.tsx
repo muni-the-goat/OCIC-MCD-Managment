@@ -35,7 +35,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { canViewAnnualBudget, getProfile, isReviewer } from "@/lib/auth";
+import {
+  canViewAnnualBudget,
+  getProfile,
+  isReviewer,
+  seesOtherAuthors,
+} from "@/lib/auth";
 import { departmentLabel } from "@/lib/departments";
 import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
@@ -90,6 +95,13 @@ export default async function DashboardPage({
 }) {
   const [profile, params] = await Promise.all([getProfile(), searchParams]);
   const supabase = await createClient();
+  // Two questions this page kept asking as one. A VP Assistant reads the whole
+  // office and decides on none of it, so the scope of the numbers and the
+  // "here is your queue" framing had to come apart:
+  //
+  //   officeWide  whose reports the counts and the list cover
+  //   reviewer    whether the list is a pending-decision queue
+  const officeWide = seesOtherAuthors(profile.role);
   const reviewer = isReviewer(profile.role);
   const showAnnualBudget = canViewAnnualBudget(profile.role);
 
@@ -103,7 +115,7 @@ export default async function DashboardPage({
     return count ?? 0;
   };
 
-  const mineOnly = !reviewer;
+  const mineOnly = !officeWide;
 
   let recentQuery = supabase
     .from("reports")
@@ -115,7 +127,7 @@ export default async function DashboardPage({
   if (reviewer) {
     // Reviewers care about the pending queue first.
     recentQuery = recentQuery.eq("status", "submitted");
-  } else {
+  } else if (!officeWide) {
     // Scoped explicitly rather than left to RLS, so the rows always match the
     // heading above them. Managers and Staff see only their own reports anyway;
     // stating it here means a future widening of RLS cannot quietly fill a card
@@ -163,7 +175,9 @@ export default async function DashboardPage({
               <p className="text-sm text-muted-foreground">
                 {reviewer
                   ? "Here's what needs your attention."
-                  : "Here's where your reports stand."}
+                  : officeWide
+                    ? "Here's where the office's reports stand."
+                    : "Here's where your reports stand."}
               </p>
             </div>
           </div>
@@ -173,7 +187,7 @@ export default async function DashboardPage({
             </Chip>
             <Chip icon={ShieldCheck}>{roleLabel(profile.role)}</Chip>
             <Chip icon={FileText}>
-              {total} {reviewer ? "reports" : "my reports"}
+              {total} {officeWide ? "reports" : "my reports"}
             </Chip>
             <Button asChild size="sm" className="gap-1.5 rounded-full">
               <Link href="/reports/new">
@@ -254,7 +268,9 @@ export default async function DashboardPage({
               <CardDescription>
                 {reviewer
                   ? "Submitted reports waiting on a decision."
-                  : "Your most recently updated reports."}
+                  : officeWide
+                    ? "The most recently updated reports across the office."
+                    : "Your most recently updated reports."}
               </CardDescription>
             </div>
             <Button
@@ -278,7 +294,9 @@ export default async function DashboardPage({
                 <p className="text-sm text-muted-foreground">
                   {reviewer
                     ? "Nothing waiting for review."
-                    : "No reports yet — create your first one."}
+                    : officeWide
+                      ? "No reports in the office yet."
+                      : "No reports yet — create your first one."}
                 </p>
               </div>
             ) : (
@@ -311,13 +329,13 @@ export default async function DashboardPage({
                                 report.period_year,
                                 report.budget_period
                               )}
-                              {reviewer && report.author
+                              {officeWide && report.author
                                 ? ` · ${report.author.full_name || report.author.email}`
                                 : ""}
                             </span>
                             {/* Outside the truncating span so a long title never
                                 clips the department off the row. */}
-                            {reviewer && report.author ? (
+                            {officeWide && report.author ? (
                               <DepartmentBadge
                                 label={departmentLabel(
                                   report.author.department,
@@ -343,7 +361,7 @@ export default async function DashboardPage({
           <CardHeader className="space-y-1">
             <CardTitle>Status mix</CardTitle>
             <CardDescription>
-              {reviewer
+              {officeWide
                 ? "Every report you can see, by status."
                 : "All of your reports, by status."}
             </CardDescription>
@@ -386,7 +404,7 @@ export default async function DashboardPage({
                 />
                 <p className="border-t pt-4 text-xs text-muted-foreground">
                   {total} report{total === 1 ? "" : "s"} in total
-                  {reviewer ? " across the reports you can access." : "."}
+                  {officeWide ? " across the reports you can access." : "."}
                 </p>
               </>
             )}

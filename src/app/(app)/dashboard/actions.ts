@@ -27,15 +27,16 @@ export async function setBudgetApproval(
   _prev: BudgetApprovalState,
   formData: FormData
 ): Promise<BudgetApprovalState> {
-  // The Head of Department alone, Admin included in the exclusion. This is the
-  // one action in the app an Admin cannot take: approving a budget is financial
-  // authority, not administrative authority. The write uses the service-role
-  // client, which bypasses RLS, so this check is the enforcement — there is no
-  // second layer behind it.
+  // The Head of Department and the Vice President above them, Admin included in
+  // the exclusion. This is the one action in the app an Admin cannot take:
+  // approving a budget is financial authority, not administrative authority. The
+  // write uses the service-role client, which bypasses RLS, so this check is the
+  // enforcement — there is no second layer behind it.
   const profile = await getProfile();
   if (!canSetBudgetApproval(profile.role)) {
     return {
-      error: "Only the Head of Department can set the approved budget",
+      error:
+        "Only the Vice President or Head of Department can set the approved budget",
     };
   }
 

@@ -105,9 +105,9 @@ export async function AnnualBudgetSummary({
   if (!canViewAnnualBudget(role)) return null;
 
   const supabase = await createClient();
-  // Admin and Coordinator both reach every author, for different reasons — one
-  // administers the office, the other oversees its spend — so the summary asks
-  // for the scope rather than for the role.
+  // Admin, Coordinator and VP Assistant all reach every author, for different
+  // reasons — one administers the office, one oversees its spend, one reads on
+  // the VP's behalf — so the summary asks for the scope rather than the role.
   const scope = annualBudgetScope(role);
   const seesEveryAuthor = scope === "all";
   const canFilterAuthors = seesEveryAuthor;

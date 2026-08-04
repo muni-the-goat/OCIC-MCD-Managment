@@ -21,6 +21,7 @@ import {
   canOpenUsersPage,
   canResetPasswords,
   getProfile,
+  isPrivileged,
 } from "@/lib/auth";
 import { departmentLabel } from "@/lib/departments";
 import { getDepartments } from "@/lib/departments-server";
@@ -37,8 +38,8 @@ export default async function AdminUsersPage() {
   const manages = canManageUsers(me.role);
   const resets = canResetPasswords(me.role);
   // Only an Admin may create or promote to Admin, or touch an Admin account.
-  // Without that, "a Head of Department cannot reset passwords" would be one
-  // promotion away from meaningless.
+  // Without that, "a Head of Department or Vice President cannot reset
+  // passwords" would be one promotion away from meaningless.
   const isAdmin = me.role === "admin";
 
   const supabase = await createClient();
@@ -87,8 +88,8 @@ export default async function AdminUsersPage() {
           <TableBody>
             {users.map((user) => {
               const isMe = user.id === me.id;
-              // A Head of Department manages everyone below them, but never an
-              // Admin — that account is out of reach entirely.
+              // A Head of Department or Vice President manages everyone below
+              // them, but never an Admin — that account is out of reach.
               const locked = !manages || (!isAdmin && user.role === "admin");
               return (
                 <TableRow key={user.id}>
@@ -130,10 +131,7 @@ export default async function AdminUsersPage() {
                   <TableCell className="text-right">
                     {isMe ? null : (
                       <span className="inline-flex items-center gap-1">
-                        {resets &&
-                        (isAdmin ||
-                          (user.role !== "admin" &&
-                            user.role !== "head_of_department")) ? (
+                        {resets && (isAdmin || !isPrivileged(user.role)) ? (
                           <ResetPasswordButton userId={user.id} />
                         ) : null}
                         {manages && !locked ? (

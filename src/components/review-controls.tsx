@@ -44,7 +44,7 @@ export function ReviewControls({
           {canMarkReviewed && canReject
             ? "Mark this report as reviewed, or reject it with feedback. The author can edit and resubmit a rejected report."
             : canMarkReviewed
-              ? "Mark this report as reviewed. Only an Admin or the Head of Department can reject a report and send it back."
+              ? "Mark this report as reviewed. Only an Admin, Vice President or Head of Department can reject a report and send it back."
               : "Reject this report with feedback. The author can edit and resubmit it."}
         </CardDescription>
       </CardHeader>

@@ -170,7 +170,7 @@ export function BudgetApprovalBar({
               <p className="max-w-md text-sm text-muted-foreground">
                 {canEdit
                   ? "Set it to measure spend against the approved figure instead of against the year's own total."
-                  : "The Head of Department has not set one yet, so spend is measured against the year's own total."}
+                  : "It has not been approved yet, so spend is measured against the year's own total."}
               </p>
             ) : (
               <p className="text-sm tabular-nums text-muted-foreground">

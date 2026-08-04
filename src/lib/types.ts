@@ -1,6 +1,8 @@
 export type AppRole =
   | "admin"
+  | "vice_president"
   | "head_of_department"
+  | "vp_assistant"
   | "coordinator"
   | "manager"
   | "staff";
@@ -27,13 +29,38 @@ export interface Profile {
   created_at: string;
 }
 
+// A Record rather than a chain of ternaries with a capitalise-the-id fallback:
+// the fallback is what would have rendered the newest role as "Vp_assistant"
+// without anyone noticing. Exhaustive by type, so a role added to AppRole
+// without a label here fails the build.
+const ROLE_LABELS: Record<AppRole, string> = {
+  admin: "Admin",
+  vice_president: "Vice President",
+  head_of_department: "Head of Department",
+  vp_assistant: "VP Assistant",
+  coordinator: "Coordinator",
+  manager: "Manager",
+  staff: "Staff",
+};
+
 export function roleLabel(role: AppRole) {
-  return role === "head_of_department"
-    ? "Head of Department"
-    : role === "coordinator"
-      ? "Coordinator"
-    : role.charAt(0).toUpperCase() + role.slice(1);
+  return ROLE_LABELS[role];
 }
+
+// Every role a picker may offer, least senior first — the same order as the
+// hierarchy in src/lib/roles.ts. Shared by the invite dialog and the Users table
+// select, which each kept their own hand-written list and had already drifted
+// out of agreement on ordering. Admin is included here and dropped by the caller
+// when the signed-in user may not grant it.
+export const ASSIGNABLE_ROLES: readonly AppRole[] = [
+  "staff",
+  "manager",
+  "coordinator",
+  "vp_assistant",
+  "head_of_department",
+  "vice_president",
+  "admin",
+];
 
 // A monthly activity report is four blocks of prose plus whatever documents the
 // author attaches. It also used to carry a typed task list and per-platform

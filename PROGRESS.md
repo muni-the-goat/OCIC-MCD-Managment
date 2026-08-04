@@ -14,6 +14,8 @@ Supabase migrations `0001` through `0012` have been applied to the production pr
 
 > **`0015_budget_approval.sql` has NOT been applied.** Until it runs, the annual budget card fails to read `budget_approvals` and the percentage column stays on its "% of year" fallback. Run it in the Supabase SQL editor or via `supabase db push`.
 
+`0017` was applied ahead of the code that uses it, so the `vice_president` and `vp_assistant` enum values exist in production before either role can be assigned from the app.
+
 The team's real January–June 2026 spend is seeded into production — see **Seeded data — Actual Expenses 2026** for what reconciles and the two figures that do not.
 
 No migration is required for the Marketing Communication alignment described below: report content rides in the existing `reports.content` jsonb column.
@@ -48,23 +50,27 @@ Reports support comments and private file attachments. Reviewed monthly budgets 
 
 ## Role and permission matrix
 
-The office hierarchy, most powerful first:
+The office hierarchy, most senior first:
 
-**Admin › Head of Department › Coordinator › Manager › Staff**
+**Admin › Vice President › Head of Department › VP Assistant › Coordinator › Manager › Staff**
 
-`roleRank()` in `src/lib/roles.ts` is that ordering, and `outranksOrEquals()` answers "may this account act on that one" — you reach accounts at or below your own rank, never above. It is deliberately *not* a general capability ordering: a Coordinator ranks above a Manager and still cannot edit anyone's report.
+`roleRank()` in `src/lib/roles.ts` is that ordering, and `outranksOrEquals()` answers "may this account act on that one" — you reach accounts at or below your own rank, never above. It is seniority, deliberately *not* a capability ordering, and the two come apart in both directions: a Coordinator ranks above a Manager and still cannot edit anyone's report, and a VP Assistant ranks above a Coordinator while holding no decision power at all.
 
 Approving and rejecting are two permissions, not one:
 
 | | Mark reviewed | Reject | Self-review |
 | --- | --- | --- | --- |
 | Admin | ✅ | ✅ | ✅ |
+| Vice President | ✅ | ✅ | ✅ |
 | Head of Department | ✅ | ✅ | ✅ |
+| VP Assistant | ❌ | ❌ | — |
 | Coordinator | ✅ budget reports and their own | ❌ | ✅ |
 | Manager | ❌ | ❌ | — |
 | Staff | ❌ | ❌ | — |
 
-Rejection sends a report back with required feedback — the one decision that creates work for someone else — so it stays with the Head of Department and the Admin above them.
+Rejection sends a report back with required feedback — the one decision that creates work for someone else — so it stays with the Head of Department, the Vice President, and the Admin.
+
+`isPrivileged()` is the three-role set Admin / Vice President / Head of Department, and `public.is_privileged()` in migration 0017 is its Postgres half. Before 0017 that list was written out inline in fifteen policies and functions across migrations 0006–0015; adding a third member is what finally made a function cheaper than the copies.
 
 ### Staff
 
@@ -89,9 +95,11 @@ Rejection sends a report back with required feedback — the one decision that c
 
 `profiles.department` records which department a person belongs to, but no visibility rule reads it. A Manager account is still treated as the expense owner for their department. See **Departments** and **Known limitations**.
 
-### Head of Department
+### Head of Department and Vice President
 
 **Admin-equivalent, with exactly one exception: they cannot reset a password.** Everything else an Admin can do to a report or an account, they can do.
+
+A **Vice President** is a Head of Department in capability terms — identical reads, decisions, account management, and exceptions — and holds a separate role because the org chart distinguishes the two, not the permissions. Everything in this section applies to both, and `isPrivileged()` is the single place either is named.
 
 - Sees every non-draft report across the office, and the department × month spend matrix across every author.
 - Can mark reviewed and reject, including on a report they authored themselves.
@@ -99,14 +107,28 @@ Rejection sends a report back with required feedback — the one decision that c
 - Can invite accounts, change roles and departments, delete users, and add a department.
 - Annual budget summary covers all authors, filterable by year and author.
 - **Cannot reset any password.** `canResetPasswords()` is the only capability check that excludes them.
-- **Is the only role that can set the approved annual budget** — see **The approved budget**. That is the one capability an Admin does not have.
+- **Are the only two roles that can set the approved annual budget** — see **The approved budget**. That is the one capability an Admin does not have.
 
-Two guards keep that exception from being decorative, both enforced in the server actions:
+Two guards keep the password exception from being decorative, both enforced in the server actions:
 
-- **A Head of Department cannot grant the Admin role.** Without this, they could promote an account and reset passwords through it.
-- **A Head of Department cannot modify or delete an Admin account.** The row's controls are disabled and the action refuses it.
+- **Neither can grant the Admin role.** Without this, they could promote an account and reset passwords through it.
+- **Neither can modify or delete an Admin account.** The row's controls are disabled and the action refuses it.
 
-Both are checked against the *target's* current role, read server-side — the client never decides. `profiles: admin all` is deliberately **not** widened to Head of Department for the same reason: it would be a direct API route around both guards.
+Both are checked against the *target's* current role, read server-side — the client never decides. `profiles: admin all` is deliberately **not** widened past Admin for the same reason: it would be a direct API route around both guards.
+
+Note that a Head of Department can grant the Vice President role and vice versa. That is not an escalation — the two hold identical capabilities — but it is worth knowing that the privileged tier can extend itself sideways. Only the Admin boundary is guarded.
+
+### VP Assistant
+
+**Reads the whole office and decides nothing.** The widest read in the application short of privileged, paired with no authority at all.
+
+- Sees every non-draft report across the office, of **both** types — wider than a Coordinator, whose cross-office reach stops at budget — plus line items, comments, and attachments. `seesAllReports()` is the predicate; the `reports: select` policy and `can_view_report()` in migration 0017 are the enforcement.
+- **Drafts stay private.** A draft is a working copy, not a submission, exactly as for a Coordinator.
+- Annual budget summary and the department × month matrix both cover all authors, with the author filter.
+- The dashboard shows office-wide counts and the office's most recently updated reports — not a pending-review queue, which they could not act on. This is why `dashboard/page.tsx` asks `seesOtherAuthors()` for the scope of the numbers and `isReviewer()` for the framing; the two used to be one flag and had to come apart to place this role.
+- **Cannot mark reviewed, reject, edit, or delete anything they did not author.** They appear in no update, delete, or review path in the database.
+- **Cannot manage accounts or reset passwords.** They can open the Users page read-only, exactly as a Manager can — every control disabled, every Server Action refusing them.
+- **Can still comment** on any report they can read, since `comments: insert` gates on `can_view_report()`. A comment is not a decision, so this was left as-is; narrowing it would need a policy of its own.
 
 ### Coordinator
 
@@ -133,7 +155,7 @@ Drafts stay private from a Coordinator — a draft is a working copy, not a subm
 - Sees the department × month spend matrix at the top of the Annual budget tab, across every author.
 - Can invite users, assign roles and departments, reset passwords, delete users, and add a department.
 - Is the only role that can grant the Admin role, or modify and delete an Admin account.
-- **Cannot set the approved annual budget.** The single capability an Admin does not hold; it belongs to the Head of Department. See **The approved budget**.
+- **Cannot set the approved annual budget.** The single capability an Admin does not hold; it belongs to the Head of Department and the Vice President. See **The approved budget**.
 - Can edit or delete reports according to the Admin policies.
 - Can select one or more reports on the Reports page and permanently delete them together after confirmation.
 - Can mark any submitted report reviewed or rejected, including a report authored by the same Admin account.
@@ -191,10 +213,10 @@ Aggregation behavior:
 - Items are grouped by trimmed, case-insensitive `section + line-item name`.
 - Matching rows from reviewed monthly reports are summed into `m01`–`m12`.
 - Section subtotals, monthly totals, and the annual grand total are calculated for display.
-- Reach is decided by `annualBudgetScope()` in `src/lib/auth.ts`, which returns `all`, `managers`, or `own`. It is one function rather than a pair of role booleans because the query scope, the author filter, and the card's own description all have to agree — and they drifted apart the last time each answered the question for itself.
-- `all` — Admin and Coordinator. Unrestricted.
-- `managers` — Head of Department. Limited to authors whose profile role is `manager`.
+- Reach is decided by `annualBudgetScope()` in `src/lib/auth.ts`, which returns `all` or `own`. It is one function rather than a set of role booleans because the query scope, the author filter, and the card's own description all have to agree — and they drifted apart the last time each answered the question for itself.
+- `all` — everyone who reads every team's budget: Admin, Vice President, Head of Department, VP Assistant, Coordinator. Unrestricted.
 - `own` — Manager. Always pinned to that Manager's user ID.
+- The Manager-only scoping that the **monthly activity** card applies to a Head of Department or Vice President has no counterpart here; the annual budget is office-wide for every role that reaches past its own.
 - When a scope that reaches several authors selects the all-author option, the summary renders a separate grid under each author's name instead of merging identical section/item names across people.
 - Selecting one author keeps the focused single-grid summary.
 - Staff dashboards do not render or query the annual summary.
@@ -204,7 +226,7 @@ Aggregation behavior:
 
 Sits at the top of the Annual budget tab, above the per-author grids. Modelled on the spreadsheet the team keeps today: months down, departments across, a subtotal per department and per month, and each month's share.
 
-- **Admin and Head of Department only** — `canViewDepartmentMatrix()`, deliberately narrower than `canViewAnnualBudget()`. A Manager sees only their own figures, so their matrix would be a single column. A Coordinator's budget access exists for oversight of individual reports, not for reading the org chart off the spend.
+- **Everyone who reads every team's budget** — `canViewDepartmentMatrix()` is `seesAllBudgetReports()`, so Admin, Vice President, Head of Department, VP Assistant, and Coordinator all get it: a roll-up of data you can already read line by line gives nothing away. Narrower than `canViewAnnualBudget()`, which also admits the Manager — a Manager sees only their own figures, so their matrix would be a single column.
 - **No extra query.** It is aggregated from the `sourceItems` the summary already fetched, with the department resolved through the author list it already has. That is also what guarantees it reconciles with the grids below it — same scope, same year, same author filter, one set of numbers. If it ever disagrees with the totals underneath, the aggregation is wrong, not the data.
 - **A department is the department of the person who filed the report.** There is no department on `reports` itself; it is read from `profiles.department` through `author_id`. Reassigning someone therefore moves their whole history to the new column, which is correct for "which team spends what" and wrong for "what did the old team spend" — the second question needs a department stamped on the report at submission time, and nothing asks it yet.
 - **Reports by an author with no department get an Unassigned column.** Dropping them would leave a table whose department columns do not add up to its Total, which is worse than an ugly column.
@@ -234,7 +256,7 @@ A ring, built as a **meter and not a two-slice donut**. The unspent portion is a
 - **Over 100% the arc caps at full** and the overage is stated in words. An arc that laps itself reads as a smaller number than it is.
 - **The warning is a sentence with an icon, and that is not decoration.** `--status-warning` measures **1.83:1** against the light card — below the 3:1 a mark needs to carry meaning alone — so the ring can never be the only thing saying "you are close". Good (3.35:1) and critical (4.80:1) pass on their own; the banner exists for the one that does not. The figure in the hole clears 15:1 and is what a monochrome reader actually reads. Verified with the `dataviz` skill's `contrast()`, not by eye.
 - Do not re-colour the arc, move the threshold, or drop the banner without re-running that contrast check.
-- **Setting it is the Head of Department alone — including against the Admin.** `canSetBudgetApproval()` is the one capability in `roles.ts` an Admin does not have, and it is deliberate: approving a budget is financial authority, not administrative authority, and running the system is not the same as deciding what the office may spend. An Admin still reads the figure, and can still grant themselves the role if they genuinely need to change it — the point is that doing so is a visible act rather than a quiet one.
+- **Setting it is the Head of Department and the Vice President above them — including against the Admin.** `canSetBudgetApproval()` is the one capability in `roles.ts` an Admin does not have, and it is deliberate: approving a budget is financial authority, not administrative authority, and running the system is not the same as deciding what the office may spend. An Admin still reads the figure, and can still grant themselves either role if they genuinely need to change it — the point is that doing so is a visible act rather than a quiet one.
 - The write uses the service-role client, which bypasses RLS, so **the server action guard is the enforcement** — there is no second layer behind it. Do not add a UI path to this action without re-checking `canSetBudgetApproval()` inside the action itself.
 - The empty state says different things to the two audiences: the Head of Department is told to set it, everyone else is told who will.
 - The bar's "spent" and the matrix's Total row are computed from the same array, so they cannot disagree.
@@ -574,7 +596,9 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 
 16. `0016_allow_multiple_monthly_budgets.sql` — drops the `0009` uniqueness trigger and its function, allowing multiple monthly budgets per author/month/year. Keeps the lookup index. **Not yet applied.**
 
-Migrations `0001`–`0014` are confirmed applied in Supabase; `0015` and `0016` are pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+17. `0017_vice_president_roles.sql` — adds the `vice_president` and `vp_assistant` enum values, introduces `public.is_privileged()` and rewrites every policy and function that used to spell out `('admin', 'head_of_department')` to call it, and widens `reports: select` / `can_view_report()` so a VP Assistant reads every non-draft report of either type. Depends only on `0013`/`0014`, so its position relative to `0015` and `0016` does not matter. **Applied.**
+
+Migrations `0001`–`0014` and `0017` are confirmed applied in Supabase; `0015` and `0016` are pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
@@ -670,7 +694,7 @@ These are production acceptance checks, not unfinished implementation:
 1. Confirm a second monthly budget for the same author/month/year is blocked and the form links to the existing report.
 2. Confirm editing a reviewed report removes it from the annual summary until its revision is reviewed again.
 3. Confirm an Admin can review their own submitted report.
-4. Confirm a Head of Department cannot review their own report but can review a Manager's submitted report.
+4. Confirm a Head of Department can review a Manager's submitted report, and — since `0013` — one they authored themselves.
 5. Confirm a Manager's annual summary contains only that Manager's reviewed expenses and has no Author filter.
 6. Confirm the Head of Department sees only Manager-authored expenses and can filter by Manager.
 7. Confirm the all-author annual summary labels and separates each author's expense grid.
@@ -685,8 +709,11 @@ These are production acceptance checks, not unfinished implementation:
 17. Confirm "Add department" creates a department that appears immediately in both department pickers and, once someone in it files a reviewed budget, as a matrix column.
 18. After `0014`, confirm a Coordinator can mark a submitted budget report reviewed — including their own — has no Reject button anywhere, and gets neither control on someone else's monthly activity report.
 19. After `0015`, confirm the percentage column reads "% of budget" and its Total matches spend ÷ $150,000, and that a year with no approval falls back to "% of year".
-20. Confirm the Head of Department is the only account with an Edit control on the approved budget — Admin and Coordinator see the figure without one — and that posting to `setBudgetApproval` as an Admin is refused.
-14. Confirm the department × month matrix appears for Admin and Head of Department only, that its Total reconciles with the per-author grids below it, and that reports by an author with no department land in the Unassigned column rather than vanishing.
+20. Confirm the Head of Department and Vice President are the only accounts with an Edit control on the approved budget — Admin, VP Assistant and Coordinator see the figure without one — and that posting to `setBudgetApproval` as an Admin is refused.
+14. Confirm the department × month matrix appears for every role that reads all budgets (Admin, Vice President, Head of Department, VP Assistant, Coordinator) and not for a Manager, that its Total reconciles with the per-author grids below it, and that reports by an author with no department land in the Unassigned column rather than vanishing.
+21. After `0017`, confirm a Vice President behaves exactly as a Head of Department: reviews and rejects, edits and bulk-deletes, invites and changes roles, sets the approved budget, and is refused a password reset and the Admin option in both role pickers.
+22. After `0017`, confirm a VP Assistant sees every non-draft report of both types on the Reports page with the Author and Department columns, sees the annual summary and matrix across all authors, sees no drafts, gets "Recent reports" rather than a pending-review queue on their dashboard, and has no Edit, Delete, Mark reviewed, or Reject control anywhere — while their Users page is read-only with no reset-password or delete button.
+23. After `0017`, confirm a Coordinator is refused when resetting a Vice President's password, the same as for an Admin or Head of Department.
 
 ## Known limitations and future options
 

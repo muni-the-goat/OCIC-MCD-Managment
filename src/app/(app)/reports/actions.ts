@@ -342,7 +342,7 @@ export async function bulkDeleteReports(
   if (!canManageAnyReport(profile.role)) {
     return {
       error:
-        "Only an Admin or the Head of Department can delete multiple reports",
+        "Only an Admin, Vice President or Head of Department can delete multiple reports",
     };
   }
 
@@ -418,7 +418,8 @@ export async function reviewReport(
   }
   if (decision === "rejected" && !canRejectReport(profile.role)) {
     return {
-      error: "Only an Admin or the Head of Department can reject a report",
+      error:
+        "Only an Admin, Vice President or Head of Department can reject a report",
     };
   }
   if (decision === "rejected" && !comment) {
