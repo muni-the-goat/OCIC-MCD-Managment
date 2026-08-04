@@ -22,6 +22,9 @@ const FIELD = /^(amount|units):(sales|leasing|property_management):(.+)$/;
 const schema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
   month: z.coerce.number().int().min(1).max(12),
+  // Validity is a lookup against public.projects rather than a list in this
+  // file, for the same reason departments stopped being a union in 0013.
+  project: z.string().trim().min(1, "Choose a project"),
 });
 
 // "1,234.56", "$1,234.56" and "1234.56" all mean the same thing to someone
@@ -62,9 +65,10 @@ export async function saveProjectMonth(
   const parsed = schema.safeParse({
     year: formData.get("year"),
     month: formData.get("month"),
+    project: formData.get("project"),
   });
-  if (!parsed.success) return { error: "Choose a valid month and year" };
-  const { year, month } = parsed.data;
+  if (!parsed.success) return { error: "Choose a valid project, month and year" };
+  const { year, month, project } = parsed.data;
 
   // Collect the posted cells into one row per stream + name, so a stream's
   // amount and its unit count arrive together rather than as two passes.
@@ -101,6 +105,15 @@ export async function saveProjectMonth(
   if (rows.size === 0) return { error: "Nothing to save" };
 
   const supabase = await createClient();
+
+  const { data: projectRow, error: projectError } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", project)
+    .maybeSingle();
+  if (projectError) return { error: projectError.message };
+  if (!projectRow) return { error: "Choose a project from the list" };
+
   const amountColumn = `m${String(month).padStart(2, "0")}`;
   const unitColumn = `u${String(month).padStart(2, "0")}`;
 
@@ -115,8 +128,13 @@ export async function saveProjectMonth(
     const { data: report, error: reportError } = await supabase
       .from("project_reports")
       .upsert(
-        { stream, period_year: year, updated_by: profile.id },
-        { onConflict: "stream,period_year" }
+        {
+          project_id: projectRow.id,
+          stream,
+          period_year: year,
+          updated_by: profile.id,
+        },
+        { onConflict: "project_id,stream,period_year" }
       )
       .select("id")
       .single();

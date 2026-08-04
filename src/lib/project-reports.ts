@@ -13,6 +13,22 @@ import {
 // dashboard cards and any future client-side filter can ask the same questions
 // the page does.
 
+// Projects are rows in public.projects as of migration 0020, not a union of
+// known ids — the list grows whenever OCIC breaks ground, so a closed union
+// would be a lie. The id is stored on every report and frozen at creation:
+// renaming a project changes its label, never its id.
+export interface ProjectRecord {
+  id: string;
+  label: string;
+  // For the print letterhead, where "Chroy Changvar Bay" is longer than the
+  // line wants to give it.
+  short: string;
+  sort_order: number;
+}
+
+export const ALL_PROJECTS = "all";
+export const ALL_STREAMS = "all";
+
 export interface StreamTotals {
   amount: number;
   units: number;

@@ -372,6 +372,29 @@
     font-size: 12px;
     color: #4f5556;
   }
+
+  /* The unit count under an amount in the projects document, mirroring the
+     stacked cell on screen. A block so it takes its own line rather than
+     trailing the figure and knocking the decimal alignment out, which is the
+     same fault the on-screen table had before it was stacked. */
+  .print-table .pt-sub {
+    display: block;
+    font-size: 9px;
+    font-style: normal;
+    font-weight: 400;
+    color: #4f5556;
+  }
+
+  /* The year-on-year block. Narrower than the month table above it and set
+     apart, because it is a conclusion rather than more data. */
+  .print-compare {
+    margin-top: 10px;
+    width: auto;
+    min-width: 60%;
+  }
+  .print-compare thead th {
+    border-bottom: 1px solid #212721;
+  }
   .print-footer {
     margin-top: 24px;
     padding-top: 8px;

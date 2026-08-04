@@ -30,6 +30,7 @@ Built with Next.js 16 (App Router) + Supabase (Auth, Postgres with Row Level Sec
    17. [`supabase/migrations/0017_vice_president_roles.sql`](supabase/migrations/0017_vice_president_roles.sql) — adds the Vice President and VP Assistant roles, and replaces the hand-copied privileged-role lists with `public.is_privileged()`
    18. [`supabase/migrations/0018_project_reports.sql`](supabase/migrations/0018_project_reports.sql) — adds the project reports (sales, leasing, property management), narrows the VP Assistant to that side, and seeds the 2025–2026 Jan–June figures
    19. [`supabase/migrations/0019_vice_president_projects_only.sql`](supabase/migrations/0019_vice_president_projects_only.sql) — takes the MCD reports and the budget approval from the Vice President, leaving them the projects side plus account management
+   20. [`supabase/migrations/0020_projects_dimension.sql`](supabase/migrations/0020_projects_dimension.sql) — makes projects a table (Koh Pich, Chroy Changvar Bay) and keys every project report to one
 
 ### 2. Configure environment variables
 

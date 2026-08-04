@@ -162,6 +162,16 @@ Read and write are the same set — Admin, Vice President, VP Assistant — beca
 
 A Head of Department is absent, which is the separation running both ways: they are admin-equivalent over the *marketing department's* reporting, and this is not that. An Admin sees both sides, because an Admin runs the system rather than either half of it.
 
+### Filtering and export
+
+Three filters, all in the URL so a view can be linked: **project**, **category** (the stream) and **year**. "All" is the default for the first two and stays out of the query string, so a pasted link carries only what was actually chosen.
+
+**All projects renders each project as its own block** rather than merging them into one table. Koh Pich's Elysee and Chroy Changvar Bay's properties are different buildings; a merged row set would be a table that exists nowhere in the business.
+
+**Export PDF** prints exactly what the filters select, so the document and the screen can never disagree about what the reader was looking at when they pressed the button. It reuses the same `print-only` region, letterhead and `print-table` rules as the MCD annual budget export — the two PDFs come out of the same house rather than looking like documents from two companies.
+
+The wording differs on purpose. The MCD export is an internal record a department files about itself ("Reviewed expenses"). This one is carried into a room, so it names its scope, the person presenting it and the date prepared, and the year-on-year block is set out as a finding — previous, current, change, percent — rather than repeated as a sentence.
+
 ### The form
 
 `/projects/new` — one month across all three streams, which is how the workbook is compiled: somebody sits down in early July and fills in June. A whole-year grid was the alternative and would have put eleven months the reader is not thinking about within one mis-key of the one they are.
@@ -624,9 +634,11 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 
 17. `0018_project_reports.sql` — adds `project_reports` and `project_report_items`, the read/write predicates for them, the VP Assistant narrowing, and the seeded 2025–2026 Jan–June figures. Validated by running it against a scratch Postgres 17 and checking every aggregate against the workbook. **Not yet applied.**
 
-18. `0019_vice_president_projects_only.sql` — narrows `is_privileged()` to Admin and Head of Department, and names the project-report predicates outright so the Vice President keeps the side they were given. Three function bodies; nine policies follow. **Not yet applied; run after `0018`.**
+18. `0020_projects_dimension.sql` — makes projects rows in `public.projects` rather than an assumption, adds `project_id` to `project_reports`, backfills every seeded row to Koh Pich (the workbook is "KP Sale Performance" and "KOH PICH LEASING REPORT"), and moves uniqueness to `(project_id, stream, period_year)`. The constraint it drops was looked up in a scratch database rather than guessed. **Not yet applied; run after `0019`.**
 
-Migrations `0001`–`0017` are confirmed applied in Supabase; `0018` and `0019` are pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+17. `0019_vice_president_projects_only.sql` — narrows `is_privileged()` to Admin and Head of Department, and names the project-report predicates outright so the Vice President keeps the side they were given. Three function bodies; nine policies follow. **Not yet applied; run after `0018`.**
+
+Migrations `0001`–`0017` are confirmed applied in Supabase; `0018`, `0019` and `0020` are pending — run them in order. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 

@@ -5,7 +5,11 @@ import {
   type StreamRows,
 } from "@/components/project-month-form";
 import { canEditProjectReports, getProfile } from "@/lib/auth";
-import { getProjectYears, getStreamYears } from "@/lib/project-reports-server";
+import {
+  getProjects,
+  getProjectYears,
+  getStreamYears,
+} from "@/lib/project-reports-server";
 import {
   MONTH_KEYS,
   MONTH_NAMES,
@@ -27,13 +31,22 @@ function cell(value: number): string {
 export default async function NewProjectReportPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string }>;
+  searchParams: Promise<{ year?: string; month?: string; project?: string }>;
 }) {
   const [profile, params] = await Promise.all([getProfile(), searchParams]);
   if (!canEditProjectReports(profile.role)) redirect("/dashboard");
 
   const now = new Date();
-  const knownYears = await getProjectYears();
+  const [knownYears, projects] = await Promise.all([
+    getProjectYears(),
+    getProjects(),
+  ]);
+  if (projects.length === 0) redirect("/projects");
+
+  // An unknown project in the URL falls back to the first rather than saving
+  // a month against nothing.
+  const project =
+    projects.find((entry) => entry.id === params.project)?.id ?? projects[0].id;
   // The current year is always offerable even if nothing has been filed for it
   // yet — otherwise January is a dead end until someone edits the database.
   const years = Array.from(
@@ -61,7 +74,7 @@ export default async function NewProjectReportPage({
   // rather than a blank page, since the portfolio rarely changes overnight.
   const streams = await Promise.all(
     PROJECT_STREAMS.map(async (stream) => {
-      const { current, previous } = await getStreamYears(stream, year);
+      const { current, previous } = await getStreamYears(project, stream, year);
       const source = current?.items.length ? current : previous;
       const carriedForward = !current?.items.length;
 
@@ -90,12 +103,14 @@ export default async function NewProjectReportPage({
           Project monthly report
         </h1>
         <p className="text-sm text-muted-foreground">
-          Sales, leasing and property management for {MONTH_NAMES[month - 1]}{" "}
-          {year}. Saving writes this month only.
+          {projects.find((entry) => entry.id === project)?.label} ·{" "}
+          {MONTH_NAMES[month - 1]} {year}. Saving writes this month only.
         </p>
       </div>
       <ProjectMonthForm
         years={years}
+        projects={projects}
+        initialProject={project}
         initialYear={year}
         initialMonth={month}
         initialRows={initialRows}

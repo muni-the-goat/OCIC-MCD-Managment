@@ -183,6 +183,7 @@ export interface ProjectReportItem extends MonthlyAmounts, MonthlyUnits {
 
 export interface ProjectReport {
   id: string;
+  project_id: string;
   stream: ProjectStream;
   period_year: number;
   updated_at: string;

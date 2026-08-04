@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToasts } from "@/components/use-action-toasts";
+import type { ProjectRecord } from "@/lib/project-reports";
 import { useSuccessFlash } from "@/components/use-success-flash";
 import {
   MONTH_NAMES,
@@ -42,11 +43,15 @@ export type StreamRows = Record<ProjectStream, StreamRow[]>;
 // reader is not thinking about within one mis-key of the one they are.
 export function ProjectMonthForm({
   years,
+  projects,
+  initialProject,
   initialYear,
   initialMonth,
   initialRows,
 }: {
   years: number[];
+  projects: ProjectRecord[];
+  initialProject: string;
   initialYear: number;
   initialMonth: number;
   // Pre-filled from whatever the chosen month already holds, so reopening a
@@ -96,18 +101,37 @@ export function ProjectMonthForm({
         <CardHeader>
           <CardTitle>Period</CardTitle>
           <CardDescription>
-            The month these figures cover. Reopening a month you have already
-            saved loads what is in it — only the month you pick is written, so
-            correcting June never touches May.
+            The project and month these figures cover. Reopening a month you
+            have already saved loads what is in it — only the month you pick is
+            written, so correcting June never touches May.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-4">
           <div className="space-y-1.5">
+            <Label htmlFor="project-project">Project</Label>
+            {/* Changing any of the three reloads with that period's figures.
+                A client-only picker would have to carry a second copy of every
+                saved month to do the same, and the copy would go stale. */}
+            <select
+              id="project-project"
+              name="project"
+              defaultValue={initialProject}
+              onChange={(event) => {
+                const params = new URLSearchParams(window.location.search);
+                params.set("project", event.target.value);
+                window.location.search = params.toString();
+              }}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
             <Label htmlFor="project-year">Year</Label>
-            {/* A plain select posting its own value: changing the period
-                reloads the page so the fields refill from that month, which a
-                controlled client-only picker could not do without carrying a
-                second copy of every figure. */}
             <select
               id="project-year"
               name="year"
