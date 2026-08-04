@@ -13,7 +13,9 @@ import {
 import {
   MONTH_KEYS,
   MONTH_NAMES,
+  PROJECT_CATEGORIES,
   PROJECT_STREAMS,
+  UNASSIGNED_CATEGORY,
   UNIT_KEYS,
   streamTracksUnits,
 } from "@/lib/types";
@@ -79,6 +81,7 @@ export default async function NewProjectReportPage({
       const carriedForward = !current?.items.length;
 
       const rows: StreamRow[] = (source?.items ?? []).map((item) => ({
+        category: item.category?.trim() || UNASSIGNED_CATEGORY,
         name: item.name,
         // Only the chosen month is loaded, and only from this year's report.
         // A carried-forward row set brings the names, never last year's money.
@@ -120,5 +123,10 @@ export default async function NewProjectReportPage({
 }
 
 function emptyRow(): StreamRow {
-  return { name: "", amount: "", units: "" };
+  return {
+    category: PROJECT_CATEGORIES[0],
+    name: "",
+    amount: "",
+    units: "",
+  };
 }

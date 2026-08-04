@@ -5,6 +5,8 @@ import {
   itemTotal,
   itemUnitTotal,
   type MonthlyAmounts,
+  PROJECT_CATEGORIES,
+  UNASSIGNED_CATEGORY,
   type MonthlyUnits,
   type ProjectReportItem,
 } from "@/lib/types";
@@ -128,6 +130,71 @@ export function compareYears(
     unitChange: now.units - before.units,
     unitPercent: percent(before.units, now.units),
   };
+}
+
+// A category and the units inside it. Every report renders all four headings
+// whether or not it has anything under them, then any category the data carries
+// that the fixed list does not — which in practice means Unassigned, and would
+// mean a fifth heading if the office ever adds one.
+export interface CategoryGroup {
+  category: string;
+  items: ProjectReportItem[];
+  // True when the category holds a single unit named after the category itself,
+  // which is how the sales report is shaped: "Land" is both the heading and the
+  // only thing under it. Rendering a sub-header repeating the word would be a
+  // second row of the same information.
+  selfNamed: boolean;
+  // A subtotal column only earns its place when there is more than one unit to
+  // add up; with one, it would restate the column beside it.
+  showSubtotal: boolean;
+}
+
+export function groupByCategory(
+  items: readonly ProjectReportItem[]
+): CategoryGroup[] {
+  const byCategory = new Map<string, ProjectReportItem[]>();
+  for (const item of items) {
+    const key = item.category?.trim() || UNASSIGNED_CATEGORY;
+    const list = byCategory.get(key) ?? [];
+    list.push(item);
+    byCategory.set(key, list);
+  }
+
+  const extras = [...byCategory.keys()]
+    .filter((key) => !PROJECT_CATEGORIES.includes(key as never))
+    .sort((a, b) =>
+      // Unassigned last, whatever else sorts alphabetically before it.
+      a === UNASSIGNED_CATEGORY
+        ? 1
+        : b === UNASSIGNED_CATEGORY
+          ? -1
+          : a.localeCompare(b)
+    );
+
+  return [...PROJECT_CATEGORIES, ...extras].map((category) => {
+    const group = (byCategory.get(category) ?? []).sort(
+      (a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)
+    );
+    return {
+      category,
+      items: group,
+      selfNamed: group.length === 1 && group[0].name.trim() === category,
+      showSubtotal: group.length > 1,
+    };
+  });
+}
+
+// The month's figures for one category — the subtotal column, and what a
+// category with no units of its own renders as.
+export function categoryMonthTotals(
+  group: CategoryGroup,
+  monthIndex: number
+): StreamTotals {
+  return monthTotals(group.items, monthIndex);
+}
+
+export function categoryTotals(group: CategoryGroup): StreamTotals {
+  return yearTotals(group.items);
 }
 
 export const currency = new Intl.NumberFormat("en-US", {

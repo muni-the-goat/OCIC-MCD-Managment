@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import {
   Card,
@@ -7,11 +8,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  categoryMonthTotals,
+  categoryTotals,
   compareYears,
   currency,
+  groupByCategory,
   monthTotals,
   reportedMonths,
   yearTotals,
+  type CategoryGroup,
 } from "@/lib/project-reports";
 import { cn } from "@/lib/utils";
 import {
@@ -25,6 +30,13 @@ import {
   type ProjectReport,
   type ProjectStream,
 } from "@/lib/types";
+
+// How many columns a category occupies: one per unit, plus a subtotal when
+// there is more than one to add up, and one placeholder when it holds nothing.
+function columnsFor(group: CategoryGroup): number {
+  if (group.items.length === 0) return 1;
+  return group.items.length + (group.showSubtotal ? 1 : 0);
+}
 
 const DESCRIPTIONS: Record<ProjectStream, string> = {
   sales:
@@ -130,6 +142,7 @@ export function ProjectStreamCard({
   const tracksUnits = streamTracksUnits(stream);
   const months = reportedMonths(items);
   const totals = yearTotals(items);
+  const groups = groupByCategory(items);
   const comparison = previous ? compareYears(items, previous.items) : null;
 
   if (items.length === 0) {
@@ -158,44 +171,95 @@ export function ProjectStreamCard({
         <CardDescription>{DESCRIPTIONS[stream]}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        {/* The table scrolls inside its own box rather than pushing the page
-            sideways — leasing has eight columns and does not fit a laptop, and
-            a horizontally scrolling page is a broken page.
+        {/* Two header rows: the four shared categories across the top, the
+            units inside each one beneath. That is the shape of the workbook and
+            the shape the VP reads — The Elysee is not a column in its own
+            right, it is a building inside a category.
 
-            The month column is sticky, so scrolling right to reach Connexion
-            Hub never leaves you looking at a row you can no longer name. */}
+            A category with nothing under it still gets a column of em dashes,
+            because the four headings are meant to be the same on every table:
+            a header that changes between projects is one you re-read each time.
+
+            Scrolls inside its own box rather than pushing the page sideways,
+            with the month column pinned so scrolling right never leaves you
+            looking at a row you can no longer name. */}
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full min-w-max border-separate border-spacing-0 text-sm">
             <caption className="sr-only">
-              {projectStreamLabel(stream)} {year}, by month
+              {projectStreamLabel(stream)} {year}, by month and category
               {tracksUnits ? ", with unit counts" : ""}
             </caption>
             <thead>
               <tr className="bg-muted/50">
                 <th
                   scope="col"
-                  className="sticky left-0 z-10 border-b bg-muted px-3 py-2.5 text-left font-medium"
+                  rowSpan={2}
+                  className="sticky left-0 z-10 border-b bg-muted px-3 py-2 text-left align-bottom font-medium"
                 >
                   Month
                 </th>
-                {items.map((item) => (
+                {groups.map((group) => (
                   <th
-                    key={item.id}
-                    scope="col"
-                    className="border-b px-4 py-2.5 text-right font-medium whitespace-nowrap"
+                    key={group.category}
+                    scope="colgroup"
+                    colSpan={columnsFor(group)}
+                    className="border-b border-l px-4 py-2 text-center font-medium whitespace-nowrap"
                   >
-                    {item.name}
+                    {group.category}
                   </th>
                 ))}
-                {/* The Total column is a different kind of number from the ones
-                    beside it — a sum, not an observation — so it is set off by
-                    a rule rather than left to look like one more property. */}
                 <th
                   scope="col"
-                  className="border-b border-l px-4 py-2.5 text-right font-medium"
+                  rowSpan={2}
+                  className="border-b border-l-2 px-4 py-2 text-right align-bottom font-medium"
                 >
                   Total
                 </th>
+              </tr>
+              <tr className="bg-muted/50">
+                {groups.map((group) =>
+                  group.items.length === 0 ? (
+                    <th
+                      key={group.category}
+                      scope="col"
+                      className="border-b border-l px-4 pb-2 text-right text-xs font-normal text-muted-foreground"
+                    >
+                      —
+                    </th>
+                  ) : group.selfNamed ? (
+                    // The sales report: the category is the only thing under
+                    // it, so repeating the word here would be a second row of
+                    // the same information.
+                    <th
+                      key={group.category}
+                      scope="col"
+                      className="border-b border-l px-4 pb-2 text-right text-xs font-normal text-muted-foreground"
+                    />
+                  ) : (
+                    <Fragment key={group.category}>
+                      {group.items.map((item, index) => (
+                        <th
+                          key={item.id}
+                          scope="col"
+                          className={cn(
+                            "border-b px-4 pb-2 text-right text-xs font-normal whitespace-nowrap",
+                            index === 0 && "border-l"
+                          )}
+                        >
+                          {item.name}
+                        </th>
+                      ))}
+                      {group.showSubtotal ? (
+                        <th
+                          scope="col"
+                          className="border-b bg-muted/40 px-4 pb-2 text-right text-xs font-medium whitespace-nowrap"
+                        >
+                          Subtotal
+                        </th>
+                      ) : null}
+                    </Fragment>
+                  )
+                )}
               </tr>
             </thead>
             <tbody>
@@ -209,19 +273,44 @@ export function ProjectStreamCard({
                     >
                       {MONTH_SHORT[monthIndex]} {year}
                     </th>
-                    {items.map((item) => (
-                      <td
-                        key={item.id}
-                        className="border-b px-4 py-2.5 text-right group-hover:bg-muted/40"
-                      >
-                        <Figure
-                          amount={Number(item[MONTH_KEYS[monthIndex]] ?? 0)}
-                          units={Number(item[UNIT_KEYS[monthIndex]] ?? 0)}
-                          showUnits={tracksUnits}
-                        />
-                      </td>
-                    ))}
-                    <td className="border-b border-l bg-muted/20 px-4 py-2.5 text-right group-hover:bg-muted/40">
+                    {groups.map((group) =>
+                      group.items.length === 0 ? (
+                        <td
+                          key={group.category}
+                          className="border-b border-l px-4 py-2.5 text-right text-muted-foreground group-hover:bg-muted/40"
+                        >
+                          —
+                        </td>
+                      ) : (
+                        <Fragment key={group.category}>
+                          {group.items.map((item, index) => (
+                            <td
+                              key={item.id}
+                              className={cn(
+                                "border-b px-4 py-2.5 text-right group-hover:bg-muted/40",
+                                index === 0 && "border-l"
+                              )}
+                            >
+                              <Figure
+                                amount={Number(item[MONTH_KEYS[monthIndex]] ?? 0)}
+                                units={Number(item[UNIT_KEYS[monthIndex]] ?? 0)}
+                                showUnits={tracksUnits}
+                              />
+                            </td>
+                          ))}
+                          {group.showSubtotal ? (
+                            <td className="border-b bg-muted/20 px-4 py-2.5 text-right group-hover:bg-muted/40">
+                              <Figure
+                                {...categoryMonthTotals(group, monthIndex)}
+                                showUnits={tracksUnits}
+                                strong
+                              />
+                            </td>
+                          ) : null}
+                        </Fragment>
+                      )
+                    )}
+                    <td className="border-b border-l-2 bg-muted/20 px-4 py-2.5 text-right group-hover:bg-muted/40">
                       <Figure
                         amount={row.amount}
                         units={row.units}
@@ -241,20 +330,45 @@ export function ProjectStreamCard({
                 >
                   Total
                 </th>
-                {items.map((item) => (
-                  <td
-                    key={item.id}
-                    className="border-t-2 px-4 py-2.5 text-right"
-                  >
-                    <Figure
-                      amount={itemTotal(item)}
-                      units={itemUnitTotal(item)}
-                      showUnits={tracksUnits}
-                      strong
-                    />
-                  </td>
-                ))}
-                <td className="border-t-2 border-l px-4 py-2.5 text-right">
+                {groups.map((group) =>
+                  group.items.length === 0 ? (
+                    <td
+                      key={group.category}
+                      className="border-t-2 border-l px-4 py-2.5 text-right text-muted-foreground"
+                    >
+                      —
+                    </td>
+                  ) : (
+                    <Fragment key={group.category}>
+                      {group.items.map((item, index) => (
+                        <td
+                          key={item.id}
+                          className={cn(
+                            "border-t-2 px-4 py-2.5 text-right",
+                            index === 0 && "border-l"
+                          )}
+                        >
+                          <Figure
+                            amount={itemTotal(item)}
+                            units={itemUnitTotal(item)}
+                            showUnits={tracksUnits}
+                            strong
+                          />
+                        </td>
+                      ))}
+                      {group.showSubtotal ? (
+                        <td className="border-t-2 bg-muted/40 px-4 py-2.5 text-right">
+                          <Figure
+                            {...categoryTotals(group)}
+                            showUnits={tracksUnits}
+                            strong
+                          />
+                        </td>
+                      ) : null}
+                    </Fragment>
+                  )
+                )}
+                <td className="border-t-2 border-l-2 px-4 py-2.5 text-right">
                   <Figure
                     amount={totals.amount}
                     units={totals.units}

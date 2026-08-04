@@ -42,6 +42,24 @@ export function projectStreamNoun(stream: ProjectStream) {
   return PROJECT_STREAM_NOUNS[stream];
 }
 
+// The four headings every project report carries, in the order they appear on
+// every table. Fixed rather than derived from the data: the Vice President
+// asked for the same shape on each report whether or not a project traded in
+// all four this year, and a header that changes between projects is a header
+// you have to re-read every time.
+export const PROJECT_CATEGORIES = [
+  "Land",
+  "House",
+  "Condo",
+  "Commercial",
+] as const;
+export type ProjectCategory = (typeof PROJECT_CATEGORIES)[number];
+
+// Where a unit sits until somebody who knows the portfolio files it. Rendered
+// as its own group after the four, so the gap is visible rather than absorbed
+// into a category it may not belong to.
+export const UNASSIGNED_CATEGORY = "Unassigned";
+
 // Only the sales report counts units. The other two have amounts alone, and
 // showing them a units column of zeros would be a column that means nothing.
 export function streamTracksUnits(stream: ProjectStream) {
@@ -177,6 +195,9 @@ export type MonthlyUnits = Record<UnitKey, number>;
 export interface ProjectReportItem extends MonthlyAmounts, MonthlyUnits {
   id: string;
   report_id: string;
+  // One of PROJECT_CATEGORIES, or UNASSIGNED_CATEGORY. Free text in the column
+  // so a fifth heading needs no migration, ordered by the list above.
+  category: string;
   name: string;
   sort_order: number;
 }

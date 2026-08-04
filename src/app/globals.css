@@ -385,6 +385,28 @@
     color: #4f5556;
   }
 
+  /* The category band across the top of a project table, and the unit names
+     beneath it. The group cell is centred over its span and ruled on the left
+     so the four categories read as four blocks rather than one long strip of
+     headings. */
+  .print-table .pt-group {
+    text-align: center;
+    font-weight: 700;
+    border-left: 1px solid #d9d4c7;
+    border-bottom: 1px solid #d9d4c7;
+  }
+  .print-table .pt-sub-head {
+    text-align: right;
+    font-size: 10px;
+    font-weight: 600;
+    color: #4f5556;
+    border-bottom: 1.5px solid #212721;
+  }
+  .print-table .pt-subtotal {
+    background: #f4f1ea;
+    font-weight: 600;
+  }
+
   /* The year-on-year block. Narrower than the month table above it and set
      apart, because it is a conclusion rather than more data. */
   .print-compare {

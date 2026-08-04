@@ -4,20 +4,27 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { canEditProjectReports, getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { PROJECT_STREAMS, streamTracksUnits, type ProjectStream } from "@/lib/types";
+import {
+  PROJECT_STREAMS,
+  UNASSIGNED_CATEGORY,
+  streamTracksUnits,
+  type ProjectStream,
+} from "@/lib/types";
 
 export type ProjectActionState = { error: string } | { success: string } | null;
 
 // One month of one year, across all three streams. The form posts a flat
-// FormData because the row set is dynamic — the assistant can add a property
-// mid-year — so the field names carry the structure:
+// FormData because the row set is dynamic — a unit can be added mid-year and a
+// category reassigned — so the field names carry the structure:
 //
-//   amount:<stream>:<name>   the month's figure
-//   units:<stream>:<name>    the month's unit count, sales only
+//   row:<stream>:<index>:category|name|amount|units
 //
-// Names round-trip through the field key rather than through an id, because a
-// row the assistant just typed has no id yet.
-const FIELD = /^(amount|units):(sales|leasing|property_management):(.+)$/;
+// Indexed rather than keyed by name, which is what the first version did. A
+// name-keyed field cannot express "this row is now a Condo rather than
+// Unassigned" without the row appearing to be a different row, and reassigning
+// the leasing properties out of Unassigned is the first thing anyone will do.
+const FIELD =
+  /^row:(sales|leasing|property_management):(\d+):(category|name|amount|units)$/;
 
 const schema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
@@ -48,6 +55,7 @@ function parseUnits(raw: string): number | null {
 
 interface Row {
   stream: ProjectStream;
+  category: string;
   name: string;
   amount: number;
   units: number;
@@ -70,37 +78,48 @@ export async function saveProjectMonth(
   if (!parsed.success) return { error: "Choose a valid project, month and year" };
   const { year, month, project } = parsed.data;
 
-  // Collect the posted cells into one row per stream + name, so a stream's
-  // amount and its unit count arrive together rather than as two passes.
+  // Collect the posted cells into one row per stream + index, so a row's
+  // category, name, amount and unit count arrive together.
   const rows = new Map<string, Row>();
   for (const [key, raw] of formData.entries()) {
     const match = FIELD.exec(key);
     if (!match) continue;
-    const [, kind, stream, rawName] = match;
-    const name = rawName.trim();
-    if (!name) continue;
-
-    const mapKey = `${stream}:${name}`;
+    const [, stream, index, field] = match;
+    const mapKey = `${stream}:${index}`;
     const row =
       rows.get(mapKey) ??
-      ({ stream: stream as ProjectStream, name, amount: 0, units: 0 } as Row);
+      ({
+        stream: stream as ProjectStream,
+        category: UNASSIGNED_CATEGORY,
+        name: "",
+        amount: 0,
+        units: 0,
+      } as Row);
 
     const value = String(raw ?? "");
-    if (kind === "amount") {
+    if (field === "name") {
+      row.name = value.trim();
+    } else if (field === "category") {
+      row.category = value.trim() || UNASSIGNED_CATEGORY;
+    } else if (field === "amount") {
       const amount = parseAmount(value);
       if (amount === null) {
-        return { error: `"${value}" is not a valid amount for ${name}` };
+        return { error: `"${value}" is not a valid amount` };
       }
       row.amount = amount;
     } else {
       const units = parseUnits(value);
       if (units === null) {
-        return { error: `"${value}" is not a valid unit count for ${name}` };
+        return { error: `"${value}" is not a valid unit count` };
       }
       row.units = units;
     }
     rows.set(mapKey, row);
   }
+
+  // A row with no name was added and left blank; dropping it silently is
+  // kinder than refusing the whole save over an empty line nobody filled in.
+  for (const [key, row] of rows) if (!row.name) rows.delete(key);
 
   if (rows.size === 0) return { error: "Nothing to save" };
 
@@ -148,6 +167,7 @@ export async function saveProjectMonth(
     // assistant correcting March cannot blank out April by saving.
     const payload = streamRows.map((row, index) => ({
       report_id: report.id,
+      category: row.category,
       name: row.name,
       sort_order: (index + 1) * 10,
       [amountColumn]: row.amount,
@@ -156,7 +176,7 @@ export async function saveProjectMonth(
 
     const { error: itemError } = await supabase
       .from("project_report_items")
-      .upsert(payload, { onConflict: "report_id,name" });
+      .upsert(payload, { onConflict: "report_id,category,name" });
     if (itemError) return { error: itemError.message };
   }
 

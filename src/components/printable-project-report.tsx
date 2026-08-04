@@ -1,10 +1,15 @@
 import { OcicLogo } from "@/components/ocic-logo";
+import { Fragment } from "react";
 import {
+  categoryMonthTotals,
+  categoryTotals,
   compareYears,
   currency,
+  groupByCategory,
   monthTotals,
   reportedMonths,
   yearTotals,
+  type CategoryGroup,
   type ProjectRecord,
 } from "@/lib/project-reports";
 import {
@@ -47,6 +52,14 @@ function cell(n: number) {
 
 function units(n: number) {
   return n === 0 ? "—" : String(n);
+}
+
+// Mirrors the on-screen table exactly — same helper, same rule — so the
+// document and the dashboard cannot drift into disagreeing about how many
+// columns a category occupies.
+function columnsFor(group: CategoryGroup): number {
+  if (group.items.length === 0) return 1;
+  return group.items.length + (group.showSubtotal ? 1 : 0);
 }
 
 export function PrintableProjectReport({
@@ -100,6 +113,7 @@ export function PrintableProjectReport({
             const tracksUnits = streamTracksUnits(stream);
             const months = reportedMonths(items);
             const totals = yearTotals(items);
+            const groups = groupByCategory(items);
             const comparison = previous
               ? compareYears(items, previous.items)
               : null;
@@ -121,17 +135,44 @@ export function PrintableProjectReport({
                   <>
                     <table className="print-table">
                       <thead>
+                        {/* The same two tiers the dashboard shows: the four
+                            shared categories across the top, units beneath. */}
                         <tr>
-                          <th className="pt-item">Month</th>
-                          {items.map((item) => (
-                            <th key={item.id} className="pt-num">
-                              {item.name}
+                          <th className="pt-item" rowSpan={2}>
+                            Month
+                          </th>
+                          {groups.map((group) => (
+                            <th
+                              key={group.category}
+                              className="pt-group"
+                              colSpan={columnsFor(group)}
+                            >
+                              {group.category}
                             </th>
                           ))}
-                          <th className="pt-num">Total</th>
-                          {tracksUnits ? (
-                            <th className="pt-num">Units</th>
-                          ) : null}
+                          <th className="pt-num" rowSpan={2}>
+                            Total
+                          </th>
+                        </tr>
+                        <tr>
+                          {groups.map((group) =>
+                            group.items.length === 0 || group.selfNamed ? (
+                              <th key={group.category} className="pt-sub-head">
+                                {group.items.length === 0 ? "—" : ""}
+                              </th>
+                            ) : (
+                              <Fragment key={group.category}>
+                                {group.items.map((item) => (
+                                  <th key={item.id} className="pt-sub-head">
+                                    {item.name}
+                                  </th>
+                                ))}
+                                {group.showSubtotal ? (
+                                  <th className="pt-sub-head">Subtotal</th>
+                                ) : null}
+                              </Fragment>
+                            )
+                          )}
                         </tr>
                       </thead>
                       <tbody>
@@ -140,26 +181,60 @@ export function PrintableProjectReport({
                           return (
                             <tr key={monthIndex}>
                               <td>{MONTH_NAMES[monthIndex]}</td>
-                              {items.map((item) => (
-                                <td key={item.id} className="pt-num">
-                                  {cell(
-                                    Number(item[MONTH_KEYS[monthIndex]] ?? 0)
-                                  )}
-                                  {tracksUnits ? (
-                                    <span className="pt-sub">
-                                      {units(
-                                        Number(
-                                          item[UNIT_KEYS[monthIndex]] ?? 0
-                                        )
-                                      )}
-                                    </span>
-                                  ) : null}
-                                </td>
-                              ))}
-                              <td className="pt-num">{cell(row.amount)}</td>
-                              {tracksUnits ? (
-                                <td className="pt-num">{row.units}</td>
-                              ) : null}
+                              {groups.map((group) =>
+                                group.items.length === 0 ? (
+                                  <td key={group.category} className="pt-num">
+                                    —
+                                  </td>
+                                ) : (
+                                  <Fragment key={group.category}>
+                                    {group.items.map((item) => (
+                                      <td key={item.id} className="pt-num">
+                                        {cell(
+                                          Number(
+                                            item[MONTH_KEYS[monthIndex]] ?? 0
+                                          )
+                                        )}
+                                        {tracksUnits ? (
+                                          <span className="pt-sub">
+                                            {units(
+                                              Number(
+                                                item[UNIT_KEYS[monthIndex]] ?? 0
+                                              )
+                                            )}
+                                          </span>
+                                        ) : null}
+                                      </td>
+                                    ))}
+                                    {group.showSubtotal ? (
+                                      <td className="pt-num pt-subtotal">
+                                        {cell(
+                                          categoryMonthTotals(group, monthIndex)
+                                            .amount
+                                        )}
+                                        {tracksUnits ? (
+                                          <span className="pt-sub">
+                                            {units(
+                                              categoryMonthTotals(
+                                                group,
+                                                monthIndex
+                                              ).units
+                                            )}
+                                          </span>
+                                        ) : null}
+                                      </td>
+                                    ) : null}
+                                  </Fragment>
+                                )
+                              )}
+                              <td className="pt-num">
+                                {cell(row.amount)}
+                                {tracksUnits ? (
+                                  <span className="pt-sub">
+                                    {units(row.units)}
+                                  </span>
+                                ) : null}
+                              </td>
                             </tr>
                           );
                         })}
@@ -167,22 +242,46 @@ export function PrintableProjectReport({
                       <tfoot>
                         <tr className="pt-total">
                           <td>Total</td>
-                          {items.map((item) => (
-                            <td key={item.id} className="pt-num">
-                              {currency.format(itemTotal(item))}
-                              {tracksUnits ? (
-                                <span className="pt-sub">
-                                  {units(itemUnitTotal(item))}
-                                </span>
-                              ) : null}
-                            </td>
-                          ))}
+                          {groups.map((group) =>
+                            group.items.length === 0 ? (
+                              <td key={group.category} className="pt-num">
+                                —
+                              </td>
+                            ) : (
+                              <Fragment key={group.category}>
+                                {group.items.map((item) => (
+                                  <td key={item.id} className="pt-num">
+                                    {currency.format(itemTotal(item))}
+                                    {tracksUnits ? (
+                                      <span className="pt-sub">
+                                        {units(itemUnitTotal(item))}
+                                      </span>
+                                    ) : null}
+                                  </td>
+                                ))}
+                                {group.showSubtotal ? (
+                                  <td className="pt-num pt-subtotal">
+                                    {currency.format(
+                                      categoryTotals(group).amount
+                                    )}
+                                    {tracksUnits ? (
+                                      <span className="pt-sub">
+                                        {units(categoryTotals(group).units)}
+                                      </span>
+                                    ) : null}
+                                  </td>
+                                ) : null}
+                              </Fragment>
+                            )
+                          )}
                           <td className="pt-num">
                             {currency.format(totals.amount)}
+                            {tracksUnits ? (
+                              <span className="pt-sub">
+                                {units(totals.units)}
+                              </span>
+                            ) : null}
                           </td>
-                          {tracksUnits ? (
-                            <td className="pt-num">{totals.units}</td>
-                          ) : null}
                         </tr>
                       </tfoot>
                     </table>

@@ -22,7 +22,9 @@ import type { ProjectRecord } from "@/lib/project-reports";
 import { useSuccessFlash } from "@/components/use-success-flash";
 import {
   MONTH_NAMES,
+  PROJECT_CATEGORIES,
   PROJECT_STREAMS,
+  UNASSIGNED_CATEGORY,
   projectStreamLabel,
   projectStreamNoun,
   streamTracksUnits,
@@ -30,6 +32,7 @@ import {
 } from "@/lib/types";
 
 export interface StreamRow {
+  category: string;
   name: string;
   amount: string;
   units: string;
@@ -84,7 +87,10 @@ export function ProjectMonthForm({
   const addRow = (stream: ProjectStream) => {
     setRows((current) => ({
       ...current,
-      [stream]: [...current[stream], { name: "", amount: "", units: "" }],
+      [stream]: [
+        ...current[stream],
+        { category: PROJECT_CATEGORIES[0], name: "", amount: "", units: "" },
+      ],
     }));
   };
 
@@ -190,8 +196,38 @@ export function ProjectMonthForm({
               {rows[stream].map((row, index) => (
                 <div
                   key={index}
-                  className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_7rem_auto] sm:items-end"
+                  className="grid gap-2 sm:grid-cols-[9rem_minmax(0,1fr)_10rem_7rem_auto] sm:items-end"
                 >
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor={`${stream}-category-${index}`}
+                      className="sm:sr-only"
+                    >
+                      Category
+                    </Label>
+                    {/* Posted per row rather than derived from the name, so a
+                        unit can be moved between categories without being
+                        retyped — which is exactly what the leasing rows sitting
+                        in Unassigned need. */}
+                    <select
+                      id={`${stream}-category-${index}`}
+                      name={`row:${stream}:${index}:category`}
+                      value={row.category}
+                      onChange={(event) =>
+                        setCell(stream, index, "category", event.target.value)
+                      }
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      {PROJECT_CATEGORIES.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                      <option value={UNASSIGNED_CATEGORY}>
+                        {UNASSIGNED_CATEGORY}
+                      </option>
+                    </select>
+                  </div>
                   <div className="space-y-1.5">
                     <Label
                       htmlFor={`${stream}-name-${index}`}
@@ -201,6 +237,7 @@ export function ProjectMonthForm({
                     </Label>
                     <Input
                       id={`${stream}-name-${index}`}
+                      name={`row:${stream}:${index}:name`}
                       value={row.name}
                       onChange={(event) =>
                         setCell(stream, index, "name", event.target.value)
@@ -223,11 +260,7 @@ export function ProjectMonthForm({
                       id={`${stream}-amount-${index}`}
                       // The field name carries the row's name, so a row typed
                       // moments ago posts without needing an id it does not have.
-                      name={
-                        row.name.trim()
-                          ? `amount:${stream}:${row.name.trim()}`
-                          : undefined
-                      }
+                      name={`row:${stream}:${index}:amount`}
                       value={row.amount}
                       onChange={(event) =>
                         setCell(stream, index, "amount", event.target.value)
@@ -248,11 +281,7 @@ export function ProjectMonthForm({
                       </Label>
                       <Input
                         id={`${stream}-units-${index}`}
-                        name={
-                          row.name.trim()
-                            ? `units:${stream}:${row.name.trim()}`
-                            : undefined
-                        }
+                        name={`row:${stream}:${index}:units`}
                         value={row.units}
                         onChange={(event) =>
                           setCell(stream, index, "units", event.target.value)

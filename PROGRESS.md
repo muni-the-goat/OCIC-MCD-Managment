@@ -166,6 +166,20 @@ A Head of Department is absent, which is the separation running both ways: they 
 
 Three filters, all in the URL so a view can be linked: **project**, **category** (the stream) and **year**. "All" is the default for the first two and stays out of the query string, so a pasted link carries only what was actually chosen.
 
+### Two levels, not one
+
+Every project report carries the same four headings — **Land, House, Condo, Commercial** — with the individual units beneath whichever one they belong to. The Elysee is not a column in its own right; it is a building inside a category. All four appear on every table whether or not a project traded in all of them, because a header that changes between projects is one you re-read each time; an untraded category renders as a column of em dashes.
+
+This is the `section` level `budget_items` has carried since `0001` and `0018` deliberately left out. That call was right about the workbook and wrong about how the office reads it.
+
+- A category holding **one unit named after itself** — which is how the sales report is shaped — renders a single column with no sub-header, since repeating "Land" underneath "Land" is a second row of the same information.
+- A **subtotal column appears only when a category holds two or more units**. With one, it would restate the column beside it.
+- `groupByCategory()` and `columnsFor()` are shared by the screen and the PDF, so the two cannot drift into disagreeing about how many columns a category occupies.
+
+**Leasing and property-management units start in `Unassigned`.** Which category The Elysee or Connexion Hub belongs to is a fact about OCIC's portfolio, not something derivable from a spreadsheet — so `0022` does not guess. They sit in a visibly-labelled group, ordered last, until someone sets them from the Project report form. A wrong category printed in a document presented to the Chairwoman is worse than an obviously empty one.
+
+The form's fields are indexed (`row:<stream>:<index>:category`) rather than keyed by unit name, precisely so a row can move between categories without appearing to be a different row.
+
 **A project shows only the streams it actually reports.** Chroy Changvar Bay files no property management report at all, so no card appears for it — an absent report is not an empty one, and a card reading "nothing recorded for 2026" would describe a report nobody has filled in rather than one that does not exist. The rule is data-driven, not a special case: a stream with no rows in either the chosen year or the one before it is dropped.
 
 **Projects do not have to report alike.** Koh Pich sells Land, House and Condo; Chroy Changvar Bay adds Commercial Building. Koh Pich reports leasing per property across seven buildings; Chroy Changvar Bay reports one "External" line. Item rows are held per report rather than in a shared list, so this needed no schema change — it is the case `0018`'s note about Connexion Hub anticipated.
@@ -637,6 +651,8 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 17. `0017_vice_president_roles.sql` — adds the `vice_president` and `vp_assistant` enum values, introduces `public.is_privileged()` and rewrites every policy and function that used to spell out `('admin', 'head_of_department')` to call it, and widens `reports: select` / `can_view_report()` so a VP Assistant reads every non-draft report of either type. Depends only on `0013`/`0014`, so its position relative to `0015` and `0016` does not matter. **Applied.**
 
 17. `0018_project_reports.sql` — adds `project_reports` and `project_report_items`, the read/write predicates for them, the VP Assistant narrowing, and the seeded 2025–2026 Jan–June figures. Validated by running it against a scratch Postgres 17 and checking every aggregate against the workbook. **Not yet applied.**
+
+20. `0022_project_categories.sql` — adds `category` to `project_report_items`, moves uniqueness to `(report_id, category, name)`, maps the sales rows onto themselves, and adds an empty Commercial row to the Koh Pich sales report. Leasing and property-management units land in `Unassigned`. **Not yet applied.**
 
 19. `0021_chroy_changvar_bay.sql` — seeds Chroy Changvar Bay's sales and leasing for 2025 and 2026 from the CCV workbooks. No property management: that project does not file one. **Applied.**
 

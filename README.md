@@ -32,6 +32,7 @@ Built with Next.js 16 (App Router) + Supabase (Auth, Postgres with Row Level Sec
    19. [`supabase/migrations/0019_vice_president_projects_only.sql`](supabase/migrations/0019_vice_president_projects_only.sql) — takes the MCD reports and the budget approval from the Vice President, leaving them the projects side plus account management
    20. [`supabase/migrations/0020_projects_dimension.sql`](supabase/migrations/0020_projects_dimension.sql) — makes projects a table (Koh Pich, Chroy Changvar Bay) and keys every project report to one
    21. [`supabase/migrations/0021_chroy_changvar_bay.sql`](supabase/migrations/0021_chroy_changvar_bay.sql) — seeds Chroy Changvar Bay's 2025–2026 sales and leasing figures
+   22. [`supabase/migrations/0022_project_categories.sql`](supabase/migrations/0022_project_categories.sql) — gives every project report the same four headings (Land, House, Condo, Commercial) with units beneath them
 
 ### 2. Configure environment variables
 
