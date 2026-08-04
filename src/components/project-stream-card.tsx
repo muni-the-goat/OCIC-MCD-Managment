@@ -33,14 +33,50 @@ const DESCRIPTIONS: Record<ProjectStream, string> = {
   property_management: "Property management income by property.",
 };
 
-// An unreported month renders as an em dash, never as $0.00. The distinction is
-// the whole reason isReportedMonth() exists: July has not happened yet, and
-// showing it as zero income would be a claim rather than a gap.
-function Amount({ value }: { value: number }) {
-  return value === 0 ? (
-    <span className="text-muted-foreground">—</span>
-  ) : (
-    <>{currency.format(value)}</>
+// One cell of the table.
+//
+// The amount and the unit count used to sit side by side on one line, and the
+// table was unreadable for it. Two reasons, and the second is the one that
+// actually mattered: the pair competed for the same glance, and — because "1
+// unit" and "11 units" are different widths — the trailing text shoved every
+// dollar figure to a different horizontal position. A column of right-aligned
+// currency whose decimal points do not line up cannot be compared down its own
+// length, which is the only thing a monthly table is for.
+//
+// So they are stacked instead. The amount keeps the baseline and the alignment;
+// the count sits beneath it, smaller and quieter, present when wanted and out
+// of the way when not.
+//
+// An unreported month is a single em dash for the whole cell, not a dash *and*
+// an empty unit count — "— — units" was three glyphs to say nothing twice.
+// Zero is never rendered as $0.00: July has not happened yet, and showing it as
+// no income would be a claim rather than a gap.
+function Figure({
+  amount,
+  units,
+  showUnits,
+  strong,
+}: {
+  amount: number;
+  units: number;
+  showUnits: boolean;
+  strong?: boolean;
+}) {
+  if (amount === 0 && units === 0) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+
+  return (
+    <span className="flex flex-col items-end leading-tight">
+      <span className={cn("tabular-nums", strong && "font-semibold")}>
+        {currency.format(amount)}
+      </span>
+      {showUnits ? (
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {units} {units === 1 ? "unit" : "units"}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
@@ -123,28 +159,41 @@ export function ProjectStreamCard({
       </CardHeader>
       <CardContent className="space-y-5">
         {/* The table scrolls inside its own box rather than pushing the page
-            sideways — twelve months plus a name column does not fit a laptop,
-            and a horizontally scrolling page is a broken page. */}
+            sideways — leasing has eight columns and does not fit a laptop, and
+            a horizontally scrolling page is a broken page.
+
+            The month column is sticky, so scrolling right to reach Connexion
+            Hub never leaves you looking at a row you can no longer name. */}
         <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-max text-sm">
+          <table className="w-full min-w-max border-separate border-spacing-0 text-sm">
             <caption className="sr-only">
               {projectStreamLabel(stream)} {year}, by month
+              {tracksUnits ? ", with unit counts" : ""}
             </caption>
             <thead>
-              <tr className="border-b bg-muted/50">
-                <th scope="col" className="px-3 py-2 text-left font-medium">
+              <tr className="bg-muted/50">
+                <th
+                  scope="col"
+                  className="sticky left-0 z-10 border-b bg-muted px-3 py-2.5 text-left font-medium"
+                >
                   Month
                 </th>
                 {items.map((item) => (
                   <th
                     key={item.id}
                     scope="col"
-                    className="px-3 py-2 text-right font-medium"
+                    className="border-b px-4 py-2.5 text-right font-medium whitespace-nowrap"
                   >
                     {item.name}
                   </th>
                 ))}
-                <th scope="col" className="px-3 py-2 text-right font-medium">
+                {/* The Total column is a different kind of number from the ones
+                    beside it — a sum, not an observation — so it is set off by
+                    a rule rather than left to look like one more property. */}
+                <th
+                  scope="col"
+                  className="border-b border-l px-4 py-2.5 text-right font-medium"
+                >
                   Total
                 </th>
               </tr>
@@ -153,68 +202,65 @@ export function ProjectStreamCard({
               {months.map((monthIndex) => {
                 const row = monthTotals(items, monthIndex);
                 return (
-                  <tr key={monthIndex} className="border-b last:border-0">
+                  <tr key={monthIndex} className="group">
                     <th
                       scope="row"
-                      className="px-3 py-2 text-left font-normal whitespace-nowrap"
+                      className="sticky left-0 z-10 border-b bg-card px-3 py-2.5 text-left font-normal whitespace-nowrap group-hover:bg-muted/40"
                     >
                       {MONTH_SHORT[monthIndex]} {year}
                     </th>
                     {items.map((item) => (
                       <td
                         key={item.id}
-                        className="px-3 py-2 text-right tabular-nums"
+                        className="border-b px-4 py-2.5 text-right group-hover:bg-muted/40"
                       >
-                        <Amount
-                          value={Number(item[MONTH_KEYS[monthIndex]] ?? 0)}
+                        <Figure
+                          amount={Number(item[MONTH_KEYS[monthIndex]] ?? 0)}
+                          units={Number(item[UNIT_KEYS[monthIndex]] ?? 0)}
+                          showUnits={tracksUnits}
                         />
-                        {tracksUnits ? (
-                          <span className="ml-1.5 text-xs text-muted-foreground">
-                            {Number(item[UNIT_KEYS[monthIndex]] ?? 0) || "—"}
-                            {Number(item[UNIT_KEYS[monthIndex]] ?? 0) === 1
-                              ? " unit"
-                              : " units"}
-                          </span>
-                        ) : null}
                       </td>
                     ))}
-                    <td className="px-3 py-2 text-right font-medium tabular-nums">
-                      <Amount value={row.amount} />
-                      {tracksUnits ? (
-                        <span className="ml-1.5 text-xs text-muted-foreground">
-                          {row.units} {row.units === 1 ? "unit" : "units"}
-                        </span>
-                      ) : null}
+                    <td className="border-b border-l bg-muted/20 px-4 py-2.5 text-right group-hover:bg-muted/40">
+                      <Figure
+                        amount={row.amount}
+                        units={row.units}
+                        showUnits={tracksUnits}
+                        strong
+                      />
                     </td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 bg-muted/50 font-medium">
-                <th scope="row" className="px-3 py-2 text-left">
+              <tr className="bg-muted/50">
+                <th
+                  scope="row"
+                  className="sticky left-0 z-10 border-t-2 bg-muted px-3 py-2.5 text-left font-medium"
+                >
                   Total
                 </th>
                 {items.map((item) => (
                   <td
                     key={item.id}
-                    className="px-3 py-2 text-right tabular-nums"
+                    className="border-t-2 px-4 py-2.5 text-right"
                   >
-                    <Amount value={itemTotal(item)} />
-                    {tracksUnits ? (
-                      <span className="ml-1.5 text-xs text-muted-foreground">
-                        {itemUnitTotal(item)}
-                      </span>
-                    ) : null}
+                    <Figure
+                      amount={itemTotal(item)}
+                      units={itemUnitTotal(item)}
+                      showUnits={tracksUnits}
+                      strong
+                    />
                   </td>
                 ))}
-                <td className="px-3 py-2 text-right tabular-nums">
-                  <Amount value={totals.amount} />
-                  {tracksUnits ? (
-                    <span className="ml-1.5 text-xs text-muted-foreground">
-                      {totals.units} {totals.units === 1 ? "unit" : "units"}
-                    </span>
-                  ) : null}
+                <td className="border-t-2 border-l px-4 py-2.5 text-right">
+                  <Figure
+                    amount={totals.amount}
+                    units={totals.units}
+                    showUnits={tracksUnits}
+                    strong
+                  />
                 </td>
               </tr>
             </tfoot>
@@ -224,9 +270,13 @@ export function ProjectStreamCard({
         {comparison && comparison.months.length > 0 ? (
           <div className="rounded-xl border bg-muted/30 p-4">
             <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              {/* Current year first, because the figures below it read
+                  "$16,100,267.00 from $24,060,326.00" — newest, then what it
+                  came from. Naming the years the other way round made the
+                  heading contradict the sentence directly under it. */}
               {MONTH_SHORT[comparison.months[0]]}–
               {MONTH_SHORT[comparison.months[comparison.months.length - 1]]},{" "}
-              {previous?.period_year} against {year}
+              {year} against {previous?.period_year}
             </p>
             <dl className="mt-3 grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
