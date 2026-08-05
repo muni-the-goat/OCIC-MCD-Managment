@@ -28,33 +28,60 @@ export const getProjects = cache(async (): Promise<ProjectRecord[]> => {
   return (data ?? []) as ProjectRecord[];
 });
 
-// One project's stream for a year and the year before it, which is the pair
-// every card needs — the workbook is always "2026 against 2025". One query for
-// both, because two round trips for two rows of the same table is two chances
-// to be slow for no reason.
-export async function getStreamYears(
-  projectId: string,
-  stream: ProjectStream,
+export interface StreamYears {
+  current: ProjectReport | null;
+  previous: ProjectReport | null;
+}
+
+export function streamKey(projectId: string, stream: ProjectStream): string {
+  return `${projectId}:${stream}`;
+}
+
+// Every project × stream the page is about, for a year and the year before it —
+// the pair every card needs, because the workbook is always "2026 against
+// 2025".
+//
+// One query for all of them. It was one per project per stream, six for the
+// unfiltered page, fired in parallel: six connections, six round trips, six
+// chances to be slow, to fetch rows of one table that differ only by two
+// columns. The page waits for the slowest of them before it renders anything,
+// so the reader felt the worst of the six every time.
+export async function getStreamReports(
+  projectIds: string[],
+  streams: readonly ProjectStream[],
   year: number
-): Promise<{ current: ProjectReport | null; previous: ProjectReport | null }> {
+): Promise<Map<string, StreamYears>> {
+  const found = new Map<string, StreamYears>();
+  if (projectIds.length === 0 || streams.length === 0) return found;
+
   const supabase = await createClient();
   const { data } = await supabase
     .from("project_reports")
     .select(SELECT)
-    .eq("project_id", projectId)
-    .eq("stream", stream)
+    .in("project_id", projectIds)
+    .in("stream", streams as ProjectStream[])
     .in("period_year", [year, year - 1]);
 
   const reports = (data ?? []) as unknown as ProjectReport[];
-  const find = (y: number) =>
-    reports.find((report) => report.period_year === y) ?? null;
 
-  const current = find(year);
-  const previous = find(year - 1);
-  return {
-    current: current ? sortItems(current) : null,
-    previous: previous ? sortItems(previous) : null,
-  };
+  for (const projectId of projectIds) {
+    for (const stream of streams) {
+      const mine = reports.filter(
+        (report) =>
+          report.project_id === projectId && report.stream === stream
+      );
+      const pick = (y: number) => {
+        const report = mine.find((r) => r.period_year === y);
+        return report ? sortItems(report) : null;
+      };
+      found.set(streamKey(projectId, stream), {
+        current: pick(year),
+        previous: pick(year - 1),
+      });
+    }
+  }
+
+  return found;
 }
 
 // Every year any project has data for, newest first — the year picker's

@@ -45,7 +45,8 @@ import {
 import {
   getProjects,
   getProjectYears,
-  getStreamYears,
+  getStreamReports,
+  streamKey,
 } from "@/lib/project-reports-server";
 import { cn } from "@/lib/utils";
 import {
@@ -177,17 +178,19 @@ export default async function ProjectsDashboardPage({
       ? PROJECT_STREAMS
       : PROJECT_STREAMS.filter((s) => s === streamParam);
 
-  const loaded = await Promise.all(
-    shownProjects.map(async (project) => ({
-      project,
-      streams: await Promise.all(
-        shownStreams.map(async (stream) => ({
-          stream,
-          ...(await getStreamYears(project.id, stream, year)),
-        }))
-      ),
-    }))
+  const reports = await getStreamReports(
+    shownProjects.map((project) => project.id),
+    shownStreams,
+    year
   );
+  const loaded = shownProjects.map((project) => ({
+    project,
+    streams: shownStreams.map((stream) => ({
+      stream,
+      current: reports.get(streamKey(project.id, stream))?.current ?? null,
+      previous: reports.get(streamKey(project.id, stream))?.previous ?? null,
+    })),
+  }));
 
   const options = categoryOptions(
     loaded.flatMap(({ streams }) =>

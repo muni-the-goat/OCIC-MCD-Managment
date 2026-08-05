@@ -8,7 +8,8 @@ import { canEditProjectReports, getProfile } from "@/lib/auth";
 import {
   getProjects,
   getProjectYears,
-  getStreamYears,
+  getStreamReports,
+  streamKey,
 } from "@/lib/project-reports-server";
 import {
   MONTH_KEYS,
@@ -74,28 +75,28 @@ export default async function NewProjectReportPage({
   // Rows come from the chosen year's report where one exists, and from the year
   // before it otherwise — a fresh January should offer last year's properties
   // rather than a blank page, since the portfolio rarely changes overnight.
-  const streams = await Promise.all(
-    PROJECT_STREAMS.map(async (stream) => {
-      const { current, previous } = await getStreamYears(project, stream, year);
-      const source = current?.items.length ? current : previous;
-      const carriedForward = !current?.items.length;
+  const reports = await getStreamReports([project], PROJECT_STREAMS, year);
+  const streams = PROJECT_STREAMS.map((stream) => {
+    const { current = null, previous = null } =
+      reports.get(streamKey(project, stream)) ?? {};
+    const source = current?.items.length ? current : previous;
+    const carriedForward = !current?.items.length;
 
-      const rows: StreamRow[] = (source?.items ?? []).map((item) => ({
-        category: item.category?.trim() || UNASSIGNED_CATEGORY,
-        name: item.name,
-        // Only the chosen month is loaded, and only from this year's report.
-        // A carried-forward row set brings the names, never last year's money.
-        amount:
-          carriedForward || !current ? "" : cell(Number(item[amountKey] ?? 0)),
-        units:
-          carriedForward || !current || !streamTracksUnits(stream)
-            ? ""
-            : cell(Number(item[unitKey] ?? 0)),
-      }));
+    const rows: StreamRow[] = (source?.items ?? []).map((item) => ({
+      category: item.category?.trim() || UNASSIGNED_CATEGORY,
+      name: item.name,
+      // Only the chosen month is loaded, and only from this year's report.
+      // A carried-forward row set brings the names, never last year's money.
+      amount:
+        carriedForward || !current ? "" : cell(Number(item[amountKey] ?? 0)),
+      units:
+        carriedForward || !current || !streamTracksUnits(stream)
+          ? ""
+          : cell(Number(item[unitKey] ?? 0)),
+    }));
 
-      return [stream, rows.length > 0 ? rows : [emptyRow()]] as const;
-    })
-  );
+    return [stream, rows.length > 0 ? rows : [emptyRow()]] as const;
+  });
 
   const initialRows = Object.fromEntries(streams) as StreamRows;
 

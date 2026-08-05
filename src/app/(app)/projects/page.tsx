@@ -17,7 +17,8 @@ import {
 import {
   getProjects,
   getProjectYears,
-  getStreamYears,
+  getStreamReports,
+  streamKey,
 } from "@/lib/project-reports-server";
 import {
   PROJECT_STREAMS,
@@ -81,17 +82,19 @@ export default async function ProjectsPage({
   // table: Koh Pich's Elysee and Chroy Changvar Bay's properties are different
   // buildings, and a merged row set would be a table that exists nowhere in the
   // business.
-  const loaded = await Promise.all(
-    shownProjects.map(async (project) => ({
-      project,
-      streams: await Promise.all(
-        shownStreams.map(async (stream) => ({
-          stream,
-          ...(await getStreamYears(project.id, stream, year)),
-        }))
-      ),
-    }))
+  const reports = await getStreamReports(
+    shownProjects.map((project) => project.id),
+    shownStreams,
+    year
   );
+  const loaded = shownProjects.map((project) => ({
+    project,
+    streams: shownStreams.map((stream) => ({
+      stream,
+      current: reports.get(streamKey(project.id, stream))?.current ?? null,
+      previous: reports.get(streamKey(project.id, stream))?.previous ?? null,
+    })),
+  }));
 
   // The filter offers what these reports actually hold, so it never lists a
   // property belonging to a project the reader has filtered away. Built before
