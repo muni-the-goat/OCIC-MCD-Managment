@@ -62,6 +62,18 @@ function columnsFor(group: CategoryGroup): number {
   return group.items.length + (group.showSubtotal ? 1 : 0);
 }
 
+// A month table is as wide as the project has buildings: Koh Pich's leasing
+// table carries a column per property plus two subtotals, thirteen in all, and
+// at the document's normal type that runs off the right edge of the page and
+// takes the Total column with it. The page is already landscape for this
+// reason; past ten columns the type has to come down as well. A figure set
+// small is readable, a figure cropped off the paper is not.
+function densityFor(columns: number) {
+  if (columns > 14) return "tight";
+  if (columns > 10) return "dense";
+  return "normal";
+}
+
 export function PrintableProjectReport({
   year,
   scopeLabel,
@@ -81,7 +93,7 @@ export function PrintableProjectReport({
 
   return (
     <div className="print-only" aria-hidden="true">
-      <div className="print-doc">
+      <div className="print-doc print-doc-wide">
         <header className="print-letterhead">
           <OcicLogo width={150} height={64} priority className="print-logo" />
           <div className="print-title-block">
@@ -117,6 +129,9 @@ export function PrintableProjectReport({
             const comparison = previous
               ? compareYears(items, previous.items)
               : null;
+            // Month, every category column, Total.
+            const columns =
+              2 + groups.reduce((n, group) => n + columnsFor(group), 0);
 
             return (
               <section
@@ -133,7 +148,10 @@ export function PrintableProjectReport({
                   </p>
                 ) : (
                   <>
-                    <table className="print-table">
+                    <table
+                      className="print-table"
+                      data-density={densityFor(columns)}
+                    >
                       <thead>
                         {/* The same two tiers the dashboard shows: the four
                             shared categories across the top, units beneath. */}

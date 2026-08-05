@@ -260,6 +260,19 @@
     margin: 1.5cm;
   }
 
+  /* The projects document is a matrix, not a list: a column per building, plus
+     the category subtotals and the Total. Portrait cannot hold thirteen of
+     those, and the columns that fall off the right edge are the ones the room
+     is there to see. A named page turns just this document landscape and
+     leaves the budget report — which is narrow — in portrait. */
+  @page projects {
+    size: A4 landscape;
+    margin: 1.2cm;
+  }
+  .print-doc-wide {
+    page: projects;
+  }
+
   /* The grey section/total bands and the red share column carry meaning, so keep
      them when the browser would otherwise drop backgrounds to save ink. */
   .print-doc {
@@ -407,12 +420,51 @@
     font-weight: 600;
   }
 
+  /* Landscape buys the projects tables room for about ten columns at the
+     document's normal type. Wider than that and the type steps down with the
+     column count, set by `data-density` in PrintableProjectReport, so a table
+     always finishes inside the page instead of having its Total clipped off.
+     Padding comes in with the type — at 8.5px a 10px gutter is most of the
+     column. */
+  .print-table[data-density="dense"] {
+    font-size: 10px;
+  }
+  .print-table[data-density="dense"] th,
+  .print-table[data-density="dense"] td {
+    padding: 5px 6px;
+  }
+  .print-table[data-density="dense"] .pt-sub-head {
+    font-size: 9px;
+  }
+  .print-table[data-density="dense"] .pt-sub {
+    font-size: 8px;
+  }
+
+  .print-table[data-density="tight"] {
+    font-size: 8.5px;
+  }
+  .print-table[data-density="tight"] th,
+  .print-table[data-density="tight"] td {
+    padding: 4px 4px;
+  }
+  .print-table[data-density="tight"] .pt-sub-head {
+    font-size: 8px;
+  }
+  .print-table[data-density="tight"] .pt-sub {
+    font-size: 7px;
+  }
+
   /* The year-on-year block. Narrower than the month table above it and set
      apart, because it is a conclusion rather than more data. */
   .print-compare {
     margin-top: 10px;
     width: auto;
     min-width: 60%;
+  }
+  /* 40% of a landscape page is the same measure 60% of a portrait one was —
+     the block keeps its width rather than stretching with the paper. */
+  .print-doc-wide .print-compare {
+    min-width: 40%;
   }
   .print-compare thead th {
     border-bottom: 1px solid #212721;
