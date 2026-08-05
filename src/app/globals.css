@@ -491,6 +491,14 @@
   .print-table tr {
     break-inside: avoid;
   }
+  /* The header repeats on each page; the total must not. A table that splits
+     after May would otherwise print the full-year Total at the foot of the
+     first page, directly under five months — a figure that does not add up to
+     the column above it, in a document read aloud in a meeting. As a row group
+     it prints once, after the last month it covers. */
+  .print-table tfoot {
+    display: table-row-group;
+  }
 }
 
 /* LumaSpin loader (src/components/ui/luma-spin.tsx). The moving inset gap is
