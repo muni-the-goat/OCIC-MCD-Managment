@@ -40,6 +40,7 @@ import {
   filterItems,
   monthTotals,
   parseCategorySelection,
+  propertyComparison,
   reportedMonths,
 } from "@/lib/project-reports";
 import {
@@ -223,6 +224,17 @@ export default async function ProjectsDashboardPage({
           stream: entry.stream,
           previousYear: previous?.period_year ?? null,
           comparison: previous ? compareYears(items, previous.items) : null,
+          // One bar pair per building, so the properties can be read against
+          // each other and against their own last year at the same time.
+          properties: propertyComparison(items, previousItems).map(
+            (row): YearCompareRow => ({
+              key: row.key,
+              label: row.label,
+              full: row.label,
+              current: row.current,
+              previous: row.previous,
+            })
+          ),
           rows: months.map(
             (monthIndex): YearCompareRow => ({
               key: String(monthIndex),
@@ -494,11 +506,37 @@ export default async function ProjectsDashboardPage({
                         </div>
                       ) : null}
 
-                      <YearCompareChart
-                        rows={entry.rows}
-                        currentYear={year}
-                        previousYear={entry.previousYear}
-                      />
+                      <div className="space-y-2">
+                        <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                          By month
+                        </p>
+                        <YearCompareChart
+                          rows={entry.rows}
+                          currentYear={year}
+                          previousYear={entry.previousYear}
+                        />
+                      </div>
+
+                      {/* The month chart says when the money came in; this says
+                          which building it came from, and how each one did
+                          against itself last year. Ranked, so the order is
+                          part of the answer. */}
+                      {entry.properties.length > 1 ? (
+                        <div className="space-y-2">
+                          <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            By property
+                          </p>
+                          <YearCompareChart
+                            rows={entry.properties}
+                            currentYear={year}
+                            previousYear={entry.previousYear}
+                            minWidth={Math.max(
+                              360,
+                              entry.properties.length * 110
+                            )}
+                          />
+                        </div>
+                      ) : null}
                     </CardContent>
                   </Card>
                 );

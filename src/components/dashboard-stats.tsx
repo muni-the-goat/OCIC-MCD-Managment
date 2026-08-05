@@ -23,19 +23,7 @@ function share(value: number, total: number) {
 
 // Semicircular gauge. pathLength normalises the arc to 100 units so the dash
 // array is the percentage itself, with no arc-length arithmetic.
-//
-// `label` because the arc measures a different thing on each dashboard — a
-// share of the office's reports here, this year against last on the projects
-// side — and a screen reader should be told which.
-export function Gauge({
-  percent,
-  tone,
-  label,
-}: {
-  percent: number;
-  tone: StatTone;
-  label?: string;
-}) {
+function Gauge({ percent, tone }: { percent: number; tone: StatTone }) {
   // Half of a 42-radius circle centred at (50, 50); the 9px stroke and its
   // round caps stay inside the 56-unit-tall viewBox.
   const arc = "M 8 50 A 42 42 0 0 1 92 50";
@@ -44,7 +32,7 @@ export function Gauge({
       viewBox="0 0 100 56"
       className="h-14 w-24"
       role="img"
-      aria-label={label ?? `${percent}% of all reports`}
+      aria-label={`${percent}% of all reports`}
     >
       <path
         d={arc}

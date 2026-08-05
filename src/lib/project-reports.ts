@@ -480,6 +480,53 @@ export function categorySelectionLabel(selection: CategorySelection): string {
   }
 }
 
+// Every named property in either year, with what each year gave it — the rows
+// behind "how did The Elysée do against Elite Garden, and against itself last
+// year".
+//
+// Ranked by this year, largest first, so the chart reads as an order as well as
+// a set of pairs. Matched on the loose name key, so a building spelled with its
+// accent in one year and without it in the other is one property with two bars
+// rather than two properties with one each.
+export interface PropertyComparison {
+  key: string;
+  label: string;
+  current: number;
+  previous: number;
+}
+
+export function propertyComparison(
+  current: readonly ProjectReportItem[],
+  previous: readonly ProjectReportItem[]
+): PropertyComparison[] {
+  const named = (items: readonly ProjectReportItem[]) =>
+    items.filter((item) => item.name.trim() !== categoryOf(item));
+
+  const rows = new Map<string, PropertyComparison>();
+  const add = (
+    items: readonly ProjectReportItem[],
+    year: "current" | "previous"
+  ) => {
+    for (const item of named(items)) {
+      const name = item.name.trim();
+      const key = propertyKey(name);
+      const row = rows.get(key) ?? { key, label: name, current: 0, previous: 0 };
+      // The spelling that sorts first, so the label does not depend on which
+      // year happened to be read into the map first.
+      if (name.localeCompare(row.label) < 0) row.label = name;
+      row[year] += itemTotal(item as MonthlyAmounts);
+      rows.set(key, row);
+    }
+  };
+
+  add(current, "current");
+  add(previous, "previous");
+
+  return [...rows.values()].sort(
+    (a, b) => b.current - a.current || b.previous - a.previous
+  );
+}
+
 // Whether naming the properties would say anything the summary has not. The
 // sales report files one row per category, named after it — "House" inside
 // House — so a detail table there would be the same figures under the same

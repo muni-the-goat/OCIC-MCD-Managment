@@ -1,11 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, Minus, type LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Gauge,
-  TONE_COLOR,
-  tint,
-  type StatTone,
-} from "@/components/dashboard-stats";
+import { TONE_COLOR, tint, type StatTone } from "@/components/dashboard-stats";
 import { currency } from "@/lib/project-reports";
 
 // A report's year, set against the one before it. The projects answer to
@@ -44,12 +39,6 @@ export function ProjectStatCard({
   const tone: StatTone = flat ? "neutral" : up ? "good" : "critical";
   const Direction = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
 
-  // This year as a share of last year, which is what the arc is drawing. A year
-  // that has doubled fills the arc and stops; the figure beside it carries the
-  // rest, and an arc that wrapped past its own start would say less than that.
-  const share =
-    previous > 0 ? Math.min(100, Math.round((value / previous) * 100)) : 0;
-
   return (
     <Card className="h-full rounded-2xl">
       <CardContent className="flex h-full flex-col justify-between gap-5">
@@ -63,38 +52,43 @@ export function ProjectStatCard({
           <p className="font-label text-sm font-medium">{label}</p>
         </div>
 
-        <div className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <p className="font-heading text-2xl font-semibold tabular-nums sm:text-3xl">
-              {currency.format(value)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              from {currency.format(previous)}
-              {units === undefined || previousUnits === undefined
-                ? ""
-                : ` · ${units} units, from ${previousUnits}`}
-            </p>
-            <p
-              className="mt-2 inline-flex items-center gap-1 text-sm font-medium tabular-nums"
-              style={{ color: TONE_COLOR[tone] }}
-            >
-              {/* The direction is in the word and the arrow as well as the
-                  colour: a rise and a fall must not be told apart by hue. */}
-              <Direction className="size-4" aria-hidden />
-              <span>
-                {flat
-                  ? "No change"
-                  : `${up ? "Up" : "Down"} ${currency.format(Math.abs(change))}`}
-                {percent === null ? "" : ` · ${Math.abs(percent).toFixed(1)}%`}
-              </span>
-            </p>
-          </div>
-          {previous > 0 ? (
-            <Gauge percent={share} tone={tone} label={`${share}% of last year`} />
-          ) : null}
+        <div className="min-w-0">
+          <p className="font-heading text-2xl font-semibold tabular-nums sm:text-3xl">
+            {currency.format(value)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            from {currency.format(previous)}
+            {units === undefined || previousUnits === undefined
+              ? ""
+              : ` · ${units} units, from ${previousUnits}`}
+          </p>
         </div>
 
-        <p className="text-xs text-muted-foreground">{caption}</p>
+        {/* The change against last year, which is the reason the card exists.
+            It replaced an arc drawing this year as a share of last: the arc
+            filled at 100% and stopped, so every report that beat its own last
+            year drew the same full sweep whether it was up by one per cent or
+            by forty. This says which. */}
+        <div className="min-w-0">
+          <p
+            className="inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-semibold tabular-nums"
+            style={{
+              backgroundColor: tint(tone, 12),
+              color: TONE_COLOR[tone],
+            }}
+          >
+            {/* The direction is in the word and the arrow as well as the
+                colour: a rise and a fall must not be told apart by hue. */}
+            <Direction className="size-4 shrink-0" aria-hidden />
+            <span className="truncate">
+              {flat
+                ? "No change"
+                : `${up ? "Up" : "Down"} ${currency.format(Math.abs(change))}`}
+              {percent === null ? "" : ` · ${Math.abs(percent).toFixed(1)}%`}
+            </span>
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">{caption}</p>
+        </div>
       </CardContent>
     </Card>
   );
