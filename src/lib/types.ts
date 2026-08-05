@@ -60,6 +60,17 @@ export type ProjectCategory = (typeof PROJECT_CATEGORIES)[number];
 // into a category it may not belong to.
 export const UNASSIGNED_CATEGORY = "Unassigned";
 
+// How the four categories read on a table: land, and everything built on it.
+//
+// Nothing changes about how a unit is filed — it is still a House, a Condo or a
+// Commercial unit, and the form still offers the four. The bands are how they
+// are presented: House, Condo and Commercial sit under one heading that carries
+// their total, because "how much land, how much built" is the first question
+// asked of every report and the per-building columns were burying it.
+export const LAND_CATEGORY = "Land";
+export const BUILT_CATEGORIES = ["House", "Condo", "Commercial"] as const;
+export const BUILT_BAND = "Built properties";
+
 // Only the sales report counts units. The other two have amounts alone, and
 // showing them a units column of zeros would be a column that means nothing.
 export function streamTracksUnits(stream: ProjectStream) {

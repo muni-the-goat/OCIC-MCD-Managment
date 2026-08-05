@@ -1,11 +1,13 @@
 import {
+  BUILT_BAND,
+  BUILT_CATEGORIES,
+  LAND_CATEGORY,
   MONTH_KEYS,
   UNIT_KEYS,
   isReportedMonth,
   itemTotal,
   itemUnitTotal,
   type MonthlyAmounts,
-  PROJECT_CATEGORIES,
   UNASSIGNED_CATEGORY,
   type MonthlyUnits,
   type ProjectReportItem,
@@ -132,26 +134,41 @@ export function compareYears(
   };
 }
 
-// A category and the units inside it. Every report renders all four headings
-// whether or not it has anything under them, then any category the data carries
-// that the fixed list does not — which in practice means Unassigned, and would
-// mean a fifth heading if the office ever adds one.
-export interface CategoryGroup {
-  category: string;
+// A column of a report table: one filing category, and every unit filed under
+// it.
+//
+// The units are what the figures come from, but they are summed into their
+// category rather than each taking a column of its own. A column per building
+// is how Koh Pich's leasing table reached thirteen of them — a row nobody could
+// read across, and whose Total fell off the edge of the printed page.
+export interface ReportColumn {
+  label: string;
   items: ProjectReportItem[];
-  // True when the category holds a single unit named after the category itself,
-  // which is how the sales report is shaped: "Land" is both the heading and the
-  // only thing under it. Rendering a sub-header repeating the word would be a
+}
+
+// A band across the top of the table. Two of them carry every report: Land, and
+// everything built on it.
+//
+// A category the data files outside those two — Unassigned, or a fifth the
+// office adds later — follows as its own band rather than being folded into
+// one of them. Which side of the line an unfiled unit belongs on is not a
+// question the table can answer, and a table that guessed would be stating
+// something nobody checked.
+export interface ReportBand {
+  label: string;
+  columns: ReportColumn[];
+  // True when the band is a single column named after the band itself. The
+  // sub-header row leaves it blank: repeating the word underneath would be a
   // second row of the same information.
   selfNamed: boolean;
-  // A subtotal column only earns its place when there is more than one unit to
-  // add up; with one, it would restate the column beside it.
+  // A subtotal only earns its place where there is more than one column to add
+  // up; with one, it would restate the column beside it.
   showSubtotal: boolean;
 }
 
-export function groupByCategory(
+export function groupIntoBands(
   items: readonly ProjectReportItem[]
-): CategoryGroup[] {
+): ReportBand[] {
   const byCategory = new Map<string, ProjectReportItem[]>();
   for (const item of items) {
     const key = item.category?.trim() || UNASSIGNED_CATEGORY;
@@ -160,8 +177,17 @@ export function groupByCategory(
     byCategory.set(key, list);
   }
 
+  // A category with nothing in it still gets its column, of em dashes. The
+  // headings are meant to be the same on every table: one that changes between
+  // projects is one you re-read each time.
+  const column = (label: string): ReportColumn => ({
+    label,
+    items: byCategory.get(label) ?? [],
+  });
+
+  const banded = new Set<string>([LAND_CATEGORY, ...BUILT_CATEGORIES]);
   const extras = [...byCategory.keys()]
-    .filter((key) => !PROJECT_CATEGORIES.includes(key as never))
+    .filter((key) => !banded.has(key))
     .sort((a, b) =>
       // Unassigned last, whatever else sorts alphabetically before it.
       a === UNASSIGNED_CATEGORY
@@ -171,30 +197,40 @@ export function groupByCategory(
           : a.localeCompare(b)
     );
 
-  return [...PROJECT_CATEGORIES, ...extras].map((category) => {
-    const group = (byCategory.get(category) ?? []).sort(
-      (a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)
-    );
-    return {
-      category,
-      items: group,
-      selfNamed: group.length === 1 && group[0].name.trim() === category,
-      showSubtotal: group.length > 1,
-    };
-  });
+  return [
+    {
+      label: LAND_CATEGORY,
+      columns: [column(LAND_CATEGORY)],
+      selfNamed: true,
+      showSubtotal: false,
+    },
+    {
+      label: BUILT_BAND,
+      columns: BUILT_CATEGORIES.map(column),
+      selfNamed: false,
+      showSubtotal: true,
+    },
+    ...extras.map((label) => ({
+      label,
+      columns: [column(label)],
+      selfNamed: true,
+      showSubtotal: false,
+    })),
+  ];
 }
 
-// The month's figures for one category — the subtotal column, and what a
-// category with no units of its own renders as.
-export function categoryMonthTotals(
-  group: CategoryGroup,
-  monthIndex: number
-): StreamTotals {
-  return monthTotals(group.items, monthIndex);
+// Every unit under a band, for its subtotal — the "total built properties"
+// figure the report is read for.
+export function bandItems(band: ReportBand): ProjectReportItem[] {
+  return band.columns.flatMap((column) => column.items);
 }
 
-export function categoryTotals(group: CategoryGroup): StreamTotals {
-  return yearTotals(group.items);
+// How many table columns a band occupies: one per category, plus its subtotal
+// where it has one. Shared by the screen table and the print document, which
+// used to carry a copy each and could have drifted into disagreeing about a
+// header's span.
+export function bandColumnCount(band: ReportBand): number {
+  return band.columns.length + (band.showSubtotal ? 1 : 0);
 }
 
 export const currency = new Intl.NumberFormat("en-US", {
