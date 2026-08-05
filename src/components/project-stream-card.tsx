@@ -8,9 +8,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  ALL_SELECTION,
   bandColumnCount,
   bandItems,
   compareYears,
+  type CategorySelection,
   currency,
   groupIntoBands,
   hasNamedProperties,
@@ -122,17 +124,22 @@ export function ProjectStreamCard({
   year,
   current,
   previous,
+  selection = ALL_SELECTION,
 }: {
   stream: ProjectStream;
   year: number;
   current: ProjectReport | null;
   previous: ProjectReport | null;
+  // The rows are already narrowed to the selection by the time they arrive;
+  // this is what tells the table which columns to keep. Asked for Commercial,
+  // it drops House and Condo rather than ruling three columns of dashes.
+  selection?: CategorySelection;
 }) {
   const items = current?.items ?? [];
   const tracksUnits = streamTracksUnits(stream);
   const months = reportedMonths(items);
   const totals = yearTotals(items);
-  const bands = groupIntoBands(items);
+  const bands = groupIntoBands(items, selection);
   const comparison = previous ? compareYears(items, previous.items) : null;
   const properties = hasNamedProperties(items) ? propertyGroups(items) : [];
 

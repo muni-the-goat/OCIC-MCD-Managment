@@ -166,12 +166,95 @@ export interface ReportBand {
   showSubtotal: boolean;
 }
 
-export function groupIntoBands(
+// What the reader has asked to see, at whichever of the three tiers they picked
+// it: the bands, the categories inside them, or one named property.
+//
+// The tiers overlap on purpose — "Total Land" and "Land" select the same rows,
+// because Land is a band of one category. The Vice President asked for the
+// report to read at all three levels, and a filter that hid a level to avoid
+// repeating itself would be answering a question he did not ask.
+export const ALL_CATEGORIES = "all";
+
+export type CategorySelection =
+  | { kind: "all" }
+  | { kind: "band"; label: string }
+  | { kind: "category"; label: string }
+  | { kind: "property"; name: string };
+
+export const ALL_SELECTION: CategorySelection = { kind: "all" };
+
+function categoryOf(item: ProjectReportItem): string {
+  return item.category?.trim() || UNASSIGNED_CATEGORY;
+}
+
+// The band a category belongs to. Anything outside the two stands as its own,
+// the same rule the table follows.
+export function bandOf(category: string): string {
+  if (category === LAND_CATEGORY) return LAND_CATEGORY;
+  return BUILT_CATEGORIES.includes(category as never) ? BUILT_BAND : category;
+}
+
+const unassignedLast = (a: string, b: string) =>
+  a === UNASSIGNED_CATEGORY
+    ? 1
+    : b === UNASSIGNED_CATEGORY
+      ? -1
+      : a.localeCompare(b);
+
+// The rows a selection keeps. Applied before anything is grouped or summed, so
+// every figure on the page — the subtotals, the Total, the year-on-year
+// comparison — is of what the reader asked for rather than of everything with
+// the rest hidden.
+export function filterItems(
+  items: readonly ProjectReportItem[],
+  selection: CategorySelection
+): ProjectReportItem[] {
+  switch (selection.kind) {
+    case "all":
+      return [...items];
+    case "band":
+      return items.filter((item) => bandOf(categoryOf(item)) === selection.label);
+    case "category":
+      return items.filter((item) => categoryOf(item) === selection.label);
+    case "property":
+      return items.filter((item) => item.name.trim() === selection.name);
+  }
+}
+
+// Which category columns a selection puts on the table.
+//
+// "All" keeps the fixed shape — every category, whether or not the project
+// traded in it — because a header that changes between projects is one you
+// re-read each time. A narrowed view drops the rest: a table asked for
+// Commercial that still carries three columns of dashes is answering a
+// question nobody asked.
+function selectedCategories(
+  selection: CategorySelection,
   items: readonly ProjectReportItem[]
+): string[] | null {
+  switch (selection.kind) {
+    case "all":
+      return null;
+    case "band":
+      return selection.label === LAND_CATEGORY
+        ? [LAND_CATEGORY]
+        : [...BUILT_CATEGORIES];
+    case "category":
+      return [selection.label];
+    // The property's own category, read off the rows it left behind — which is
+    // how a property filed as Unassigned still gets the band it belongs to.
+    case "property":
+      return [...new Set(items.map(categoryOf))];
+  }
+}
+
+export function groupIntoBands(
+  items: readonly ProjectReportItem[],
+  selection: CategorySelection = ALL_SELECTION
 ): ReportBand[] {
   const byCategory = new Map<string, ProjectReportItem[]>();
   for (const item of items) {
-    const key = item.category?.trim() || UNASSIGNED_CATEGORY;
+    const key = categoryOf(item);
     const list = byCategory.get(key) ?? [];
     list.push(item);
     byCategory.set(key, list);
@@ -185,31 +268,37 @@ export function groupIntoBands(
     items: byCategory.get(label) ?? [],
   });
 
+  const wanted = selectedCategories(selection, items);
+  const shown = (label: string) => wanted === null || wanted.includes(label);
+
   const banded = new Set<string>([LAND_CATEGORY, ...BUILT_CATEGORIES]);
-  const extras = [...byCategory.keys()]
+  const extras = (wanted === null ? [...byCategory.keys()] : wanted)
     .filter((key) => !banded.has(key))
-    .sort((a, b) =>
-      // Unassigned last, whatever else sorts alphabetically before it.
-      a === UNASSIGNED_CATEGORY
-        ? 1
-        : b === UNASSIGNED_CATEGORY
-          ? -1
-          : a.localeCompare(b)
-    );
+    .sort(unassignedLast);
+
+  const builtColumns = BUILT_CATEGORIES.filter(shown).map(column);
 
   return [
-    {
-      label: LAND_CATEGORY,
-      columns: [column(LAND_CATEGORY)],
-      selfNamed: true,
-      showSubtotal: false,
-    },
-    {
-      label: BUILT_BAND,
-      columns: BUILT_CATEGORIES.map(column),
-      selfNamed: false,
-      showSubtotal: true,
-    },
+    ...(shown(LAND_CATEGORY)
+      ? [
+          {
+            label: LAND_CATEGORY,
+            columns: [column(LAND_CATEGORY)],
+            selfNamed: true,
+            showSubtotal: false,
+          },
+        ]
+      : []),
+    ...(builtColumns.length > 0
+      ? [
+          {
+            label: BUILT_BAND,
+            columns: builtColumns,
+            selfNamed: false,
+            showSubtotal: builtColumns.length > 1,
+          },
+        ]
+      : []),
     ...extras.map((label) => ({
       label,
       columns: [column(label)],
@@ -250,6 +339,95 @@ export function propertyGroups(
         (a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)
       ),
     }));
+}
+
+// The three tiers, as the filter offers them. Built from the reports actually
+// on screen, so the list never offers a property that the chosen project and
+// report do not have.
+export interface CategoryOptions {
+  bands: string[];
+  categories: string[];
+  properties: string[];
+}
+
+export function categoryOptions(
+  items: readonly ProjectReportItem[]
+): CategoryOptions {
+  const extras = [...new Set(items.map(categoryOf))]
+    .filter(
+      (category) =>
+        category !== LAND_CATEGORY &&
+        !BUILT_CATEGORIES.includes(category as never)
+    )
+    .sort(unassignedLast);
+
+  return {
+    bands: [LAND_CATEGORY, BUILT_BAND],
+    categories: [LAND_CATEGORY, ...BUILT_CATEGORIES, ...extras],
+    // A row named after its own category is the category, not a property under
+    // it — the sales report is filed that way, and listing "House" under
+    // properties would be the same word offered twice.
+    properties: [
+      ...new Set(
+        items
+          .filter((item) => item.name.trim() !== categoryOf(item))
+          .map((item) => item.name.trim())
+      ),
+    ].sort((a, b) => a.localeCompare(b)),
+  };
+}
+
+// The URL carries the tier as well as the name, because the tiers overlap:
+// "Land" is a band and a category, and only the prefix says which one was
+// clicked. An unknown or stale value falls back to everything rather than to an
+// empty page — a link shared before a property was renamed still opens.
+export function parseCategorySelection(
+  value: string | undefined,
+  options: CategoryOptions
+): CategorySelection {
+  const [kind, ...rest] = (value ?? "").split(":");
+  const label = rest.join(":");
+
+  if (kind === "band" && options.bands.includes(label)) {
+    return { kind: "band", label };
+  }
+  if (kind === "category" && options.categories.includes(label)) {
+    return { kind: "category", label };
+  }
+  if (kind === "property" && options.properties.includes(label)) {
+    return { kind: "property", name: label };
+  }
+  return ALL_SELECTION;
+}
+
+export function categorySelectionValue(selection: CategorySelection): string {
+  switch (selection.kind) {
+    case "all":
+      return ALL_CATEGORIES;
+    case "band":
+      return `band:${selection.label}`;
+    case "category":
+      return `category:${selection.label}`;
+    case "property":
+      return `property:${selection.name}`;
+  }
+}
+
+// For the print letterhead, which states what the reader was looking at when
+// they pressed Export.
+export function categorySelectionLabel(selection: CategorySelection): string {
+  switch (selection.kind) {
+    case "all":
+      return "All categories";
+    case "band":
+      return selection.label === BUILT_BAND
+        ? "Total built properties"
+        : "Total land";
+    case "category":
+      return selection.label;
+    case "property":
+      return selection.name;
+  }
 }
 
 // Whether naming the properties would say anything the summary has not. The

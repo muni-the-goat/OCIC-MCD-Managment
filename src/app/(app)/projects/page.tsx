@@ -5,7 +5,15 @@ import { PrintableProjectReport } from "@/components/printable-project-report";
 import { ProjectFilters } from "@/components/project-filters";
 import { ProjectStreamCard } from "@/components/project-stream-card";
 import { getProfile, seesProjectReports } from "@/lib/auth";
-import { ALL_PROJECTS, ALL_STREAMS } from "@/lib/project-reports";
+import {
+  ALL_PROJECTS,
+  ALL_STREAMS,
+  categoryOptions,
+  categorySelectionLabel,
+  categorySelectionValue,
+  filterItems,
+  parseCategorySelection,
+} from "@/lib/project-reports";
 import {
   getProjects,
   getProjectYears,
@@ -14,6 +22,7 @@ import {
 import {
   PROJECT_STREAMS,
   projectStreamLabel,
+  type ProjectReport,
   type ProjectStream,
 } from "@/lib/types";
 
@@ -22,7 +31,12 @@ export const metadata = { title: "Projects" };
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; project?: string; category?: string }>;
+  searchParams: Promise<{
+    year?: string;
+    project?: string;
+    stream?: string;
+    category?: string;
+  }>;
 }) {
   const [profile, params] = await Promise.all([getProfile(), searchParams]);
   if (!seesProjectReports(profile.role)) redirect("/dashboard");
@@ -41,10 +55,16 @@ export default async function ProjectsPage({
     params.project && projects.some((p) => p.id === params.project)
       ? params.project
       : ALL_PROJECTS;
-  const streamParam = PROJECT_STREAMS.includes(
-    params.category as ProjectStream
-  )
-    ? (params.category as ProjectStream)
+  // ?category= used to carry the report stream, before the word was needed for
+  // the Land/Built filter the Vice President asked for. A link shared under the
+  // old name still opens on the report it named.
+  const streamValue = PROJECT_STREAMS.includes(params.stream as ProjectStream)
+    ? params.stream
+    : PROJECT_STREAMS.includes(params.category as ProjectStream)
+      ? params.category
+      : undefined;
+  const streamParam: ProjectStream | typeof ALL_STREAMS = streamValue
+    ? (streamValue as ProjectStream)
     : ALL_STREAMS;
 
   const shownProjects =
@@ -61,14 +81,43 @@ export default async function ProjectsPage({
   // table: Koh Pich's Elysee and Chroy Changvar Bay's properties are different
   // buildings, and a merged row set would be a table that exists nowhere in the
   // business.
-  const blocks = await Promise.all(
-    shownProjects.map(async (project) => {
-      const streams = await Promise.all(
+  const loaded = await Promise.all(
+    shownProjects.map(async (project) => ({
+      project,
+      streams: await Promise.all(
         shownStreams.map(async (stream) => ({
           stream,
           ...(await getStreamYears(project.id, stream, year)),
         }))
-      );
+      ),
+    }))
+  );
+
+  // The filter offers what these reports actually hold, so it never lists a
+  // property belonging to a project the reader has filtered away. Built before
+  // the selection is applied — a list narrowed by the very choice it offers
+  // would leave the reader unable to choose anything else.
+  const options = categoryOptions(
+    loaded.flatMap(({ streams }) =>
+      streams.flatMap((entry) => entry.current?.items ?? [])
+    )
+  );
+  const selection = parseCategorySelection(params.category, options);
+
+  // Applied to the rows themselves, before any grouping or summing, so every
+  // figure downstream — subtotals, totals, the year-on-year comparison — is of
+  // what was asked for. Last year is narrowed the same way, or the comparison
+  // would set one category against the whole portfolio.
+  const narrow = (report: ProjectReport | null) =>
+    report ? { ...report, items: filterItems(report.items, selection) } : null;
+
+  const blocks = await Promise.all(
+    loaded.map(async ({ project, streams: loadedStreams }) => {
+      const streams = loadedStreams.map((entry) => ({
+        stream: entry.stream,
+        current: narrow(entry.current),
+        previous: narrow(entry.previous),
+      }));
       return {
         project,
         // A stream a project has never reported is dropped rather than shown
@@ -93,9 +142,8 @@ export default async function ProjectsPage({
     projectParam === ALL_PROJECTS
       ? "All projects"
       : (projects.find((p) => p.id === projectParam)?.label ?? "All projects"),
-    streamParam === ALL_STREAMS
-      ? "All categories"
-      : projectStreamLabel(streamParam),
+    streamParam === ALL_STREAMS ? "All reports" : projectStreamLabel(streamParam),
+    categorySelectionLabel(selection),
   ].join(" · ");
 
   return (
@@ -115,6 +163,8 @@ export default async function ProjectsPage({
             projects={projects}
             selectedProject={projectParam}
             selectedStream={streamParam}
+            options={options}
+            selectedCategory={categorySelectionValue(selection)}
           />
           <div className="mb-0.5">
             <ExportPdfButton label="Export PDF" />
@@ -149,6 +199,7 @@ export default async function ProjectsPage({
                   year={year}
                   current={current}
                   previous={previous}
+                  selection={selection}
                 />
               ))
             )}
@@ -164,6 +215,7 @@ export default async function ProjectsPage({
           year={year}
           scopeLabel={scopeLabel}
           blocks={blocks}
+          selection={selection}
           presenter={profile.full_name || profile.email}
         />
       </PrintPortal>

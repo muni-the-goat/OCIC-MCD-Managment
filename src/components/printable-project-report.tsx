@@ -1,9 +1,11 @@
 import { OcicLogo } from "@/components/ocic-logo";
 import { Fragment } from "react";
 import {
+  ALL_SELECTION,
   bandColumnCount,
   bandItems,
   compareYears,
+  type CategorySelection,
   currency,
   groupIntoBands,
   hasNamedProperties,
@@ -95,7 +97,9 @@ export function PrintableProjectReport({
   scopeLabel,
   blocks,
   presenter,
+  selection = ALL_SELECTION,
 }: {
+  selection?: CategorySelection;
   year: number;
   scopeLabel: string;
   blocks: PrintBlock[];
@@ -141,7 +145,7 @@ export function PrintableProjectReport({
             const tracksUnits = streamTracksUnits(stream);
             const months = reportedMonths(items);
             const totals = yearTotals(items);
-            const bands = groupIntoBands(items);
+            const bands = groupIntoBands(items, selection);
             const comparison = previous
               ? compareYears(items, previous.items)
               : null;
