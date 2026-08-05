@@ -166,17 +166,29 @@ A Head of Department is absent, which is the separation running both ways: they 
 
 Three filters, all in the URL so a view can be linked: **project**, **category** (the stream) and **year**. "All" is the default for the first two and stays out of the query string, so a pasted link carries only what was actually chosen.
 
-### Two levels, not one
+### Land, and everything built on it
 
-Every project report carries the same four headings — **Land, House, Condo, Commercial** — with the individual units beneath whichever one they belong to. The Elysee is not a column in its own right; it is a building inside a category. All four appear on every table whether or not a project traded in all of them, because a header that changes between projects is one you re-read each time; an untraded category renders as a column of em dashes.
+Every project report reads in two bands — **Land** and **Built properties**, the second holding House, Condo and Commercial with their total. That is the first question asked of every report, and it is how the Vice President asked for it.
+
+A column is a **category**, not a building. The Elysée is not a column in its own right: it is a building, inside a category, inside a band. It was a column once, and Koh Pich's leasing table needed thirteen of them — a row nobody could read across, whose Total fell off the right edge of the printed page. The categories still appear whether or not a project traded in them, because a header that changes between projects is one you re-read each time; an untraded one renders as a column of em dashes.
 
 This is the `section` level `budget_items` has carried since `0001` and `0018` deliberately left out. That call was right about the workbook and wrong about how the office reads it.
 
-- A category holding **one unit named after itself** — which is how the sales report is shaped — renders a single column with no sub-header, since repeating "Land" underneath "Land" is a second row of the same information.
-- A **subtotal column appears only when a category holds two or more units**. With one, it would restate the column beside it.
-- `groupByCategory()` and `columnsFor()` are shared by the screen and the PDF, so the two cannot drift into disagreeing about how many columns a category occupies.
+- A band that is **a single column named after itself** — Land, or a category filed outside the two — renders with no sub-header, since repeating "Land" underneath "Land" is a second row of the same information.
+- **No summary column restates the one beside it.** A band's subtotal stands down when it is the only band on the table, because the Total already carries that figure; the Total column stands down when there is only one column to add up. Both fall out of filtering to a single tier, and a check that always agrees teaches the reader the check is worthless.
+- The **buildings come back as rows**, in a "By property" table under each summary — read down the page rather than across it, so a project can take on another property without the table growing sideways. It is rendered only where a property is named something its category is not: the sales report files one row per category, and a detail table there would repeat the summary word for word.
+- `groupIntoBands()`, `bandColumnCount()` and `showsTotalColumn()` are shared by the screen and the PDF, so the two cannot drift into disagreeing about what the table holds.
 
-**Two spellings of one building.** The leasing report says `The Elysee`, property management says `The Elysée` — both straight from the source workbooks. `0023` categorises both rather than picking one, because renaming somebody's data is a separate decision from categorising it. Worth resolving when someone decides which spelling is correct.
+### Three tiers, one filter
+
+The portfolio is read at three levels, and the filter offers all of them in one list: **Totals** (total land, total built properties), **Categories** (Land, House, Condo, Commercial, plus anything filed outside them), and **Properties** (each named building). The tiers are labelled because "Land" appears in two of them and only its heading says which was chosen.
+
+- The selection is applied **to the rows, before anything is grouped or summed**, so the subtotals, the Total and the year-on-year comparison are all of what was asked for rather than of everything with the rest hidden. Last year is narrowed the same way, or the comparison would set one category against the whole portfolio.
+- A **narrowed table drops the columns it was not asked for**. The fixed shape is right for the full report; a table asked for Commercial that still rules three columns of dashes is answering a question nobody put to it.
+- The properties tier is **built from the reports on screen**, so it never offers a building belonging to a project the reader filtered away, and a value matching nothing falls back to the whole report rather than to a blank page.
+- The stream filter gave up the name "Category" for this and is now **Report**, which is what it selects. Links shared under the old `?category=leasing` still open on Leasing.
+
+**Two spellings of one building — settled.** The leasing report said `The Elysee`, property management `The Elysée`, both straight from the source workbooks. `0023` categorised both rather than picking one, because renaming somebody's data is a separate decision from categorising it. The decision came when the tiered filter offered the reader two properties and each showed half the building: the operator confirmed they are the same, and `0025` settles the data on the accented spelling. The filter matches names with case, spacing and accents set aside, so the day a month is typed the other way again it lands on the building that already exists rather than founding a second one.
 
 **Still unassigned after `0023`:** Night Market, Commercial Lease and Connexion Hub on Koh Pich leasing, and `External` on Chroy Changvar Bay's. Their names suggest an answer; suggestion is not knowledge.
 
@@ -625,10 +637,11 @@ Only office accounts may sign in. Both the rule and the post-login redirect chec
 
 ## PDF export (budget reports)
 
-There are **two** print-to-PDF exports, both browser-driven — the shared button `src/components/export-pdf-button.tsx` only calls `window.print()`, and the browser's own "Save as PDF" produces the file. This was chosen over a headless-Chromium download to avoid a heavy, cold-start-prone dependency on Vercel; the output is a real vector PDF with selectable text. Both reuse one set of `@media print` rules in `globals.css` that hide the app shell and reveal only the `.print-only` region on the page.
+There are **three** print-to-PDF exports, all browser-driven — the shared button `src/components/export-pdf-button.tsx` only calls `window.print()`, and the browser's own "Save as PDF" produces the file. This was chosen over a headless-Chromium download to avoid a heavy, cold-start-prone dependency on Vercel; the output is a real vector PDF with selectable text. Both reuse one set of `@media print` rules in `globals.css` that hide the app shell and reveal only the `.print-only` region on the page.
 
 1. **Single report** — an **Export PDF** button on a budget report's detail page. Layout in `src/components/printable-budget-report.tsx`; details below.
-2. **Whole annual budget** — an **Export budget PDF** button on the dashboard's Annual budget card, shown to the roles that see the department matrix (Admin, Head of Department) when the current selection has data. Layout in `src/components/printable-annual-budget.tsx`: the FY approval (approved / spent / remaining), the **department × month matrix** with its `% of budget` (or `% of year`) column, then **one line-item table per department** — the shape of the team's *Actual Expenses* workbook. It prints the current year/author selection (what you see is what you print), and reuses the exact `matrixItems` array the on-screen matrix is built from, so the printed totals reconcile with the page. Per-department tables show only the months a department actually spent in, so a portrait page is not overrun by empty columns.
+2. **Project performance** — an **Export PDF** button on the Projects page. Layout in `src/components/printable-project-report.tsx`; details below.
+3. **Whole annual budget** — an **Export budget PDF** button on the dashboard's Annual budget card, shown to the roles that see the department matrix (Admin, Head of Department) when the current selection has data. Layout in `src/components/printable-annual-budget.tsx`: the FY approval (approved / spent / remaining), the **department × month matrix** with its `% of budget` (or `% of year`) column, then **one line-item table per department** — the shape of the team's *Actual Expenses* workbook. It prints the current year/author selection (what you see is what you print), and reuses the exact `matrixItems` array the on-screen matrix is built from, so the printed totals reconcile with the page. Per-department tables show only the months a department actually spent in, so a portrait page is not overrun by empty columns.
 
 ### Single-report layout
 
@@ -639,6 +652,16 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 - **The letterhead logo uses `priority`** so it eager-loads despite sitting in a `display:none` container; a lazy image there can print blank.
 - **Only budget reports** get the button and the print component today. Activity reports are the next format to add (they need a different print body — the four narrative blocks), and the sample for them has not been supplied yet.
 - **Attachments are not embedded.** Print-to-PDF only captures the page's own HTML; attached files live in Supabase storage behind signed URLs. Merging them into the PDF would require the server-generated route this deliberately avoids.
+
+### Project performance layout
+
+Same machinery as the budget documents — `.print-only`, the letterhead, the `print-table` rules — so the exports come out of the same house. The wording differs deliberately: this one is carried into a room and presented, so it names its period, its scope and the person presenting it.
+
+- **It prints landscape**, alone among the three, via a named page (`@page projects` + `.print-doc-wide`). The document is a matrix, and portrait could not hold it: the columns that fell off the right edge were the Total and the year-on-year figures the meeting is there to see. Named, so the budget documents — which are narrow — stay portrait. Needs Chrome 85+ / Safari 18.4+; an older browser ignores the rule and prints portrait, which is where this started.
+- **The type steps down with the column count** (`data-density` on the table: normal, then dense past ten columns, tight past fourteen). Bands hold the summary to about seven columns, so the ladder is the guard for a table that outgrows landscape — the by-property table at twelve months and a new building, say. A figure set small is readable; a figure cropped off the paper is not.
+- **The header repeats across pages, the total does not.** Chrome repeats a `tfoot` on every page a table spans, so a leasing table that broke after May printed the full-year Total at the foot of that page, directly under five months it did not describe — a figure someone would have read aloud. `tfoot { display: table-row-group }` prints it once, after the last month it covers.
+- **It prints what the filters select**, scope line included, so the PDF and the page cannot disagree about what the reader was looking at when they pressed Export.
+- **Verification is by rendering, not reading.** The layout claims above were checked by printing the real print stylesheet through headless Chrome and measuring the output — the page box, the rightmost text position, and the number of times the grand total appears in the PDF. Two of the three problems it caught were invisible in the markup.
 
 ## Database migration history
 
@@ -666,6 +689,8 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 
 17. `0018_project_reports.sql` — adds `project_reports` and `project_report_items`, the read/write predicates for them, the VP Assistant narrowing, and the seeded 2025–2026 Jan–June figures. Validated by running it against a scratch Postgres 17 and checking every aggregate against the workbook. **Applied.**
 
+23. `0025_the_elysee_one_spelling.sql` — renames every spelling of The Elysée onto the accented one, so the leasing and property-management reports name the same building. Refuses to run if a single report holds both: two rows of real figures for one building could be a duplicate to merge or two halves to add, and a migration cannot tell which. **Applied.**
+
 22. `0024_item_identity_is_name.sql` — de-duplicates `project_report_items` and moves uniqueness from `(report_id, category, name)` back to `(report_id, name)`. **Not yet applied.**
 
 21. `0023_koh_pich_categories.sql` — files the Koh Pich buildings: The Elysée as Commercial, La Seine / Elite Cove / Elite Garden as House, across both the leasing and property-management reports. Adds Diamond Bay Garden as a Condo on property management. **Applied.**
@@ -678,7 +703,7 @@ There are **two** print-to-PDF exports, both browser-driven — the shared butto
 
 17. `0019_vice_president_projects_only.sql` — narrows `is_privileged()` to Admin and Head of Department, and names the project-report predicates outright so the Vice President keeps the side they were given. Three function bodies; nine policies follow. **Applied.**
 
-Migrations `0001`–`0023` are confirmed applied in Supabase; `0024` is pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0023` and `0025` are confirmed applied in Supabase. `0024` was still listed as pending when `0025` was run; confirm it before relying on `(report_id, name)` being unique. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
