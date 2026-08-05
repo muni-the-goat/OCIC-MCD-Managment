@@ -6,7 +6,9 @@ import {
   compareYears,
   currency,
   groupIntoBands,
+  hasNamedProperties,
   monthTotals,
+  propertyGroups,
   reportedMonths,
   yearTotals,
   type ProjectRecord,
@@ -146,6 +148,9 @@ export function PrintableProjectReport({
             // Month, every band's columns, Total.
             const columns =
               2 + bands.reduce((n, band) => n + bandColumnCount(band), 0);
+            const properties = hasNamedProperties(items)
+              ? propertyGroups(items)
+              : [];
 
             return (
               <section
@@ -286,6 +291,65 @@ export function PrintableProjectReport({
                         </tr>
                       </tfoot>
                     </table>
+
+                    {/* The summary says how much land and how much built. This
+                        says which building — the figures the category columns
+                        are made of, read down the page instead of across it. */}
+                    {properties.length > 0 ? (
+                      <>
+                        <p className="print-detail-title">By property</p>
+                        <table
+                          className="print-table"
+                          data-density={densityFor(months.length + 2)}
+                        >
+                          <thead>
+                            <tr>
+                              <th className="pt-item">Property</th>
+                              {months.map((monthIndex) => (
+                                <th key={monthIndex} className="pt-num">
+                                  {MONTH_NAMES[monthIndex]}
+                                </th>
+                              ))}
+                              <th className="pt-num">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {properties.map((group) => (
+                              <Fragment key={group.category}>
+                                <tr className="pt-section">
+                                  <td colSpan={months.length + 2}>
+                                    {group.category}
+                                  </td>
+                                </tr>
+                                {group.items.map((item) => (
+                                  <tr key={item.id}>
+                                    <td>{item.name}</td>
+                                    {months.map((monthIndex) => (
+                                      <td key={monthIndex} className="pt-num">
+                                        <Figure
+                                          totals={monthTotals(
+                                            [item],
+                                            monthIndex
+                                          )}
+                                          tracksUnits={tracksUnits}
+                                        />
+                                      </td>
+                                    ))}
+                                    <td className="pt-num">
+                                      <Figure
+                                        totals={yearTotals([item])}
+                                        tracksUnits={tracksUnits}
+                                        isTotal
+                                      />
+                                    </td>
+                                  </tr>
+                                ))}
+                              </Fragment>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
+                    ) : null}
 
                     {comparison && comparison.months.length > 0 ? (
                       <table className="print-table print-compare">

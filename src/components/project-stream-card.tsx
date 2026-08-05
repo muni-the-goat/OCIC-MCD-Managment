@@ -13,7 +13,9 @@ import {
   compareYears,
   currency,
   groupIntoBands,
+  hasNamedProperties,
   monthTotals,
+  propertyGroups,
   reportedMonths,
   yearTotals,
 } from "@/lib/project-reports";
@@ -132,6 +134,7 @@ export function ProjectStreamCard({
   const totals = yearTotals(items);
   const bands = groupIntoBands(items);
   const comparison = previous ? compareYears(items, previous.items) : null;
+  const properties = hasNamedProperties(items) ? propertyGroups(items) : [];
 
   if (items.length === 0) {
     return (
@@ -339,6 +342,91 @@ export function ProjectStreamCard({
             </tfoot>
           </table>
         </div>
+
+        {/* The table above says how much land and how much built. This says
+            which building — the figures those category columns are made of,
+            read down the page rather than across it, so a project can take on
+            another property without the table growing sideways. */}
+        {properties.length > 0 ? (
+          <div className="space-y-2">
+            <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              By property
+            </p>
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full min-w-max border-separate border-spacing-0 text-sm">
+                <caption className="sr-only">
+                  {projectStreamLabel(stream)} {year}, by property and month
+                </caption>
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th
+                      scope="col"
+                      className="sticky left-0 z-10 border-b bg-muted px-3 py-2 text-left font-medium"
+                    >
+                      Property
+                    </th>
+                    {months.map((monthIndex) => (
+                      <th
+                        key={monthIndex}
+                        scope="col"
+                        className="border-b border-l px-4 py-2 text-right font-medium whitespace-nowrap"
+                      >
+                        {MONTH_SHORT[monthIndex]}
+                      </th>
+                    ))}
+                    <th
+                      scope="col"
+                      className="border-b border-l-2 px-4 py-2 text-right font-medium"
+                    >
+                      Total
+                    </th>
+                  </tr>
+                </thead>
+                {properties.map((propertyGroup) => (
+                  <tbody key={propertyGroup.category}>
+                    <tr>
+                      <th
+                        scope="colgroup"
+                        colSpan={months.length + 2}
+                        className="sticky left-0 border-b bg-muted/40 px-3 py-1.5 text-left font-label text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                      >
+                        {propertyGroup.category}
+                      </th>
+                    </tr>
+                    {propertyGroup.items.map((item) => (
+                      <tr key={item.id} className="group">
+                        <th
+                          scope="row"
+                          className="sticky left-0 z-10 border-b bg-card px-3 py-2.5 text-left font-normal whitespace-nowrap group-hover:bg-muted/40"
+                        >
+                          {item.name}
+                        </th>
+                        {months.map((monthIndex) => (
+                          <td
+                            key={monthIndex}
+                            className="border-b border-l px-4 py-2.5 text-right group-hover:bg-muted/40"
+                          >
+                            <Figure
+                              {...monthTotals([item], monthIndex)}
+                              showUnits={tracksUnits}
+                            />
+                          </td>
+                        ))}
+                        <td className="border-b border-l-2 bg-muted/20 px-4 py-2.5 text-right group-hover:bg-muted/40">
+                          <Figure
+                            {...yearTotals([item])}
+                            showUnits={tracksUnits}
+                            strong
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                ))}
+              </table>
+            </div>
+          </div>
+        ) : null}
 
         {comparison && comparison.months.length > 0 ? (
           <div className="rounded-xl border bg-muted/30 p-4">

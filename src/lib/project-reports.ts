@@ -225,6 +225,45 @@ export function bandItems(band: ReportBand): ProjectReportItem[] {
   return band.columns.flatMap((column) => column.items);
 }
 
+// The properties behind the categories, in band order, skipping the categories
+// nothing was filed under.
+//
+// The summary table answers "how much land, how much built". This answers "and
+// which building" — the question the per-building columns used to answer badly,
+// by making the reader track a figure across thirteen of them. As rows it reads
+// down instead of across, and a project can add a property without the table
+// growing sideways.
+export interface PropertyGroup {
+  category: string;
+  items: ProjectReportItem[];
+}
+
+export function propertyGroups(
+  items: readonly ProjectReportItem[]
+): PropertyGroup[] {
+  return groupIntoBands(items)
+    .flatMap((band) => band.columns)
+    .filter((column) => column.items.length > 0)
+    .map((column) => ({
+      category: column.label,
+      items: [...column.items].sort(
+        (a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)
+      ),
+    }));
+}
+
+// Whether naming the properties would say anything the summary has not. The
+// sales report files one row per category, named after it — "House" inside
+// House — so a detail table there would be the same figures under the same
+// words, which is a table that wastes the reader's time.
+export function hasNamedProperties(
+  items: readonly ProjectReportItem[]
+): boolean {
+  return items.some(
+    (item) => item.name.trim() !== (item.category?.trim() || UNASSIGNED_CATEGORY)
+  );
+}
+
 // How many table columns a band occupies: one per category, plus its subtotal
 // where it has one. Shared by the screen table and the print document, which
 // used to carry a copy each and could have drifted into disagreeing about a
