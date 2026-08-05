@@ -1,6 +1,22 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  Building2,
+  CalendarDays,
+  ChartColumnBig,
+  Handshake,
+  KeyRound,
+  Minus,
+  Plus,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { ProjectFilters } from "@/components/project-filters";
+import { ProjectStatCard } from "@/components/project-stat-card";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -19,6 +35,7 @@ import {
   categoryOptions,
   categorySelectionValue,
   compareYears,
+  type Comparison,
   currency,
   filterItems,
   monthTotals,
@@ -36,10 +53,33 @@ import {
   MONTH_SHORT,
   PROJECT_STREAMS,
   projectStreamLabel,
+  roleLabel,
   streamTracksUnits,
   type ProjectReport,
   type ProjectStream,
 } from "@/lib/types";
+
+// One per report, so the three cards are told apart before the words are read.
+const STREAM_ICONS: Record<ProjectStream, LucideIcon> = {
+  sales: Handshake,
+  leasing: KeyRound,
+  property_management: Building2,
+};
+
+function Chip({
+  icon: Icon,
+  children,
+}: {
+  icon: LucideIcon;
+  children: React.ReactNode;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground">
+      <Icon className="size-3.5 text-muted-foreground" />
+      {children}
+    </span>
+  );
+}
 
 export const metadata = { title: "Dashboard" };
 
@@ -227,30 +267,124 @@ export default async function ProjectsDashboardPage({
       .find((entry) => entry.previousYear !== null)?.previousYear ?? null;
 
   const firstName = (profile.full_name || profile.email).split(" ")[0];
+  const now = new Date();
+
+  // One card per report, added across whichever projects are on screen. On the
+  // shared months, like every other comparison here.
+  const headline = PROJECT_STREAMS.map((stream) => {
+    const entries = shownBlocks
+      .flatMap((block) => block.streams)
+      .filter((entry) => entry.stream === stream && entry.comparison);
+    const sum = (pick: (c: Comparison) => number) =>
+      entries.reduce((total, entry) => total + pick(entry.comparison!), 0);
+
+    const value = sum((c) => c.current.amount);
+    const previous = sum((c) => c.previous.amount);
+    return {
+      stream,
+      value,
+      previous,
+      change: value - previous,
+      // Recomputed from the summed figures rather than averaged out of the
+      // per-project ones, which would weight a small project like a large one.
+      percent: previous === 0 ? null : ((value - previous) / previous) * 100,
+      units: sum((c) => c.current.units),
+      previousUnits: sum((c) => c.previous.units),
+      months: entries[0]?.comparison?.months ?? [],
+    };
+  }).filter((row) => row.value !== 0 || row.previous !== 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            Bonjour, {firstName}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Welcome to the MCD projects dashboard — {year}
-            {previousYear === null ? "" : ` against ${previousYear}`}, across
-            OCIC&apos;s sales, leasing and property management.
-          </p>
+    <div className="space-y-5">
+      <section className="rounded-2xl bg-card p-5 shadow-xs ring-1 ring-foreground/10 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
+          <div className="flex min-w-0 items-center gap-4">
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <ChartColumnBig className="size-6" />
+            </span>
+            <div className="min-w-0">
+              <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Projects workspace
+              </p>
+              <h1 className="truncate font-heading text-2xl font-semibold tracking-tight">
+                Bonjour, {firstName}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {previousYear === null
+                  ? `Here is how ${year} is going.`
+                  : `Here is how ${year} is tracking against ${previousYear}.`}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Chip icon={CalendarDays}>
+              {now.toLocaleDateString("en-GB", {
+                month: "long",
+                year: "numeric",
+              })}
+            </Chip>
+            <Chip icon={ShieldCheck}>{roleLabel(profile.role)}</Chip>
+            <Chip icon={Building2}>
+              {shownProjects.length}{" "}
+              {shownProjects.length === 1 ? "project" : "projects"}
+            </Chip>
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="gap-1.5 rounded-full"
+            >
+              <Link href="/projects">
+                Full tables
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+            <Button asChild size="sm" className="gap-1.5 rounded-full">
+              <Link href="/projects/new">
+                <Plus className="size-4" />
+                New report
+              </Link>
+            </Button>
+          </div>
         </div>
-        <ProjectFilters
-          years={years}
-          selectedYear={year}
-          projects={projects}
-          selectedProject={projectParam}
-          selectedStream={streamParam}
-          options={options}
-          selectedCategory={categorySelectionValue(selection)}
-        />
-      </div>
+      </section>
+
+      <ProjectFilters
+        years={years}
+        selectedYear={year}
+        projects={projects}
+        selectedProject={projectParam}
+        selectedStream={streamParam}
+        options={options}
+        selectedCategory={categorySelectionValue(selection)}
+      />
+
+      {headline.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {headline.map((row) => (
+            <ProjectStatCard
+              key={row.stream}
+              label={projectStreamLabel(row.stream)}
+              icon={STREAM_ICONS[row.stream]}
+              caption={
+                row.months.length === 0
+                  ? `${year}, with no earlier year to set it against`
+                  : `${MONTH_SHORT[row.months[0]]}–${MONTH_SHORT[row.months[row.months.length - 1]]} ${year}, against ${previousYear}`
+              }
+              value={row.value}
+              previous={row.previous}
+              change={row.change}
+              percent={row.percent}
+              units={
+                streamTracksUnits(row.stream) ? row.units : undefined
+              }
+              previousUnits={
+                streamTracksUnits(row.stream) ? row.previousUnits : undefined
+              }
+            />
+          ))}
+        </div>
+      ) : null}
 
       {shownBlocks.length === 0 ? (
         <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
@@ -309,7 +443,13 @@ export default async function ProjectsDashboardPage({
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-5">
-                      {comparison && comparison.months.length > 0 ? (
+                      {/* The cards at the top already carry these figures, and
+                          with one project on screen they are the same figures.
+                          They earn their place only where there is more than
+                          one project for the roll-up to have rolled up. */}
+                      {shownProjects.length > 1 &&
+                      comparison &&
+                      comparison.months.length > 0 ? (
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div className="space-y-1">
                             <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
