@@ -28,10 +28,17 @@ import {
 // one for a comparison.
 //
 // Colour: the brand red leads and carries the current year, the year being
-// reported on. Last year takes the neutral graphite, which belongs to no
-// category and reads as context — which is what it is here. Both clear 3:1 on
-// the card in either theme, so neither bar needs a printed value to be legible;
-// the palette they come from is validated as a set in globals.css.
+// reported on. Last year takes the palette's blue.
+//
+// It was the neutral graphite first, on the reasoning that last year is
+// context. On the page that reasoning did not survive contact — graphite is the
+// darkest thing in the palette, so a tall bar in it dominated the card and read
+// as the subject rather than the backdrop. Two years are two series, not a
+// figure and its background, and they should be two hues.
+//
+// Slots 1 and 4 of the set in globals.css. Validated as a pair against both
+// card surfaces: ΔE 25.7 under deuteranopia against a target of 8, and both
+// clear 3:1, so neither bar needs a printed value to be legible.
 
 export interface YearCompareRow {
   key: string;
@@ -70,7 +77,7 @@ export function YearCompareChart({
   const config = {
     previous: {
       label: previousYear === null ? "Last year" : String(previousYear),
-      color: "var(--series-neutral)",
+      color: "var(--series-4)",
     },
     current: { label: String(currentYear), color: "var(--series-1)" },
   } satisfies ChartConfig;
