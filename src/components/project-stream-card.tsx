@@ -19,6 +19,7 @@ import {
   monthTotals,
   propertyGroups,
   reportedMonths,
+  showsTotalColumn,
   yearTotals,
 } from "@/lib/project-reports";
 import { cn } from "@/lib/utils";
@@ -140,6 +141,7 @@ export function ProjectStreamCard({
   const months = reportedMonths(items);
   const totals = yearTotals(items);
   const bands = groupIntoBands(items, selection);
+  const showsTotal = showsTotalColumn(bands);
   const comparison = previous ? compareYears(items, previous.items) : null;
   const properties = hasNamedProperties(items) ? propertyGroups(items) : [];
 
@@ -206,13 +208,15 @@ export function ProjectStreamCard({
                     {band.label}
                   </th>
                 ))}
-                <th
-                  scope="col"
-                  rowSpan={2}
-                  className="border-b border-l-2 px-4 py-2 text-right align-bottom font-medium"
-                >
-                  Total
-                </th>
+                {showsTotal ? (
+                  <th
+                    scope="col"
+                    rowSpan={2}
+                    className="border-b border-l-2 px-4 py-2 text-right align-bottom font-medium"
+                  >
+                    Total
+                  </th>
+                ) : null}
               </tr>
               <tr className="bg-muted/50">
                 {bands.map((band) =>
@@ -289,14 +293,16 @@ export function ProjectStreamCard({
                         ) : null}
                       </Fragment>
                     ))}
-                    <td className="border-b border-l-2 bg-muted/20 px-4 py-2.5 text-right group-hover:bg-muted/40">
-                      <Figure
-                        amount={row.amount}
-                        units={row.units}
-                        showUnits={tracksUnits}
-                        strong
-                      />
-                    </td>
+                    {showsTotal ? (
+                      <td className="border-b border-l-2 bg-muted/20 px-4 py-2.5 text-right group-hover:bg-muted/40">
+                        <Figure
+                          amount={row.amount}
+                          units={row.units}
+                          showUnits={tracksUnits}
+                          strong
+                        />
+                      </td>
+                    ) : null}
                   </tr>
                 );
               })}
@@ -337,14 +343,16 @@ export function ProjectStreamCard({
                     ) : null}
                   </Fragment>
                 ))}
-                <td className="border-t-2 border-l-2 px-4 py-2.5 text-right">
-                  <Figure
-                    amount={totals.amount}
-                    units={totals.units}
-                    showUnits={tracksUnits}
-                    strong
-                  />
-                </td>
+                {showsTotal ? (
+                  <td className="border-t-2 border-l-2 px-4 py-2.5 text-right">
+                    <Figure
+                      amount={totals.amount}
+                      units={totals.units}
+                      showUnits={tracksUnits}
+                      strong
+                    />
+                  </td>
+                ) : null}
               </tr>
             </tfoot>
           </table>

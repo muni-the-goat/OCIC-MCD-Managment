@@ -12,6 +12,7 @@ import {
   monthTotals,
   propertyGroups,
   reportedMonths,
+  showsTotalColumn,
   yearTotals,
   type ProjectRecord,
   type StreamTotals,
@@ -146,12 +147,15 @@ export function PrintableProjectReport({
             const months = reportedMonths(items);
             const totals = yearTotals(items);
             const bands = groupIntoBands(items, selection);
+            const showsTotal = showsTotalColumn(bands);
             const comparison = previous
               ? compareYears(items, previous.items)
               : null;
-            // Month, every band's columns, Total.
+            // Month, every band's columns, and Total where it is shown.
             const columns =
-              2 + bands.reduce((n, band) => n + bandColumnCount(band), 0);
+              1 +
+              (showsTotal ? 1 : 0) +
+              bands.reduce((n, band) => n + bandColumnCount(band), 0);
             const properties = hasNamedProperties(items)
               ? propertyGroups(items)
               : [];
@@ -192,9 +196,11 @@ export function PrintableProjectReport({
                               {band.label}
                             </th>
                           ))}
-                          <th className="pt-num" rowSpan={2}>
-                            Total
-                          </th>
+                          {showsTotal ? (
+                            <th className="pt-num" rowSpan={2}>
+                              Total
+                            </th>
+                          ) : null}
                         </tr>
                         <tr>
                           {bands.map((band) =>
@@ -250,12 +256,14 @@ export function PrintableProjectReport({
                                   ) : null}
                                 </Fragment>
                               ))}
-                              <td className="pt-num">
-                                <Figure
-                                  totals={row}
-                                  tracksUnits={tracksUnits}
-                                />
-                              </td>
+                              {showsTotal ? (
+                                <td className="pt-num">
+                                  <Figure
+                                    totals={row}
+                                    tracksUnits={tracksUnits}
+                                  />
+                                </td>
+                              ) : null}
                             </tr>
                           );
                         })}
@@ -285,13 +293,15 @@ export function PrintableProjectReport({
                               ) : null}
                             </Fragment>
                           ))}
-                          <td className="pt-num">
-                            <Figure
-                              totals={totals}
-                              tracksUnits={tracksUnits}
-                              isTotal
-                            />
-                          </td>
+                          {showsTotal ? (
+                            <td className="pt-num">
+                              <Figure
+                                totals={totals}
+                                tracksUnits={tracksUnits}
+                                isTotal
+                              />
+                            </td>
+                          ) : null}
                         </tr>
                       </tfoot>
                     </table>

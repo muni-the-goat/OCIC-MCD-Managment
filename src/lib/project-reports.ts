@@ -187,6 +187,25 @@ function categoryOf(item: ProjectReportItem): string {
   return item.category?.trim() || UNASSIGNED_CATEGORY;
 }
 
+// Two spellings of one building are one property. The Elysée was entered with
+// its accent in the property management report and without it in leasing, and
+// because a unit's name is its identity the filter offered both — picking
+// either showed half the building.
+//
+// Migration 0025 settles the spelling in the data. This is what keeps the
+// filter right afterwards: the day somebody types "the elysee" into a new
+// month, it lands on the property that already exists rather than founding a
+// second one. Case, spacing and accents are set aside; nothing else is, so two
+// buildings that genuinely differ stay apart.
+function propertyKey(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/\s+/g, " ");
+}
+
 // The band a category belongs to. Anything outside the two stands as its own,
 // the same rule the table follows.
 export function bandOf(category: string): string {
@@ -216,8 +235,10 @@ export function filterItems(
       return items.filter((item) => bandOf(categoryOf(item)) === selection.label);
     case "category":
       return items.filter((item) => categoryOf(item) === selection.label);
-    case "property":
-      return items.filter((item) => item.name.trim() === selection.name);
+    case "property": {
+      const key = propertyKey(selection.name);
+      return items.filter((item) => propertyKey(item.name) === key);
+    }
   }
 }
 
@@ -278,7 +299,7 @@ export function groupIntoBands(
 
   const builtColumns = BUILT_CATEGORIES.filter(shown).map(column);
 
-  return [
+  const bands = [
     ...(shown(LAND_CATEGORY)
       ? [
           {
@@ -306,6 +327,20 @@ export function groupIntoBands(
       showSubtotal: false,
     })),
   ];
+
+  // With one band on the table, its subtotal and the table's Total are the same
+  // figure in adjacent columns — which is what filtering to Built properties
+  // produced. The Total column keeps the name; the subtotal stands down.
+  return bands.length === 1
+    ? bands.map((band) => ({ ...band, showSubtotal: false }))
+    : bands;
+}
+
+// The Total column earns its place once there is more than one column to add
+// up. Filtered to a single category it would restate that column exactly, and
+// the year's figure is still on the Total row underneath either way.
+export function showsTotalColumn(bands: readonly ReportBand[]): boolean {
+  return bands.reduce((n, band) => n + band.columns.length, 0) > 1;
 }
 
 // Every unit under a band, for its subtotal — the "total built properties"
@@ -367,12 +402,19 @@ export function categoryOptions(
     // A row named after its own category is the category, not a property under
     // it — the sales report is filed that way, and listing "House" under
     // properties would be the same word offered twice.
+    //
+    // One entry per building, not per spelling of it. Where the reports
+    // disagree the list shows the first spelling in order, and the filter
+    // matches every variant of it either way.
     properties: [
-      ...new Set(
+      ...new Map(
         items
           .filter((item) => item.name.trim() !== categoryOf(item))
           .map((item) => item.name.trim())
-      ),
+          .sort((a, b) => a.localeCompare(b))
+          .map((name) => [propertyKey(name), name] as const)
+          .reverse()
+      ).values(),
     ].sort((a, b) => a.localeCompare(b)),
   };
 }
@@ -394,8 +436,13 @@ export function parseCategorySelection(
   if (kind === "category" && options.categories.includes(label)) {
     return { kind: "category", label };
   }
-  if (kind === "property" && options.properties.includes(label)) {
-    return { kind: "property", name: label };
+  if (kind === "property") {
+    // Matched loosely, so a link someone sent naming the other spelling still
+    // opens on the building rather than falling back to the whole report.
+    const known = options.properties.find(
+      (property) => propertyKey(property) === propertyKey(label)
+    );
+    if (known) return { kind: "property", name: known };
   }
   return ALL_SELECTION;
 }
