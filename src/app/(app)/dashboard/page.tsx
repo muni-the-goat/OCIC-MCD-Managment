@@ -100,7 +100,10 @@ export default async function DashboardPage({
   // with four zeroes and an empty list. The projects dashboard is their home;
   // src/proxy.ts sends "/" here for everyone, so the redirect belongs here
   // rather than in the middleware, which would have to read a profile to know.
-  if (livesOnProjectsOnly(profile.role)) redirect("/projects");
+  // Now that the projects side has a dashboard of its own, "Dashboard" means
+  // that one for the roles that live there, rather than dropping them on the
+  // record table.
+  if (livesOnProjectsOnly(profile.role)) redirect("/projects/dashboard");
 
   const supabase = await createClient();
   // Two questions this page kept asking as one. A Coordinator reads every

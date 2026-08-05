@@ -188,6 +188,16 @@ The portfolio is read at three levels, and the filter offers all of them in one 
 - The properties tier is **built from the reports on screen**, so it never offers a building belonging to a project the reader filtered away, and a value matching nothing falls back to the whole report rather than to a blank page.
 - The stream filter gave up the name "Category" for this and is now **Report**, which is what it selects. Links shared under the old `?category=leasing` still open on Leasing.
 
+### The projects dashboard
+
+`/projects/dashboard`, greeting the reader by name. The Projects page is the record — every figure, in the shape the workbook has always had. The dashboard is the reading of it: this year against last, drawn rather than tabulated, because "are we ahead of last year" is a question about two shapes and the table answers it in thirty-four numbers. It carries the same four filters, and `livesOnProjectsOnly()` roles now land here from `/dashboard` rather than on the record table.
+
+- **Paired bars, not paired lines.** The reader is comparing two magnitudes at the same point on the axis — June against June — and paired bars put those two numbers beside each other. A line pair asks the eye to measure a vertical gap instead, which is the right form for a trend and the wrong one for a comparison.
+- **The current year takes the brand red (`--series-1`), last year the graphite (`--series-neutral`)** — the token that belongs to no category and reads as context, which is what last year is here. Both clear 3:1 on the card in either theme, so neither bar needs a printed value to stay legible; the palette is validated as a set in `globals.css`, and dark mode is re-stepped there rather than flipped.
+- **A year with nothing behind it draws one series, not two.** A row of zero bars would claim last year earned nothing rather than that it was never reported, and the legend goes with it.
+- **Every headline figure covers the months both years have reported**, the same rule the printed comparison follows — a half-done year set against a complete one shows a collapse that is really just the calendar. The month chart shows every month either year reported, which is a trend rather than a comparison and honest at full width.
+- One component, `year-compare-chart.tsx`, draws all of it: the axis is months, reports or categories depending on what the caller puts on it, and the question is the same each time.
+
 **Two spellings of one building — settled.** The leasing report said `The Elysee`, property management `The Elysée`, both straight from the source workbooks. `0023` categorised both rather than picking one, because renaming somebody's data is a separate decision from categorising it. The decision came when the tiered filter offered the reader two properties and each showed half the building: the operator confirmed they are the same, and `0025` settles the data on the accented spelling. The filter matches names with case, spacing and accents set aside, so the day a month is typed the other way again it lands on the building that already exists rather than founding a second one.
 
 **Still unassigned after `0023`:** Night Market, Commercial Lease and Connexion Hub on Koh Pich leasing, and `External` on Chroy Changvar Bay's. Their names suggest an answer; suggestion is not knowledge.
@@ -691,7 +701,7 @@ Same machinery as the budget documents — `.print-only`, the letterhead, the `p
 
 23. `0025_the_elysee_one_spelling.sql` — renames every spelling of The Elysée onto the accented one, so the leasing and property-management reports name the same building. Refuses to run if a single report holds both: two rows of real figures for one building could be a duplicate to merge or two halves to add, and a migration cannot tell which. **Applied.**
 
-22. `0024_item_identity_is_name.sql` — de-duplicates `project_report_items` and moves uniqueness from `(report_id, category, name)` back to `(report_id, name)`. **Not yet applied.**
+22. `0024_item_identity_is_name.sql` — de-duplicates `project_report_items` and moves uniqueness from `(report_id, category, name)` back to `(report_id, name)`. **Applied.**
 
 21. `0023_koh_pich_categories.sql` — files the Koh Pich buildings: The Elysée as Commercial, La Seine / Elite Cove / Elite Garden as House, across both the leasing and property-management reports. Adds Diamond Bay Garden as a Condo on property management. **Applied.**
 
@@ -703,7 +713,7 @@ Same machinery as the budget documents — `.print-only`, the letterhead, the `p
 
 17. `0019_vice_president_projects_only.sql` — narrows `is_privileged()` to Admin and Head of Department, and names the project-report predicates outright so the Vice President keeps the side they were given. Three function bodies; nine policies follow. **Applied.**
 
-Migrations `0001`–`0023` and `0025` are confirmed applied in Supabase. `0024` was still listed as pending when `0025` was run; confirm it before relying on `(report_id, name)` being unique. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0025` are confirmed applied in Supabase. The operator runs each one as it is written, so a new migration should be recorded here as applied in the same commit as the SQL rather than left marked pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 

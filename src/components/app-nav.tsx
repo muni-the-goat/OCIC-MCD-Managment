@@ -39,6 +39,7 @@ export function AppNav({ role }: { role: AppRole }) {
 
   const items = projectsOnly
     ? [
+        { href: "/projects/dashboard", label: "Dashboard", icon: "dashboard" },
         { href: "/projects", label: "Projects", icon: "projects" },
         { href: "/projects/new", label: "Project report", icon: "new" },
         // A Vice President keeps account management, so the Users link
@@ -51,8 +52,18 @@ export function AppNav({ role }: { role: AppRole }) {
       ]
     : [
         { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+        // An Admin reads both sides, so both dashboards are named rather than
+        // one of them being "Dashboard" and the other a page you have to know
+        // about.
         ...(seesProjectReports(role)
-          ? [{ href: "/projects", label: "Projects", icon: "projects" }]
+          ? [
+              { href: "/projects", label: "Projects", icon: "projects" },
+              {
+                href: "/projects/dashboard",
+                label: "Projects dashboard",
+                icon: "dashboard",
+              },
+            ]
           : []),
         { href: "/reports", label: "Reports", icon: "reports" },
         { href: "/reports/new", label: "New report", icon: "new" },
