@@ -328,18 +328,21 @@ export function groupIntoBands(
     })),
   ];
 
-  // With one band on the table, its subtotal and the table's Total are the same
-  // figure in adjacent columns — which is what filtering to Built properties
-  // produced. The Total column keeps the name; the subtotal stands down.
-  return bands.length === 1
-    ? bands.map((band) => ({ ...band, showSubtotal: false }))
-    : bands;
+  // A band's subtotal is only worth a row where another band has something to
+  // add to it. With one band carrying every figure — Koh Pich leases no land,
+  // so Built properties is the whole of its leasing report — the subtotal and
+  // the Total are the same number, one directly above the other. The Total
+  // keeps its place; the subtotal stands down.
+  const carrying = bands.filter((band) => bandItems(band).length > 0).length;
+  return carrying > 1
+    ? bands
+    : bands.map((band) => ({ ...band, showSubtotal: false }));
 }
 
-// The Total column earns its place once there is more than one column to add
-// up. Filtered to a single category it would restate that column exactly, and
-// the year's figure is still on the Total row underneath either way.
-export function showsTotalColumn(bands: readonly ReportBand[]): boolean {
+// The grand total earns its place once there is more than one category on the
+// table. Filtered to a single one it would restate that category's row exactly,
+// figure for figure.
+export function showsGrandTotal(bands: readonly ReportBand[]): boolean {
   return bands.reduce((n, band) => n + band.columns.length, 0) > 1;
 }
 
@@ -489,13 +492,6 @@ export function hasNamedProperties(
   );
 }
 
-// How many table columns a band occupies: one per category, plus its subtotal
-// where it has one. Shared by the screen table and the print document, which
-// used to carry a copy each and could have drifted into disagreeing about a
-// header's span.
-export function bandColumnCount(band: ReportBand): number {
-  return band.columns.length + (band.showSubtotal ? 1 : 0);
-}
 
 export const currency = new Intl.NumberFormat("en-US", {
   style: "currency",

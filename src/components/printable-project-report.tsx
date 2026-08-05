@@ -2,7 +2,6 @@ import { OcicLogo } from "@/components/ocic-logo";
 import { Fragment } from "react";
 import {
   ALL_SELECTION,
-  bandColumnCount,
   bandItems,
   compareYears,
   type CategorySelection,
@@ -12,7 +11,7 @@ import {
   monthTotals,
   propertyGroups,
   reportedMonths,
-  showsTotalColumn,
+  showsGrandTotal,
   yearTotals,
   type ProjectRecord,
   type StreamTotals,
@@ -147,15 +146,15 @@ export function PrintableProjectReport({
             const months = reportedMonths(items);
             const totals = yearTotals(items);
             const bands = groupIntoBands(items, selection);
-            const showsTotal = showsTotalColumn(bands);
+            const showsTotal = showsGrandTotal(bands);
             const comparison = previous
               ? compareYears(items, previous.items)
               : null;
-            // Month, every band's columns, and Total where it is shown.
-            const columns =
-              1 +
-              (showsTotal ? 1 : 0) +
-              bands.reduce((n, band) => n + bandColumnCount(band), 0);
+            // The months run across the top now, so the table is as wide as the
+            // year is long: the category name, a column per reported month, and
+            // the year's own total where it earns a place.
+            const showsYearColumn = months.length > 1;
+            const columns = 1 + months.length + (showsYearColumn ? 1 : 0);
             const properties = hasNamedProperties(items)
               ? propertyGroups(items)
               : [];
@@ -180,130 +179,106 @@ export function PrintableProjectReport({
                       data-density={densityFor(columns)}
                     >
                       <thead>
-                        {/* The same two tiers the dashboard shows: Land and
-                            Built properties across the top, the categories
-                            inside each beneath. */}
                         <tr>
-                          <th className="pt-item" rowSpan={2}>
-                            Month
-                          </th>
-                          {bands.map((band) => (
-                            <th
-                              key={band.label}
-                              className="pt-group"
-                              colSpan={bandColumnCount(band)}
-                            >
-                              {band.label}
+                          <th className="pt-item">Category</th>
+                          {months.map((monthIndex) => (
+                            <th key={monthIndex} className="pt-num">
+                              {MONTH_NAMES[monthIndex]}
                             </th>
                           ))}
-                          {showsTotal ? (
-                            <th className="pt-num" rowSpan={2}>
-                              Total
-                            </th>
+                          {showsYearColumn ? (
+                            <th className="pt-num">Total</th>
                           ) : null}
-                        </tr>
-                        <tr>
-                          {bands.map((band) =>
-                            band.selfNamed ? (
-                              <th key={band.label} className="pt-sub-head" />
-                            ) : (
-                              <Fragment key={band.label}>
-                                {band.columns.map((column) => (
-                                  <th
-                                    key={column.label}
-                                    className="pt-sub-head"
-                                  >
-                                    {column.label}
-                                  </th>
-                                ))}
-                                {band.showSubtotal ? (
-                                  <th className="pt-sub-head">Subtotal</th>
-                                ) : null}
-                              </Fragment>
-                            )
-                          )}
                         </tr>
                       </thead>
                       <tbody>
-                        {months.map((monthIndex) => {
-                          const row = monthTotals(items, monthIndex);
-                          return (
-                            <tr key={monthIndex}>
-                              <td>{MONTH_NAMES[monthIndex]}</td>
-                              {bands.map((band) => (
-                                <Fragment key={band.label}>
-                                  {band.columns.map((column) => (
-                                    <td key={column.label} className="pt-num">
-                                      <Figure
-                                        totals={monthTotals(
-                                          column.items,
-                                          monthIndex
-                                        )}
-                                        tracksUnits={tracksUnits}
-                                      />
-                                    </td>
-                                  ))}
-                                  {band.showSubtotal ? (
-                                    <td className="pt-num pt-subtotal">
-                                      <Figure
-                                        totals={monthTotals(
-                                          bandItems(band),
-                                          monthIndex
-                                        )}
-                                        tracksUnits={tracksUnits}
-                                      />
-                                    </td>
-                                  ) : null}
-                                </Fragment>
-                              ))}
-                              {showsTotal ? (
-                                <td className="pt-num">
-                                  <Figure
-                                    totals={row}
-                                    tracksUnits={tracksUnits}
-                                  />
-                                </td>
-                              ) : null}
-                            </tr>
-                          );
-                        })}
+                        {bands.map((band) => (
+                          <Fragment key={band.label}>
+                            {/* A band of one column named after itself — Land —
+                                would head its own single row with the same
+                                word. */}
+                            {band.selfNamed ? null : (
+                              <tr className="pt-section">
+                                <td colSpan={columns}>{band.label}</td>
+                              </tr>
+                            )}
+                            {band.columns.map((column) => (
+                              <tr key={column.label}>
+                                <td>{column.label}</td>
+                                {months.map((monthIndex) => (
+                                  <td key={monthIndex} className="pt-num">
+                                    <Figure
+                                      totals={monthTotals(
+                                        column.items,
+                                        monthIndex
+                                      )}
+                                      tracksUnits={tracksUnits}
+                                    />
+                                  </td>
+                                ))}
+                                {showsYearColumn ? (
+                                  <td className="pt-num">
+                                    <Figure
+                                      totals={yearTotals(column.items)}
+                                      tracksUnits={tracksUnits}
+                                      isTotal={column.items.length > 0}
+                                    />
+                                  </td>
+                                ) : null}
+                              </tr>
+                            ))}
+                            {band.showSubtotal ? (
+                              <tr className="pt-subtotal">
+                                <td>{band.label} total</td>
+                                {months.map((monthIndex) => (
+                                  <td key={monthIndex} className="pt-num">
+                                    <Figure
+                                      totals={monthTotals(
+                                        bandItems(band),
+                                        monthIndex
+                                      )}
+                                      tracksUnits={tracksUnits}
+                                    />
+                                  </td>
+                                ))}
+                                {showsYearColumn ? (
+                                  <td className="pt-num">
+                                    <Figure
+                                      totals={yearTotals(bandItems(band))}
+                                      tracksUnits={tracksUnits}
+                                      isTotal={bandItems(band).length > 0}
+                                    />
+                                  </td>
+                                ) : null}
+                              </tr>
+                            ) : null}
+                          </Fragment>
+                        ))}
                       </tbody>
-                      <tfoot>
-                        <tr className="pt-total">
-                          <td>Total</td>
-                          {bands.map((band) => (
-                            <Fragment key={band.label}>
-                              {band.columns.map((column) => (
-                                <td key={column.label} className="pt-num">
-                                  <Figure
-                                    totals={yearTotals(column.items)}
-                                    tracksUnits={tracksUnits}
-                                    isTotal={column.items.length > 0}
-                                  />
-                                </td>
-                              ))}
-                              {band.showSubtotal ? (
-                                <td className="pt-num pt-subtotal">
-                                  <Figure
-                                    totals={yearTotals(bandItems(band))}
-                                    tracksUnits={tracksUnits}
-                                    isTotal={bandItems(band).length > 0}
-                                  />
-                                </td>
-                              ) : null}
-                            </Fragment>
-                          ))}
-                          {showsTotal ? (
-                            <td className="pt-num">
-                              <Figure
-                                totals={totals}
-                                tracksUnits={tracksUnits}
-                                isTotal
-                              />
-                            </td>
-                          ) : null}
-                        </tr>
-                      </tfoot>
+                      {showsTotal ? (
+                        <tfoot>
+                          <tr className="pt-total">
+                            <td>Total</td>
+                            {months.map((monthIndex) => (
+                              <td key={monthIndex} className="pt-num">
+                                <Figure
+                                  totals={monthTotals(items, monthIndex)}
+                                  tracksUnits={tracksUnits}
+                                />
+                              </td>
+                            ))}
+                            {showsYearColumn ? (
+                              <td className="pt-num">
+                                <Figure
+                                  totals={totals}
+                                  tracksUnits={tracksUnits}
+                                  isTotal
+                                />
+                              </td>
+                            ) : null}
+                          </tr>
+                        </tfoot>
+                      ) : null}
                     </table>
 
                     {/* The summary says how much land and how much built. This

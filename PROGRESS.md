@@ -170,14 +170,16 @@ Three filters, all in the URL so a view can be linked: **project**, **category**
 
 Every project report reads in two bands — **Land** and **Built properties**, the second holding House, Condo and Commercial with their total. That is the first question asked of every report, and it is how the Vice President asked for it.
 
-A column is a **category**, not a building. The Elysée is not a column in its own right: it is a building, inside a category, inside a band. It was a column once, and Koh Pich's leasing table needed thirteen of them — a row nobody could read across, whose Total fell off the right edge of the printed page. The categories still appear whether or not a project traded in them, because a header that changes between projects is one you re-read each time; an untraded one renders as a column of em dashes.
+**The months run across the top and the categories down the side**, which is the way the office reads a monthly report and the shape the by-property table already had. The two tables under a report now differ only in what a row is — a category in one, a building in the other.
+
+A row is a **category**, not a building. The Elysée is not a line of its own in the summary: it is a building, inside a category, inside a band. It was a *column* once, and Koh Pich's leasing table needed thirteen of them — a row nobody could read across, whose Total fell off the right edge of the printed page. The categories still appear whether or not a project traded in them, because a table whose rows change between projects is one you re-read each time; an untraded one renders as a row of em dashes.
 
 This is the `section` level `budget_items` has carried since `0001` and `0018` deliberately left out. That call was right about the workbook and wrong about how the office reads it.
 
-- A band that is **a single column named after itself** — Land, or a category filed outside the two — renders with no sub-header, since repeating "Land" underneath "Land" is a second row of the same information.
-- **No summary column restates the one beside it.** A band's subtotal stands down when it is the only band on the table, because the Total already carries that figure; the Total column stands down when there is only one column to add up. Both fall out of filtering to a single tier, and a check that always agrees teaches the reader the check is worthless.
-- The **buildings come back as rows**, in a "By property" table under each summary — read down the page rather than across it, so a project can take on another property without the table growing sideways. It is rendered only where a property is named something its category is not: the sales report files one row per category, and a detail table there would repeat the summary word for word.
-- `groupIntoBands()`, `bandColumnCount()` and `showsTotalColumn()` are shared by the screen and the PDF, so the two cannot drift into disagreeing about what the table holds.
+- A band that is **a single row named after itself** — Land, or a category filed outside the two — gets no band heading, since "Land" over a row called Land is the same word twice.
+- **No summary line restates the one beside it.** A band's subtotal stands down unless another band is carrying figures to add to it — Koh Pich leases no land, so Built properties is the whole of that report and its subtotal would sit directly above an identical Total. The Total row stands down when only one category is on the table, and the year column when only one month is. Each falls out of a real selection, and a check that always agrees teaches the reader the check is worthless.
+- The **buildings come back as rows**, in a "By property" table under each summary — same columns, one level finer. It is rendered only where a property is named something its category is not: the sales report files one row per category, and a detail table there would repeat the summary word for word.
+- `groupIntoBands()` and `showsGrandTotal()` are shared by the screen and the PDF, so the two cannot drift into disagreeing about what the table holds.
 
 ### Three tiers, one filter
 
