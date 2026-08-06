@@ -114,7 +114,13 @@ export function ResponsiveSelect({
         className={cn(
           // The trigger's shape, so switching between the two is not switching
           // between two designs.
-          "rounded-md border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
+          //
+          // No vertical padding, unlike the trigger it copies. The trigger is a
+          // flex box and centres its own text; a native select is not, so a
+          // fixed height with py-2 left 14px of content box for a 20px line and
+          // clipped every label through the middle. The height centres the text
+          // on its own.
+          "rounded-md border border-input bg-transparent pr-2 pl-2.5 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
           size === "sm" ? "h-8" : "h-9",
           className
         )}
