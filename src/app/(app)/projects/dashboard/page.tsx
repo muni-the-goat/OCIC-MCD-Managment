@@ -354,10 +354,14 @@ export default async function ProjectsDashboardPage({
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
+            {/* "New report" is what the MCD dashboard's button says, and it
+                files a different kind of report entirely. Two buttons with one
+                name, each meaning whichever side of the office you happened to
+                be standing on. */}
             <Button asChild size="sm" className="gap-1.5 rounded-full">
               <Link href="/projects/new">
                 <Plus className="size-4" />
-                New report
+                New project report
               </Link>
             </Button>
           </div>

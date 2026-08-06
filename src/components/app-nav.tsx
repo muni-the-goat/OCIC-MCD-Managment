@@ -54,7 +54,10 @@ export function AppNav({ role }: { role: AppRole }) {
         { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
         // An Admin reads both sides, so both dashboards are named rather than
         // one of them being "Dashboard" and the other a page you have to know
-        // about.
+        // about. The project report form is named here for the same reason: it
+        // was reachable only through a button on the projects dashboard, so an
+        // Admin standing on their own dashboard had no way to file a project
+        // report and no sign that one existed.
         ...(seesProjectReports(role)
           ? [
               { href: "/projects", label: "Projects", icon: "projects" },
@@ -62,6 +65,11 @@ export function AppNav({ role }: { role: AppRole }) {
                 href: "/projects/dashboard",
                 label: "Projects dashboard",
                 icon: "dashboard",
+              },
+              {
+                href: "/projects/new",
+                label: "Project report",
+                icon: "new",
               },
             ]
           : []),
