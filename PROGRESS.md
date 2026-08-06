@@ -635,6 +635,18 @@ Only office accounts may sign in. Both the rule and the post-login redirect chec
 - `safeNextPath` accepts only a same-origin absolute path. It rejects `//evil.com` and `/\evil.com` — browsers normalise `\` to `/` in the authority position — and anything carrying a scheme. Control characters are stripped first so a smuggled tab or newline cannot make the test disagree with what the browser eventually parses. The login page, the login action, and the proxy all route their `next` value through it.
 - This is a convenience and anti-typo guard on the client path, not the security boundary. Row Level Security and the Server Action role guards remain the authority.
 
+### Failed sign-ins
+
+There was no throttle of our own until `0026`. Supabase Auth limits its token endpoint per IP, generously enough to stop a script hammering it and not enough to notice somebody working through a colleague's likely passwords — and the action turned every error it received into "Invalid email or password", so a rate-limited person was told their password was wrong when it may well have been right.
+
+- **Eight failures from one address, on one email, inside fifteen minutes** stops further attempts for the rest of the window. The count is checked *before* the credentials are sent, so a locked address costs an attacker a round trip to our database rather than a guess against Supabase.
+- **Counted by email _and_ by originating address.** By email alone, anyone could lock a colleague out of their own account by failing on it a few times on purpose — a denial of service handed to the first person who noticed it. The pair means an attacker's failures count against the attacker. The forwarded address is spoofable, which is why it only ever groups attempts: a forged value buys a fresh count, never somebody else's lockout.
+- **The message names the way out**: wait fifteen minutes, or ask a coordinator or an administrator to reset the password — which is exactly the pair `canResetPasswords()` allows.
+- **Supabase's own rate-limit response gets the same message**, rather than being reported as a wrong password and sending someone to change a password that was never the problem.
+- **A successful sign-in clears the count**, or six wrong tries, a right one and two more wrong ones would lock an account whose owner had just proved they hold it.
+- **It fails open.** Every read and write is wrapped: a throttle that cannot reach its table lets people in rather than locking the office out of its own reporting. It is a speed bump on guessing, not an authorization boundary — RLS and the action guards remain the authority.
+- `public.login_attempts` has RLS on and **no policies at all**, which denies every anonymous and signed-in client. Only the service-role client writes it. A policy letting anonymous callers insert would be an unauthenticated write endpoint added to defend against unauthenticated writes.
+
 ## Attachments and comments
 
 - Attachments are uploaded inside the report save action.
@@ -701,6 +713,8 @@ Same machinery as the budget documents — `.print-only`, the letterhead, the `p
 
 17. `0018_project_reports.sql` — adds `project_reports` and `project_report_items`, the read/write predicates for them, the VP Assistant narrowing, and the seeded 2025–2026 Jan–June figures. Validated by running it against a scratch Postgres 17 and checking every aggregate against the workbook. **Applied.**
 
+24. `0026_login_attempt_throttle.sql` — adds `public.login_attempts`, so eight wrong passwords from one address inside fifteen minutes stop further attempts and the message names the way out. RLS on, no policies: only the service role touches it. **Applied.**
+
 23. `0025_the_elysee_one_spelling.sql` — renames every spelling of The Elysée onto the accented one, so the leasing and property-management reports name the same building. Refuses to run if a single report holds both: two rows of real figures for one building could be a duplicate to merge or two halves to add, and a migration cannot tell which. **Applied.**
 
 22. `0024_item_identity_is_name.sql` — de-duplicates `project_report_items` and moves uniqueness from `(report_id, category, name)` back to `(report_id, name)`. **Applied.**
@@ -715,7 +729,7 @@ Same machinery as the budget documents — `.print-only`, the letterhead, the `p
 
 17. `0019_vice_president_projects_only.sql` — narrows `is_privileged()` to Admin and Head of Department, and names the project-report predicates outright so the Vice President keeps the side they were given. Three function bodies; nine policies follow. **Applied.**
 
-Migrations `0001`–`0025` are confirmed applied in Supabase. The operator runs each one as it is written, so a new migration should be recorded here as applied in the same commit as the SQL rather than left marked pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0026` are confirmed applied in Supabase. The operator runs each one as it is written, so a new migration should be recorded here as applied in the same commit as the SQL rather than left marked pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 

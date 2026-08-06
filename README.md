@@ -36,6 +36,7 @@ Built with Next.js 16 (App Router) + Supabase (Auth, Postgres with Row Level Sec
    23. [`supabase/migrations/0023_koh_pich_categories.sql`](supabase/migrations/0023_koh_pich_categories.sql) — files the Koh Pich buildings under their categories and adds Diamond Bay Garden
    24. [`supabase/migrations/0024_item_identity_is_name.sql`](supabase/migrations/0024_item_identity_is_name.sql) — makes a unit's name its identity, so changing its category moves the row instead of cloning it
    25. [`supabase/migrations/0025_the_elysee_one_spelling.sql`](supabase/migrations/0025_the_elysee_one_spelling.sql) — settles The Elysée on one spelling, so the leasing and property management reports name the same building
+   26. [`supabase/migrations/0026_login_attempt_throttle.sql`](supabase/migrations/0026_login_attempt_throttle.sql) — counts failed sign-ins per email and address, so guessing a password gets slower and the person is told to ask a coordinator or an administrator for a reset
 
 ### 2. Configure environment variables
 

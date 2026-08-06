@@ -6,6 +6,14 @@ import {
   isAllowedEmail,
   safeNextPath,
 } from "@/lib/login-rules";
+import {
+  LOCKED_MESSAGE,
+  MAX_FAILURES,
+  attemptKey,
+  clearFailures,
+  recentFailures,
+  recordFailure,
+} from "@/lib/login-throttle";
 import { createClient } from "@/lib/supabase/server";
 
 export async function login(formData: FormData) {
@@ -27,15 +35,40 @@ export async function login(formData: FormData) {
     redirect(`/login?${params.toString()}`);
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    const params = new URLSearchParams({ error: "Invalid email or password" });
+  // Counted before the credentials are sent, so a locked address costs an
+  // attacker a round trip to our database rather than a guess against Supabase.
+  const key = await attemptKey(email);
+  if ((await recentFailures(key)) >= MAX_FAILURES) {
+    const params = new URLSearchParams({ error: LOCKED_MESSAGE });
     if (next) params.set("next", next);
     redirect(`/login?${params.toString()}`);
   }
 
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    await recordFailure(key);
+
+    // Supabase applies its own limit on the token endpoint. Reporting that as
+    // "Invalid email or password" tells a rate-limited person their password is
+    // wrong when it may well be right, and sends them to change a password that
+    // was never the problem.
+    const rateLimited =
+      error.status === 429 || /rate limit/i.test(error.message ?? "");
+    const locked =
+      rateLimited || (await recentFailures(key)) >= MAX_FAILURES;
+
+    const params = new URLSearchParams({
+      error: locked ? LOCKED_MESSAGE : "Invalid email or password",
+    });
+    if (next) params.set("next", next);
+    redirect(`/login?${params.toString()}`);
+  }
+
+  // Proving you hold the password clears what the wrong guesses before it
+  // counted.
+  await clearFailures(key);
   redirect(next ?? "/dashboard");
 }
 
