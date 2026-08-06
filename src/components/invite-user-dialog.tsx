@@ -19,13 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ResponsiveSelect } from "@/components/ui/responsive-select";
 import type { DepartmentRecord } from "@/lib/departments";
 import { ASSIGNABLE_ROLES, roleLabel } from "@/lib/types";
 
@@ -98,36 +92,34 @@ export function InviteUserDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="invite-role">Role</Label>
-              <Select name="role" defaultValue="staff">
-                <SelectTrigger id="invite-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ASSIGNABLE_ROLES.filter(
-                    (option) => option !== "admin" || canGrantAdmin
-                  ).map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {roleLabel(option)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ResponsiveSelect
+                id="invite-role"
+                name="role"
+                className="w-full"
+                defaultValue="staff"
+                options={ASSIGNABLE_ROLES.filter(
+                  (option) => option !== "admin" || canGrantAdmin
+                ).map((option) => ({
+                  value: option,
+                  label: roleLabel(option),
+                }))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="invite-department">Department</Label>
-              <Select name="department" defaultValue={UNASSIGNED}>
-                <SelectTrigger id="invite-department">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                  {departments.map((department) => (
-                    <SelectItem key={department.id} value={department.id}>
-                      {department.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ResponsiveSelect
+                id="invite-department"
+                name="department"
+                className="w-full"
+                defaultValue={UNASSIGNED}
+                options={[
+                  { value: UNASSIGNED, label: "Unassigned" },
+                  ...departments.map((department) => ({
+                    value: department.id,
+                    label: department.label,
+                  })),
+                ]}
+              />
             </div>
             {/* No success state on this one: creating an account swaps the
                 whole dialog for the temporary password, which is a stronger

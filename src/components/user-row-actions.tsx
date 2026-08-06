@@ -19,13 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ResponsiveSelect } from "@/components/ui/responsive-select";
 import { useActionToasts } from "@/components/use-action-toasts";
 import type { DepartmentRecord } from "@/lib/departments";
 import { isPrivileged } from "@/lib/roles";
@@ -109,7 +103,10 @@ export function RoleSelect({
 
   return (
     <>
-      <Select
+      <ResponsiveSelect
+        className="w-48"
+        size="sm"
+        aria-label="Role"
         value={role}
         disabled={disabled}
         onValueChange={(value) => {
@@ -122,20 +119,10 @@ export function RoleSelect({
             submit(next);
           }
         }}
-      >
-        <SelectTrigger className="w-48" size="sm">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {ASSIGNABLE_ROLES.filter(
-            (option) => option !== "admin" || canGrantAdmin || role === "admin"
-          ).map((option) => (
-            <SelectItem key={option} value={option}>
-              {roleLabel(option)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        options={ASSIGNABLE_ROLES.filter(
+          (option) => option !== "admin" || canGrantAdmin || role === "admin"
+        ).map((option) => ({ value: option, label: roleLabel(option) }))}
+      />
 
       {/* The Select is controlled by the `role` prop, which only changes once
           the server action revalidates. Cancelling therefore needs no explicit
@@ -200,7 +187,10 @@ export function DepartmentSelect({
   useActionToasts(state);
 
   return (
-    <Select
+    <ResponsiveSelect
+      className="w-52"
+      size="sm"
+      aria-label="Department"
       value={department ?? UNASSIGNED}
       disabled={disabled}
       onValueChange={(next) => {
@@ -209,19 +199,14 @@ export function DepartmentSelect({
         formData.set("department", next);
         formAction(formData);
       }}
-    >
-      <SelectTrigger className="w-52" size="sm">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-        {departments.map((entry) => (
-          <SelectItem key={entry.id} value={entry.id}>
-            {entry.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      options={[
+        { value: UNASSIGNED, label: "Unassigned" },
+        ...departments.map((entry) => ({
+          value: entry.id,
+          label: entry.label,
+        })),
+      ]}
+    />
   );
 }
 

@@ -16,13 +16,7 @@ import {
 import { FileUploadCard } from "@/components/ui/file-upload-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ResponsiveSelect } from "@/components/ui/responsive-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   MONTH_KEYS,
@@ -351,26 +345,21 @@ export function ReportForm({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="budget_period_month">Budget month</Label>
-                <Select
+                <ResponsiveSelect
+                  id="budget_period_month"
                   name="period_month"
+                  className="w-full"
                   value={String(budgetMonth)}
                   onValueChange={(value) => {
                     const month = Number(value);
                     setBudgetMonth(month);
                     changeBudgetPeriod(month, budgetYear);
                   }}
-                >
-                  <SelectTrigger id="budget_period_month">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MONTH_NAMES.map((name, i) => (
-                      <SelectItem key={name} value={String(i + 1)}>
-                        {name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={MONTH_NAMES.map((name, i) => ({
+                    value: String(i + 1),
+                    label: name,
+                  }))}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="period_year">Budget year</Label>
@@ -394,23 +383,16 @@ export function ReportForm({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="activity_period_month">Period month</Label>
-                <Select
+                <ResponsiveSelect
+                  id="activity_period_month"
                   name="period_month"
-                  defaultValue={String(
-                    report?.period_month ?? now.getMonth() + 1
-                  )}
-                >
-                  <SelectTrigger id="activity_period_month">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MONTH_NAMES.map((name, i) => (
-                      <SelectItem key={name} value={String(i + 1)}>
-                        {name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  className="w-full"
+                  defaultValue={String(report?.period_month ?? now.getMonth() + 1)}
+                  options={MONTH_NAMES.map((name, i) => ({
+                    value: String(i + 1),
+                    label: name,
+                  }))}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="period_year">Period year</Label>

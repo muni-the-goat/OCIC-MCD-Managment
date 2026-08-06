@@ -4,15 +4,7 @@ import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { LumaSpin } from "@/components/ui/luma-spin";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ResponsiveSelect } from "@/components/ui/responsive-select";
 import {
   ALL_CATEGORIES,
   ALL_PROJECTS,
@@ -78,44 +70,38 @@ export function ProjectFilters({
       ) : null}
       <div className="space-y-1.5">
         <Label htmlFor="projects-project">Project</Label>
-        <Select
+        <ResponsiveSelect
+          id="projects-project"
+          className="w-52"
           value={selectedProject}
           onValueChange={(value) => setParam("project", value)}
-        >
-          <SelectTrigger id="projects-project" className="w-52">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_PROJECTS}>All projects</SelectItem>
-            {projects.map((project) => (
-              <SelectItem key={project.id} value={project.id}>
-                {project.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          options={[
+            { value: ALL_PROJECTS, label: "All projects" },
+            ...projects.map((project) => ({
+              value: project.id,
+              label: project.label,
+            })),
+          ]}
+        />
       </div>
       {/* Sales, leasing, property management: which report you are reading.
           It answered to "Category" until the word was needed for the tiers
           below, where it is the one the Vice President uses. */}
       <div className="space-y-1.5">
         <Label htmlFor="projects-report">Report</Label>
-        <Select
+        <ResponsiveSelect
+          id="projects-report"
+          className="w-52"
           value={selectedStream}
           onValueChange={(value) => setParam("stream", value)}
-        >
-          <SelectTrigger id="projects-report" className="w-52">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_STREAMS}>All reports</SelectItem>
-            {PROJECT_STREAMS.map((stream) => (
-              <SelectItem key={stream} value={stream}>
-                {projectStreamLabel(stream)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          options={[
+            { value: ALL_STREAMS, label: "All reports" },
+            ...PROJECT_STREAMS.map((stream) => ({
+              value: stream,
+              label: projectStreamLabel(stream),
+            })),
+          ]}
+        />
       </div>
       {/* The three tiers in one list, coarsest first, so the reader picks the
           level they want to read at rather than assembling it from two
@@ -123,61 +109,56 @@ export function ProjectFilters({
           them and only its heading says which one is being chosen. */}
       <div className="space-y-1.5">
         <Label htmlFor="projects-category">Category</Label>
-        <Select
+        <ResponsiveSelect
+          id="projects-category"
+          className="w-56"
           value={selectedCategory}
           onValueChange={(value) => setParam("category", value)}
-        >
-          <SelectTrigger id="projects-category" className="w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_CATEGORIES}>All categories</SelectItem>
-            <SelectGroup>
-              <SelectLabel>Totals</SelectLabel>
-              {options.bands.map((band) => (
-                <SelectItem key={band} value={`band:${band}`}>
-                  {band === BUILT_BAND ? "Total built properties" : "Total land"}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-            <SelectGroup>
-              <SelectLabel>Categories</SelectLabel>
-              {options.categories.map((category) => (
-                <SelectItem key={category} value={`category:${category}`}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-            {options.properties.length > 0 ? (
-              <SelectGroup>
-                <SelectLabel>Properties</SelectLabel>
-                {options.properties.map((property) => (
-                  <SelectItem key={property} value={`property:${property}`}>
-                    {property}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ) : null}
-          </SelectContent>
-        </Select>
+          options={[
+            { options: [{ value: ALL_CATEGORIES, label: "All categories" }] },
+            {
+              label: "Totals",
+              options: options.bands.map((band) => ({
+                value: `band:${band}`,
+                label:
+                  band === BUILT_BAND
+                    ? "Total built properties"
+                    : "Total land",
+              })),
+            },
+            {
+              label: "Categories",
+              options: options.categories.map((category) => ({
+                value: `category:${category}`,
+                label: category,
+              })),
+            },
+            ...(options.properties.length > 0
+              ? [
+                  {
+                    label: "Properties",
+                    options: options.properties.map((property) => ({
+                      value: `property:${property}`,
+                      label: property,
+                    })),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="projects-year">Year</Label>
-        <Select
+        <ResponsiveSelect
+          id="projects-year"
+          className="w-28"
           value={String(selectedYear)}
           onValueChange={(value) => setParam("year", value)}
-        >
-          <SelectTrigger id="projects-year" className="w-28">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {years.map((year) => (
-              <SelectItem key={year} value={String(year)}>
-                {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          options={years.map((year) => ({
+            value: String(year),
+            label: String(year),
+          }))}
+        />
       </div>
     </div>
   );

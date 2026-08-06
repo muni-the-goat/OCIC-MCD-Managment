@@ -2,13 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ResponsiveSelect } from "@/components/ui/responsive-select";
 
 const ALL = "all";
 
@@ -36,51 +30,47 @@ export function ReportFilters({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Select
+      <ResponsiveSelect
+        className="w-52"
+        aria-label="Report type"
+        placeholder="Type"
         value={searchParams.get("type") ?? ALL}
         onValueChange={(v) => setParam("type", v)}
-      >
-        <SelectTrigger className="w-52">
-          <SelectValue placeholder="Type" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>All report types</SelectItem>
-          <SelectItem value="budget-monthly">Monthly Budget Report</SelectItem>
-          <SelectItem value="monthly">Monthly Activity Report</SelectItem>
-        </SelectContent>
-      </Select>
-      <Select
+        options={[
+          { value: ALL, label: "All report types" },
+          { value: "budget-monthly", label: "Monthly Budget Report" },
+          { value: "monthly", label: "Monthly Activity Report" },
+        ]}
+      />
+      <ResponsiveSelect
+        className="w-36"
+        aria-label="Status"
+        placeholder="Status"
         value={searchParams.get("status") ?? ALL}
         onValueChange={(v) => setParam("status", v)}
-      >
-        <SelectTrigger className="w-36">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>All statuses</SelectItem>
-          <SelectItem value="draft">Draft</SelectItem>
-          <SelectItem value="submitted">Submitted</SelectItem>
-          <SelectItem value="reviewed">Reviewed</SelectItem>
-          <SelectItem value="rejected">Rejected</SelectItem>
-        </SelectContent>
-      </Select>
+        options={[
+          { value: ALL, label: "All statuses" },
+          { value: "draft", label: "Draft" },
+          { value: "submitted", label: "Submitted" },
+          { value: "reviewed", label: "Reviewed" },
+          { value: "rejected", label: "Rejected" },
+        ]}
+      />
       {showAuthorFilter ? (
-        <Select
+        <ResponsiveSelect
+          className="w-44"
+          aria-label="Author"
+          placeholder="Author"
           value={searchParams.get("author") ?? ALL}
           onValueChange={(v) => setParam("author", v)}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Author" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All authors</SelectItem>
-            {authors.map((author) => (
-              <SelectItem key={author.id} value={author.id}>
-                {author.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          options={[
+            { value: ALL, label: "All authors" },
+            ...authors.map((author) => ({
+              value: author.id,
+              label: author.label,
+            })),
+          ]}
+        />
       ) : null}
       {hasFilters ? (
         <Button variant="ghost" size="sm" onClick={() => router.push(pathname)}>

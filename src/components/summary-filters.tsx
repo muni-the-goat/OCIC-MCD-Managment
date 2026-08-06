@@ -4,13 +4,7 @@ import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { LumaSpin } from "@/components/ui/luma-spin";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ResponsiveSelect } from "@/components/ui/responsive-select";
 import { MONTH_NAMES } from "@/lib/types";
 
 const ALL_AUTHORS = "all";
@@ -78,61 +72,48 @@ export function SummaryFilters({
       ) : null}
       <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-year`}>Year</Label>
-        <Select
+        <ResponsiveSelect
+          id={`${idPrefix}-year`}
+          className="w-28"
           value={String(selectedYear)}
           onValueChange={(value) => setParam(yearParam, value)}
-        >
-          <SelectTrigger id={`${idPrefix}-year`} className="w-28">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {years.map((year) => (
-              <SelectItem key={year} value={String(year)}>
-                {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          options={years.map((year) => ({
+            value: String(year),
+            label: String(year),
+          }))}
+        />
       </div>
       {months && selectedMonth ? (
         <div className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-month`}>Month</Label>
-          <Select
+          <ResponsiveSelect
+            id={`${idPrefix}-month`}
+            className="w-36"
             value={String(selectedMonth)}
             onValueChange={(value) => setParam(monthParam, value)}
-          >
-            <SelectTrigger id={`${idPrefix}-month`} className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {months.map((month) => (
-                <SelectItem key={month} value={String(month)}>
-                  {MONTH_NAMES[month - 1]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            options={months.map((month) => ({
+              value: String(month),
+              label: MONTH_NAMES[month - 1],
+            }))}
+          />
         </div>
       ) : null}
       {authors.length > 0 ? (
         <div className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-author`}>Author</Label>
-          <Select
+          <ResponsiveSelect
+            id={`${idPrefix}-author`}
+            className="w-52"
             value={selectedAuthor || ALL_AUTHORS}
             onValueChange={(value) => setParam(authorParam, value)}
-          >
-            <SelectTrigger id={`${idPrefix}-author`} className="w-52">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_AUTHORS}>{allAuthorsLabel}</SelectItem>
-              {authors.map((author) => (
-                <SelectItem key={author.id} value={author.id}>
-                  {author.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            options={[
+              { value: ALL_AUTHORS, label: allAuthorsLabel },
+              ...authors.map((author) => ({
+                value: author.id,
+                label: author.label,
+              })),
+            ]}
+          />
         </div>
       ) : null}
     </div>

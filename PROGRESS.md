@@ -647,6 +647,20 @@ There was no throttle of our own until `0026`. Supabase Auth limits its token en
 - **It fails open.** Every read and write is wrapped: a throttle that cannot reach its table lets people in rather than locking the office out of its own reporting. It is a speed bump on guessing, not an authorization boundary — RLS and the action guards remain the authority.
 - `public.login_attempts` has RLS on and **no policies at all**, which denies every anonymous and signed-in client. Only the service-role client writes it. A policy letting anonymous callers insert would be an unauthenticated write endpoint added to defend against unauthenticated writes.
 
+## Dropdowns — native on mobile, Radix on desktop
+
+Every dropdown goes through `src/components/ui/responsive-select.tsx`, which renders the operating system's own picker below `md` and the designed listbox above it.
+
+The question arrived from the Vice President's office: on iOS 26 the project report's dropdowns had started drawing in the system's glass material while the filters next to them still wore the app's. The cause was that the project report form used native `<select>` elements and everything else used Radix — a native select hands its options to the OS, which draws them outside the page where no stylesheet reaches.
+
+Both looks were right in their place, which is why the choice is now made per device rather than once for everybody.
+
+- **A phone gets the picker its owner already knows**, with the system wheel and its touch targets. **A laptop keeps the app's list** — an OS-drawn one there would swap the app's type and colour for whatever Windows or macOS felt like, and would differ between them.
+- **The options are data, not children.** A call site that wrote its list twice — once as `<option>`, once as `<SelectItem>` — would eventually be edited in one place only. Each dropdown declares its options once, and both renderers read the same array. The conversion of all sixteen took 89 lines *off* the codebase.
+- **Groups survive the switch.** The Category filter's three tiers are `<optgroup>` on the phone and `SelectGroup` on the desktop; iOS draws those headings in its picker.
+- **The server renders the desktop control** and a phone swaps after hydration, because the server cannot know the viewport. The two share a trigger style — same height, same border, same type — so the swap is invisible. Rendering both and hiding one in CSS would avoid even that, at the cost of two controls in every document: two ids, two form fields, and a screen reader reading each list twice.
+- **Uncontrolled callers stay uncontrolled**, so a `name` inside a form still posts the way a form field should.
+
 ## Attachments and comments
 
 - Attachments are uploaded inside the report save action.
