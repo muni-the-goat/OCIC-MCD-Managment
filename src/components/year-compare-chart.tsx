@@ -78,6 +78,26 @@ export interface YearCompareRow {
 // them.
 const CURVE = "monotone" as const;
 
+// The chart draws itself in: for an area, recharts widens a clip path from left
+// to right, so the year arrives month by month in the order it happened. That
+// is the one animation this chart has any business doing — it is the shape of
+// the data, not decoration laid over it.
+//
+// recharts' own default is 1500ms, which is a long time to wait for a figure
+// when a card carries three charts and the page carries several cards. Short
+// enough to feel immediate, long enough to see the direction of the year.
+const DRAW_MS = 700;
+
+// Last year lays down first and this year arrives over it. Small enough to read
+// as one gesture rather than two separate charts loading.
+const STAGGER_MS = 110;
+
+// Left deliberately alone: isAnimationActive. Its default is "auto", which
+// recharts resolves to "animate unless the reader asked their system for
+// reduced motion, and never during SSR". Setting it to true would override
+// somebody's accessibility preference; these were set to false while the chart
+// was being built, which is what stopped it animating at all.
+
 // The dot at each month, in the series' own colour.
 //
 // recharts hands the dot the *Line's* props as its base, and a Line's default
@@ -267,7 +287,8 @@ export function YearCompareChart({
                   // An unreported month stays a gap in the line rather than
                   // being bridged over as though it had been filled in.
                   connectNulls={false}
-                  isAnimationActive={false}
+                  animationDuration={DRAW_MS}
+                  animationEasing="ease-out"
                 />
               ) : null}
               <Area
@@ -280,7 +301,12 @@ export function YearCompareChart({
                 dot={dot("var(--color-current)")}
                 activeDot={{ r: 7 }}
                 connectNulls={false}
-                isAnimationActive={false}
+                animationDuration={DRAW_MS}
+                animationEasing="ease-out"
+                // A beat behind last year, so the two are read in the order
+                // the card states them: here is last year, and here is this
+                // year against it.
+                animationBegin={hasPrevious ? STAGGER_MS : 0}
               />
             </>
           ) : (
@@ -290,12 +316,17 @@ export function YearCompareChart({
                   dataKey="previous"
                   fill="var(--color-previous)"
                   radius={[4, 4, 0, 0]}
+                  animationDuration={DRAW_MS}
+                  animationEasing="ease-out"
                 />
               ) : null}
               <Bar
                 dataKey="current"
                 fill="var(--color-current)"
                 radius={[4, 4, 0, 0]}
+                animationDuration={DRAW_MS}
+                animationEasing="ease-out"
+                animationBegin={hasPrevious ? STAGGER_MS : 0}
               />
             </>
           )}
