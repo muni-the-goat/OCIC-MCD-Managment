@@ -1,11 +1,12 @@
 "use client";
 
+import { useId } from "react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
   XAxis,
   YAxis,
 } from "recharts";
@@ -87,7 +88,7 @@ const CURVE = "monotone" as const;
 // The ring is the card surface rather than no stroke at all: in May the two
 // years cross, and without it the dots merge into one blob at the crossing.
 function dot(color: string) {
-  return { r: 3.5, fill: color, stroke: "var(--card)", strokeWidth: 1.5 };
+  return { r: 5, fill: color, stroke: "var(--card)", strokeWidth: 2 };
 }
 
 const compact = new Intl.NumberFormat("en-US", {
@@ -133,7 +134,14 @@ export function YearCompareChart({
     rows.some((row) => row.previous !== null && row.previous !== 0);
 
   const isLine = variant === "line";
-  const Chart = isLine ? LineChart : BarChart;
+  const Chart = isLine ? AreaChart : BarChart;
+
+  // Three of these render per card and several cards per page, so a fixed
+  // gradient id would have every chart on the page pointing at whichever <defs>
+  // mounted last.
+  const gradientId = useId().replace(/:/g, "");
+  const fillOf = (series: "current" | "previous") =>
+    `url(#${gradientId}-${series})`;
 
   const axes = (
     <>
@@ -206,35 +214,71 @@ export function YearCompareChart({
           data={rows}
           margin={{ top: 12, right: 12, left: 12, bottom: 0 }}
           // 2px of card surface between the paired bars, so they read as two
-          // marks rather than one two-tone one. Ignored by LineChart.
+          // marks rather than one two-tone one. Ignored by AreaChart.
           barGap={2}
         >
+          {isLine ? (
+            <defs>
+              {(["previous", "current"] as const).map((series) => (
+                <linearGradient
+                  key={series}
+                  id={`${gradientId}-${series}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  {/* Weak, and fading to nothing at the axis. The two years
+                      overlap for most of the year and the lower fill has to
+                      stay legible through the upper one — at full strength the
+                      series in front simply erases the one behind. */}
+                  <stop
+                    offset="0%"
+                    stopColor={`var(--color-${series})`}
+                    stopOpacity={0.24}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={`var(--color-${series})`}
+                    stopOpacity={0.01}
+                  />
+                </linearGradient>
+              ))}
+            </defs>
+          ) : null}
           {axes}
           {isLine ? (
             <>
               {hasPrevious ? (
-                <Line
+                <Area
                   dataKey="previous"
                   stroke="var(--color-previous)"
+                  fill={fillOf("previous")}
+                  // Area multiplies its own fillOpacity into the gradient, and
+                  // its default 0.6 leaves the stops below washing out to
+                  // nothing. The gradient is the only thing setting opacity.
+                  fillOpacity={1}
                   type={CURVE}
                   strokeWidth={2.5}
                   // Months are readings, not a continuous signal — the dot is
                   // where a number actually exists.
                   dot={dot("var(--color-previous)")}
-                  activeDot={{ r: 5 }}
+                  activeDot={{ r: 7 }}
                   // An unreported month stays a gap in the line rather than
                   // being bridged over as though it had been filled in.
                   connectNulls={false}
                   isAnimationActive={false}
                 />
               ) : null}
-              <Line
+              <Area
                 dataKey="current"
                 stroke="var(--color-current)"
+                fill={fillOf("current")}
+                fillOpacity={1}
                 type={CURVE}
                 strokeWidth={2.5}
                 dot={dot("var(--color-current)")}
-                activeDot={{ r: 5 }}
+                activeDot={{ r: 7 }}
                 connectNulls={false}
                 isAnimationActive={false}
               />
