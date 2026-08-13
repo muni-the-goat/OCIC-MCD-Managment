@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useCallback, useId, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -123,6 +123,54 @@ const currency = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,
 });
 
+// Draws when the reader arrives at it, not when the page loads.
+//
+// recharts starts its animation on mount, and a dashboard mounts every chart at
+// once — so the third card down had finished drawing itself before anyone had
+// scrolled far enough to see it, and arrived as a static picture. The chart is
+// held back until it is actually on screen.
+//
+// It does not reset on the way back up. Replaying the year every time the
+// reader scrolls past is a fidget rather than information.
+function useDrawOnScroll<T extends HTMLElement>() {
+  const [seen, setSeen] = useState(false);
+
+  // A callback ref rather than an effect: it runs at commit with the node
+  // already in hand, so there is no second render spent discovering it, and the
+  // no-observer fallback below can set state without fighting the lint rule
+  // against setState inside an effect.
+  const ref = useCallback(
+    (node: T | null) => {
+      if (node == null || seen) return;
+
+      // No observer is a reason to show the chart, never a reason to withhold
+      // it — a figure that will not render is worse than one that will not
+      // move.
+      if (typeof IntersectionObserver === "undefined") {
+        setSeen(true);
+        return;
+      }
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((entry) => entry.isIntersecting)) return;
+          setSeen(true);
+          observer.disconnect();
+        },
+        // A fifth of the card showing, and a little past the bottom edge, so it
+        // begins once the reader is looking at it rather than as the top pixel
+        // clears the fold.
+        { threshold: 0.2, rootMargin: "0px 0px -8% 0px" }
+      );
+      observer.observe(node);
+      return () => observer.disconnect();
+    },
+    [seen]
+  );
+
+  return { ref, seen };
+}
+
 export function YearCompareChart({
   rows,
   currentYear,
@@ -152,6 +200,8 @@ export function YearCompareChart({
   const hasPrevious =
     previousYear !== null &&
     rows.some((row) => row.previous !== null && row.previous !== 0);
+
+  const { ref, seen } = useDrawOnScroll<HTMLDivElement>();
 
   const isLine = variant === "line";
   const Chart = isLine ? AreaChart : BarChart;
@@ -223,115 +273,121 @@ export function YearCompareChart({
     // A phone cannot fit twelve month labels, and dropping every other one
     // hides half the year. The plot keeps a floor width and scrolls inside this
     // box instead, so the page itself never scrolls sideways.
-    <div className="-mx-1 overflow-x-auto px-1 pb-1">
-      <ChartContainer
-        config={config}
-        className={`aspect-auto ${height} w-full`}
-        style={{ minWidth }}
-      >
-        <Chart
-          accessibilityLayer
-          data={rows}
-          margin={{ top: 12, right: 12, left: 12, bottom: 0 }}
-          // 2px of card surface between the paired bars, so they read as two
-          // marks rather than one two-tone one. Ignored by AreaChart.
-          barGap={2}
+    <div ref={ref} className="-mx-1 overflow-x-auto px-1 pb-1">
+      {!seen ? (
+        // Holds the exact space the chart will take, so arriving at the card
+        // does not shove the rest of the page down as it draws.
+        <div className={`${height} w-full`} style={{ minWidth }} />
+      ) : (
+        <ChartContainer
+          config={config}
+          className={`aspect-auto ${height} w-full`}
+          style={{ minWidth }}
         >
-          {isLine ? (
-            <defs>
-              {(["previous", "current"] as const).map((series) => (
-                <linearGradient
-                  key={series}
-                  id={`${gradientId}-${series}`}
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
-                  {/* Weak, and fading to nothing at the axis. The two years
-                      overlap for most of the year and the lower fill has to
-                      stay legible through the upper one — at full strength the
-                      series in front simply erases the one behind. */}
-                  <stop
-                    offset="0%"
-                    stopColor={`var(--color-${series})`}
-                    stopOpacity={0.24}
+          <Chart
+            accessibilityLayer
+            data={rows}
+            margin={{ top: 12, right: 12, left: 12, bottom: 0 }}
+            // 2px of card surface between the paired bars, so they read as two
+            // marks rather than one two-tone one. Ignored by AreaChart.
+            barGap={2}
+          >
+            {isLine ? (
+              <defs>
+                {(["previous", "current"] as const).map((series) => (
+                  <linearGradient
+                    key={series}
+                    id={`${gradientId}-${series}`}
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    {/* Weak, and fading to nothing at the axis. The two years
+                        overlap for most of the year and the lower fill has to
+                        stay legible through the upper one — at full strength the
+                        series in front simply erases the one behind. */}
+                    <stop
+                      offset="0%"
+                      stopColor={`var(--color-${series})`}
+                      stopOpacity={0.24}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={`var(--color-${series})`}
+                      stopOpacity={0.01}
+                    />
+                  </linearGradient>
+                ))}
+              </defs>
+            ) : null}
+            {axes}
+            {isLine ? (
+              <>
+                {hasPrevious ? (
+                  <Area
+                    dataKey="previous"
+                    stroke="var(--color-previous)"
+                    fill={fillOf("previous")}
+                    // Area multiplies its own fillOpacity into the gradient, and
+                    // its default 0.6 leaves the stops below washing out to
+                    // nothing. The gradient is the only thing setting opacity.
+                    fillOpacity={1}
+                    type={CURVE}
+                    strokeWidth={2.5}
+                    // Months are readings, not a continuous signal — the dot is
+                    // where a number actually exists.
+                    dot={dot("var(--color-previous)")}
+                    activeDot={{ r: 7 }}
+                    // An unreported month stays a gap in the line rather than
+                    // being bridged over as though it had been filled in.
+                    connectNulls={false}
+                    animationDuration={DRAW_MS}
+                    animationEasing="ease-out"
                   />
-                  <stop
-                    offset="100%"
-                    stopColor={`var(--color-${series})`}
-                    stopOpacity={0.01}
-                  />
-                </linearGradient>
-              ))}
-            </defs>
-          ) : null}
-          {axes}
-          {isLine ? (
-            <>
-              {hasPrevious ? (
+                ) : null}
                 <Area
-                  dataKey="previous"
-                  stroke="var(--color-previous)"
-                  fill={fillOf("previous")}
-                  // Area multiplies its own fillOpacity into the gradient, and
-                  // its default 0.6 leaves the stops below washing out to
-                  // nothing. The gradient is the only thing setting opacity.
+                  dataKey="current"
+                  stroke="var(--color-current)"
+                  fill={fillOf("current")}
                   fillOpacity={1}
                   type={CURVE}
                   strokeWidth={2.5}
-                  // Months are readings, not a continuous signal — the dot is
-                  // where a number actually exists.
-                  dot={dot("var(--color-previous)")}
+                  dot={dot("var(--color-current)")}
                   activeDot={{ r: 7 }}
-                  // An unreported month stays a gap in the line rather than
-                  // being bridged over as though it had been filled in.
                   connectNulls={false}
                   animationDuration={DRAW_MS}
                   animationEasing="ease-out"
+                  // A beat behind last year, so the two are read in the order
+                  // the card states them: here is last year, and here is this
+                  // year against it.
+                  animationBegin={hasPrevious ? STAGGER_MS : 0}
                 />
-              ) : null}
-              <Area
-                dataKey="current"
-                stroke="var(--color-current)"
-                fill={fillOf("current")}
-                fillOpacity={1}
-                type={CURVE}
-                strokeWidth={2.5}
-                dot={dot("var(--color-current)")}
-                activeDot={{ r: 7 }}
-                connectNulls={false}
-                animationDuration={DRAW_MS}
-                animationEasing="ease-out"
-                // A beat behind last year, so the two are read in the order
-                // the card states them: here is last year, and here is this
-                // year against it.
-                animationBegin={hasPrevious ? STAGGER_MS : 0}
-              />
-            </>
-          ) : (
-            <>
-              {hasPrevious ? (
+              </>
+            ) : (
+              <>
+                {hasPrevious ? (
+                  <Bar
+                    dataKey="previous"
+                    fill="var(--color-previous)"
+                    radius={[4, 4, 0, 0]}
+                    animationDuration={DRAW_MS}
+                    animationEasing="ease-out"
+                  />
+                ) : null}
                 <Bar
-                  dataKey="previous"
-                  fill="var(--color-previous)"
+                  dataKey="current"
+                  fill="var(--color-current)"
                   radius={[4, 4, 0, 0]}
                   animationDuration={DRAW_MS}
                   animationEasing="ease-out"
+                  animationBegin={hasPrevious ? STAGGER_MS : 0}
                 />
-              ) : null}
-              <Bar
-                dataKey="current"
-                fill="var(--color-current)"
-                radius={[4, 4, 0, 0]}
-                animationDuration={DRAW_MS}
-                animationEasing="ease-out"
-                animationBegin={hasPrevious ? STAGGER_MS : 0}
-              />
-            </>
-          )}
-        </Chart>
-      </ChartContainer>
+              </>
+            )}
+          </Chart>
+        </ChartContainer>
+      )}
     </div>
   );
 }
