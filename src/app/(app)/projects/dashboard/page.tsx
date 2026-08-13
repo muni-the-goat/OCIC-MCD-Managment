@@ -376,7 +376,6 @@ export default async function ProjectsDashboardPage({
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
-            <ExportPdfButton label="Export PDF" />
             {/* "New report" is what the MCD dashboard's button says, and it
                 files a different kind of report entirely. Two buttons with one
                 name, each meaning whichever side of the office you happened to
@@ -391,15 +390,24 @@ export default async function ProjectsDashboardPage({
         </div>
       </section>
 
-      <ProjectFilters
-        years={years}
-        selectedYear={year}
-        projects={projects}
-        selectedProject={projectParam}
-        selectedStream={streamParam}
-        options={options}
-        selectedCategory={categorySelectionValue(selection)}
-      />
+      {/* Export sits with the filters rather than up in the chip row: what
+          it produces is whatever the filters currently select, so the control
+          belongs beside the thing that decides its contents. Same arrangement
+          as the Projects page. */}
+      <div className="flex flex-wrap items-end gap-3">
+        <ProjectFilters
+          years={years}
+          selectedYear={year}
+          projects={projects}
+          selectedProject={projectParam}
+          selectedStream={streamParam}
+          options={options}
+          selectedCategory={categorySelectionValue(selection)}
+        />
+        <div className="mb-0.5">
+          <ExportPdfButton label="Export PDF" />
+        </div>
+      </div>
 
       {headline.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
