@@ -14,6 +14,9 @@ import {
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
+import { ExportPdfButton } from "@/components/export-pdf-button";
+import { PrintPortal } from "@/components/print-portal";
+import { PrintableProjectsDashboard } from "@/components/printable-projects-dashboard";
 import { ProjectFilters } from "@/components/project-filters";
 import { ProjectStatCard } from "@/components/project-stat-card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +36,7 @@ import {
   ALL_PROJECTS,
   ALL_STREAMS,
   categoryOptions,
+  categorySelectionLabel,
   categorySelectionValue,
   compareYears,
   type Comparison,
@@ -287,6 +291,18 @@ export default async function ProjectsDashboardPage({
       .flatMap((block) => block.streams)
       .find((entry) => entry.previousYear !== null)?.previousYear ?? null;
 
+  // Worded exactly as the Projects page words it, so the two PDFs cannot
+  // describe the same selection differently.
+  const scopeLabel = [
+    projectParam === ALL_PROJECTS
+      ? "All projects"
+      : (projects.find((p) => p.id === projectParam)?.label ?? "All projects"),
+    streamParam === ALL_STREAMS
+      ? "All reports"
+      : projectStreamLabel(streamParam),
+    categorySelectionLabel(selection),
+  ].join(" · ");
+
   const firstName = (profile.full_name || profile.email).split(" ")[0];
   const now = new Date();
 
@@ -360,6 +376,7 @@ export default async function ProjectsDashboardPage({
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
+            <ExportPdfButton label="Export PDF" />
             {/* "New report" is what the MCD dashboard's button says, and it
                 files a different kind of report entirely. Two buttons with one
                 name, each meaning whichever side of the office you happened to
@@ -556,6 +573,33 @@ export default async function ProjectsDashboardPage({
           ))}
         </>
       )}
+
+      {/* Hidden on screen, revealed by the print stylesheet. It prints what the
+          filters select, so the PDF and the page cannot disagree about what the
+          reader was looking at when they pressed Export.
+
+          It renders its own charts at fixed pixel sizes rather than reusing the
+          ones above: those measure their container, and this region is
+          display:none until the print dialog opens. */}
+      <PrintPortal>
+        <PrintableProjectsDashboard
+          year={year}
+          previousYear={previousYear}
+          scopeLabel={scopeLabel}
+          presenter={profile.full_name || profile.email}
+          headline={headline}
+          portfolio={portfolio}
+          blocks={shownBlocks.map(({ project, streams }) => ({
+            project,
+            streams: streams.map((entry) => ({
+              stream: entry.stream,
+              previousYear: entry.previousYear,
+              rows: entry.rows,
+              properties: entry.properties,
+            })),
+          }))}
+        />
+      </PrintPortal>
     </div>
   );
 }

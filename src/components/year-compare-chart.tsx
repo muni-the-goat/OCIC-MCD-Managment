@@ -391,3 +391,163 @@ export function YearCompareChart({
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// The same chart, for the print document.
+//
+// Three things the screen version does are wrong on paper, and they are why
+// this is a second component rather than another prop on the first:
+//
+//   Size. ChartContainer draws inside a ResponsiveContainer, which measures its
+//   parent — and the print document is display:none until the print dialog
+//   opens, so it measures nothing and the chart comes out empty. This one is
+//   handed explicit pixels and never measures anything.
+//
+//   Colour. The series tokens resolve to the dark ramp under .dark, so a reader
+//   with the app in dark mode would print a dark chart onto white paper. The
+//   light values are written out here, the same rule the print table colours
+//   follow.
+//
+//   Motion and hover. There is no cursor on paper. No animation, no tooltip.
+// ---------------------------------------------------------------------------
+
+const PRINT_CURRENT = "#a42a28"; /* --series-1, light */
+const PRINT_PREVIOUS = "#2a78d6"; /* --series-4, light */
+const PRINT_SURFACE = "#ffffff";
+
+export function PrintYearCompareChart({
+  rows,
+  variant = "bar",
+  width = 980,
+  height = 230,
+}: {
+  rows: YearCompareRow[];
+  variant?: "bar" | "line";
+  width?: number;
+  height?: number;
+}) {
+  const gradientId = useId().replace(/:/g, "");
+  const hasPrevious = rows.some(
+    (row) => row.previous !== null && row.previous !== 0
+  );
+  const isLine = variant === "line";
+  const Chart = isLine ? AreaChart : BarChart;
+
+  const printDot = (color: string) => ({
+    r: 3,
+    fill: color,
+    stroke: PRINT_SURFACE,
+    strokeWidth: 1.5,
+  });
+
+  return (
+    <Chart width={width} height={height} data={rows} barGap={2}>
+      {isLine ? (
+        <defs>
+          {(
+            [
+              ["previous", PRINT_PREVIOUS],
+              ["current", PRINT_CURRENT],
+            ] as const
+          ).map(([series, color]) => (
+            <linearGradient
+              key={series}
+              id={`${gradientId}-${series}`}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
+              <stop offset="0%" stopColor={color} stopOpacity={0.22} />
+              <stop offset="100%" stopColor={color} stopOpacity={0.01} />
+            </linearGradient>
+          ))}
+        </defs>
+      ) : null}
+      <CartesianGrid vertical={false} stroke="#e7e3d8" />
+      <XAxis
+        dataKey="label"
+        tickLine={false}
+        axisLine={false}
+        interval={0}
+        tick={{ fontSize: 10, fill: "#4f5556" }}
+      />
+      <YAxis
+        tickLine={false}
+        axisLine={false}
+        width={62}
+        tick={{ fontSize: 10, fill: "#4f5556" }}
+        tickFormatter={(value: number) =>
+          value === 0 ? "$0" : compact.format(value)
+        }
+      />
+      {isLine ? (
+        <>
+          {hasPrevious ? (
+            <Area
+              dataKey="previous"
+              stroke={PRINT_PREVIOUS}
+              fill={`url(#${gradientId}-previous)`}
+              fillOpacity={1}
+              type={CURVE}
+              strokeWidth={2}
+              dot={printDot(PRINT_PREVIOUS)}
+              connectNulls={false}
+              isAnimationActive={false}
+            />
+          ) : null}
+          <Area
+            dataKey="current"
+            stroke={PRINT_CURRENT}
+            fill={`url(#${gradientId}-current)`}
+            fillOpacity={1}
+            type={CURVE}
+            strokeWidth={2}
+            dot={printDot(PRINT_CURRENT)}
+            connectNulls={false}
+            isAnimationActive={false}
+          />
+        </>
+      ) : (
+        <>
+          {hasPrevious ? (
+            <Bar
+              dataKey="previous"
+              fill={PRINT_PREVIOUS}
+              radius={[3, 3, 0, 0]}
+              isAnimationActive={false}
+            />
+          ) : null}
+          <Bar
+            dataKey="current"
+            fill={PRINT_CURRENT}
+            radius={[3, 3, 0, 0]}
+            isAnimationActive={false}
+          />
+        </>
+      )}
+    </Chart>
+  );
+}
+
+// The legend, as markup rather than recharts' own — ChartLegendContent reads
+// the ChartContainer context this chart deliberately does without.
+export function PrintChartLegend({
+  currentYear,
+  previousYear,
+}: {
+  currentYear: number;
+  previousYear: number | null;
+}) {
+  return (
+    <p className="print-chart-legend">
+      <span style={{ color: PRINT_CURRENT }}>■</span> {currentYear}
+      {previousYear === null ? null : (
+        <>
+          {"  "}
+          <span style={{ color: PRINT_PREVIOUS }}>■</span> {previousYear}
+        </>
+      )}
+    </p>
+  );
+}
