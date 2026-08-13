@@ -61,6 +61,19 @@ export interface YearCompareRow {
   previous: number | null;
 }
 
+// The dot at each month, in the series' own colour.
+//
+// recharts hands the dot the *Line's* props as its base, and a Line's default
+// fill is #fff — so a dot given only a radius comes out as a white disc on a
+// white card, visible only where it happens to sit on the line. The fill has to
+// be named, every time.
+//
+// The ring is the card surface rather than no stroke at all: in May the two
+// years cross, and without it the dots merge into one blob at the crossing.
+function dot(color: string) {
+  return { r: 3.5, fill: color, stroke: "var(--card)", strokeWidth: 1.5 };
+}
+
 const compact = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -194,7 +207,7 @@ export function YearCompareChart({
                   strokeWidth={2.5}
                   // Months are readings, not a continuous signal — the dot is
                   // where a number actually exists.
-                  dot={{ r: 3, strokeWidth: 0 }}
+                  dot={dot("var(--color-previous)")}
                   activeDot={{ r: 5 }}
                   // An unreported month stays a gap in the line rather than
                   // being bridged over as though it had been filled in.
@@ -207,7 +220,7 @@ export function YearCompareChart({
                 stroke="var(--color-current)"
                 type="linear"
                 strokeWidth={2.5}
-                dot={{ r: 3, strokeWidth: 0 }}
+                dot={dot("var(--color-current)")}
                 activeDot={{ r: 5 }}
                 connectNulls={false}
                 isAnimationActive={false}
