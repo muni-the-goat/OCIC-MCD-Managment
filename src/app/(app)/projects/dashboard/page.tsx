@@ -211,13 +211,12 @@ export default async function ProjectsDashboardPage({
         const items = current?.items ?? [];
         const previousItems = previous?.items ?? [];
 
-        // Both years' months, so a month only last year reported still gets its
-        // bar rather than silently leaving the axis.
+        // Both years' months, so a month only last year reported still gets
+        // its place on the axis rather than silently leaving it.
+        const currentMonths = new Set(reportedMonths(items));
+        const previousMonths = new Set(reportedMonths(previousItems));
         const months = [
-          ...new Set([
-            ...reportedMonths(items),
-            ...reportedMonths(previousItems),
-          ]),
+          ...new Set([...currentMonths, ...previousMonths]),
         ].sort((a, b) => a - b);
 
         return {
@@ -235,13 +234,20 @@ export default async function ProjectsDashboardPage({
               previous: row.previous,
             })
           ),
+          // A month the year never reported is null, not zero. On the line
+          // chart that is the difference between a gap and a plunge to the
+          // axis, and the plunge would read as a month that earned nothing.
           rows: months.map(
             (monthIndex): YearCompareRow => ({
               key: String(monthIndex),
               label: MONTH_SHORT[monthIndex],
               full: `${MONTH_NAMES[monthIndex]} ${year}`,
-              current: monthTotals(items, monthIndex).amount,
-              previous: monthTotals(previousItems, monthIndex).amount,
+              current: currentMonths.has(monthIndex)
+                ? monthTotals(items, monthIndex).amount
+                : null,
+              previous: previousMonths.has(monthIndex)
+                ? monthTotals(previousItems, monthIndex).amount
+                : null,
             })
           ),
         };
@@ -518,6 +524,7 @@ export default async function ProjectsDashboardPage({
                           rows={entry.rows}
                           currentYear={year}
                           previousYear={entry.previousYear}
+                          variant="line"
                         />
                       </div>
 

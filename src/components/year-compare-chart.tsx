@@ -4,6 +4,8 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   XAxis,
   YAxis,
 } from "recharts";
@@ -16,16 +18,22 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 
-// Two years side by side, one pair of bars per month — or per report, or per
-// category, depending on what the caller puts on the axis. One component for
-// all three because the question is the same each time: this year against last,
-// on a shared scale.
+// Two years side by side, one pair per month — or per report, or per property,
+// depending on what the caller puts on the axis. One component for all three
+// because the question is the same each time: this year against last, on a
+// shared scale.
 //
-// Bars rather than lines. The reader is comparing two magnitudes at the same
-// point on the axis — June against June — and paired bars put those two numbers
-// next to each other. A line pair asks the eye to measure a vertical gap
-// between two points instead, which is the right form for a trend and the wrong
-// one for a comparison.
+// Two forms, and the axis decides which:
+//
+//   line — the axis is time. Jan to Dec is an ordered run, the gap between two
+//          months means something, and the shape of the year is the thing being
+//          read. A line says "this is one quantity moving"; twelve pairs of
+//          bars make the reader assemble that shape themselves.
+//
+//   bar  — the axis is a set of names. Sales, Leasing, Property Management;
+//          Elysée, Diamond Bay. Nothing joins one to the next, so a line
+//          between them would draw a trend that does not exist. Paired bars put
+//          the two magnitudes next to each other, which is the actual question.
 //
 // Colour: the brand red leads and carries the current year, the year being
 // reported on. Last year takes the palette's blue.
@@ -38,15 +46,19 @@ import {
 //
 // Slots 1 and 4 of the set in globals.css. Validated as a pair against both
 // card surfaces: ΔE 25.7 under deuteranopia against a target of 8, and both
-// clear 3:1, so neither bar needs a printed value to be legible.
+// clear 3:1, so neither series needs a printed value to be legible.
 
 export interface YearCompareRow {
   key: string;
   // Short, for the axis; the tooltip gets the full one.
   label: string;
   full: string;
-  current: number;
-  previous: number;
+  // null is "this year did not report this month", which is not the same as a
+  // reported zero and must not be drawn as one. On a line it is the difference
+  // between a gap and a dive to the axis — the second reads as a month that
+  // earned nothing, and someone repeats that in a meeting.
+  current: number | null;
+  previous: number | null;
 }
 
 const compact = new Intl.NumberFormat("en-US", {
@@ -67,12 +79,14 @@ export function YearCompareChart({
   previousYear,
   minWidth = 480,
   height = "h-64",
+  variant = "bar",
 }: {
   rows: YearCompareRow[];
   currentYear: number;
   previousYear: number | null;
   minWidth?: number;
   height?: string;
+  variant?: "bar" | "line";
 }) {
   const config = {
     previous: {
@@ -82,11 +96,71 @@ export function YearCompareChart({
     current: { label: String(currentYear), color: "var(--series-1)" },
   } satisfies ChartConfig;
 
-  // With nothing to compare against, the second series would be a row of zero
-  // bars claiming last year earned nothing — rather than that last year was
-  // never reported. It is left out, and the legend with it.
+  // With nothing to compare against, the second series would be a flat run
+  // along the axis claiming last year earned nothing — rather than that last
+  // year was never reported. It is left out, and the legend with it.
   const hasPrevious =
-    previousYear !== null && rows.some((row) => row.previous !== 0);
+    previousYear !== null &&
+    rows.some((row) => row.previous !== null && row.previous !== 0);
+
+  const isLine = variant === "line";
+  const Chart = isLine ? LineChart : BarChart;
+
+  const axes = (
+    <>
+      <CartesianGrid vertical={false} stroke="var(--border)" />
+      <XAxis
+        dataKey="label"
+        tickLine={false}
+        axisLine={false}
+        tickMargin={8}
+        // The floor width guarantees room for every tick, so render them all
+        // rather than letting recharts thin them.
+        interval={0}
+        className="text-xs"
+      />
+      <YAxis
+        tickLine={false}
+        axisLine={false}
+        tickMargin={4}
+        width={64}
+        className="text-xs tabular-nums"
+        tickFormatter={(value: number) =>
+          value === 0 ? "$0" : compact.format(value)
+        }
+      />
+      <ChartTooltip
+        cursor={
+          isLine
+            ? { stroke: "var(--border)", strokeWidth: 1 }
+            : { fill: "var(--muted)", opacity: 0.5 }
+        }
+        isAnimationActive={false}
+        content={
+          <ChartTooltipContent
+            labelFormatter={(_, payload) =>
+              (payload?.[0]?.payload as YearCompareRow | undefined)?.full ?? ""
+            }
+            formatter={(value, name) => (
+              <div className="flex flex-1 items-center justify-between gap-4">
+                <span className="text-muted-foreground">
+                  {config[name as keyof typeof config]?.label ?? name}
+                </span>
+                <span className="font-medium tabular-nums">
+                  {value === null || Number(value) === 0
+                    ? "—"
+                    : currency.format(Number(value))}
+                </span>
+              </div>
+            )}
+          />
+        }
+      />
+      {/* Two series are never told apart by colour alone: the legend names
+          them, and the tooltip repeats the year beside every figure. */}
+      {hasPrevious ? <ChartLegend content={<ChartLegendContent />} /> : null}
+    </>
+  );
 
   return (
     // A phone cannot fit twelve month labels, and dropping every other one
@@ -98,75 +172,64 @@ export function YearCompareChart({
         className={`aspect-auto ${height} w-full`}
         style={{ minWidth }}
       >
-        <BarChart
+        <Chart
           accessibilityLayer
           data={rows}
           margin={{ top: 12, right: 12, left: 12, bottom: 0 }}
           // 2px of card surface between the paired bars, so they read as two
-          // marks rather than one two-tone one.
+          // marks rather than one two-tone one. Ignored by LineChart.
           barGap={2}
         >
-          <CartesianGrid vertical={false} stroke="var(--border)" />
-          <XAxis
-            dataKey="label"
-            tickLine={false}
-            axisLine={false}
-            tickMargin={8}
-            // The floor width guarantees room for every tick, so render them
-            // all rather than letting recharts thin them.
-            interval={0}
-            className="text-xs"
-          />
-          <YAxis
-            tickLine={false}
-            axisLine={false}
-            tickMargin={4}
-            width={64}
-            className="text-xs tabular-nums"
-            tickFormatter={(value: number) =>
-              value === 0 ? "$0" : compact.format(value)
-            }
-          />
-          <ChartTooltip
-            cursor={{ fill: "var(--muted)", opacity: 0.5 }}
-            isAnimationActive={false}
-            content={
-              <ChartTooltipContent
-                labelFormatter={(_, payload) =>
-                  (payload?.[0]?.payload as YearCompareRow | undefined)?.full ??
-                  ""
-                }
-                formatter={(value, name) => (
-                  <div className="flex flex-1 items-center justify-between gap-4">
-                    <span className="text-muted-foreground">
-                      {config[name as keyof typeof config]?.label ?? name}
-                    </span>
-                    <span className="font-medium tabular-nums">
-                      {Number(value) === 0
-                        ? "—"
-                        : currency.format(Number(value))}
-                    </span>
-                  </div>
-                )}
+          {axes}
+          {isLine ? (
+            <>
+              {hasPrevious ? (
+                <Line
+                  dataKey="previous"
+                  stroke="var(--color-previous)"
+                  // Straight segments, not a spline. A curve through monthly
+                  // totals invents figures between the months that nobody
+                  // reported, and the peak it draws is usually not on a month.
+                  type="linear"
+                  strokeWidth={2.5}
+                  // Months are readings, not a continuous signal — the dot is
+                  // where a number actually exists.
+                  dot={{ r: 3, strokeWidth: 0 }}
+                  activeDot={{ r: 5 }}
+                  // An unreported month stays a gap in the line rather than
+                  // being bridged over as though it had been filled in.
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+              ) : null}
+              <Line
+                dataKey="current"
+                stroke="var(--color-current)"
+                type="linear"
+                strokeWidth={2.5}
+                dot={{ r: 3, strokeWidth: 0 }}
+                activeDot={{ r: 5 }}
+                connectNulls={false}
+                isAnimationActive={false}
               />
-            }
-          />
-          {/* Two series are never told apart by colour alone: the legend names
-              them, and the tooltip repeats the year beside every figure. */}
-          {hasPrevious ? <ChartLegend content={<ChartLegendContent />} /> : null}
-          {hasPrevious ? (
-            <Bar
-              dataKey="previous"
-              fill="var(--color-previous)"
-              radius={[4, 4, 0, 0]}
-            />
-          ) : null}
-          <Bar
-            dataKey="current"
-            fill="var(--color-current)"
-            radius={[4, 4, 0, 0]}
-          />
-        </BarChart>
+            </>
+          ) : (
+            <>
+              {hasPrevious ? (
+                <Bar
+                  dataKey="previous"
+                  fill="var(--color-previous)"
+                  radius={[4, 4, 0, 0]}
+                />
+              ) : null}
+              <Bar
+                dataKey="current"
+                fill="var(--color-current)"
+                radius={[4, 4, 0, 0]}
+              />
+            </>
+          )}
+        </Chart>
       </ChartContainer>
     </div>
   );
