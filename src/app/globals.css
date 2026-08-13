@@ -400,7 +400,12 @@
     text-align: left;
     vertical-align: top;
   }
+  /* The same four surfaces the on-screen project table uses — band, subtotal,
+     header, total — restated as literal hex rather than var(--table-*).
+     The print document has to come out light whatever theme the reader has the
+     app set to, and the tokens resolve to the dark ramp under .dark. */
   .print-table thead th {
+    background: #e7dfcd;
     border-bottom: 1.5px solid #212721;
     font-weight: 700;
   }
@@ -424,16 +429,20 @@
     border-bottom: 1px solid #e7e3d8;
   }
   .print-table .pt-section td {
-    background: #efe9dd;
+    background: #faf7f0;
     border-top: 1px solid #d9d4c7;
     font-weight: 700;
   }
   .print-table .pt-subtotal td {
     font-weight: 600;
   }
+  /* The bottom line, off the neutral ramp for the same reason it is on screen:
+     it shared #efe9dd with the section bands, so the last row of the document
+     read as one more heading. */
   .print-table .pt-total td {
-    background: #efe9dd;
-    border-top: 2px solid #212721;
+    background: #f5e5e8;
+    border-top: 2px solid #a42a28;
+    color: #7d1f1d;
     font-weight: 700;
   }
 
@@ -472,7 +481,7 @@
     border-bottom: 1.5px solid #212721;
   }
   .print-table .pt-subtotal {
-    background: #f4f1ea;
+    background: #f2ece0;
     font-weight: 600;
   }
 
