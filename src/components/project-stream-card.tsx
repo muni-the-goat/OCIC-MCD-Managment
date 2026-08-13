@@ -189,10 +189,10 @@ export function ProjectStreamCard({
               {tracksUnits ? ", with unit counts" : ""}
             </caption>
             <thead>
-              <tr className="bg-muted/50">
+              <tr className="bg-table-header">
                 <th
                   scope="col"
-                  className="sticky left-0 z-10 border-b bg-muted px-3 py-2 text-left font-medium"
+                  className="sticky left-0 z-10 border-b bg-table-header px-3 py-2 text-left font-medium"
                 >
                   Category
                 </th>
@@ -224,7 +224,7 @@ export function ProjectStreamCard({
                     <th
                       scope="colgroup"
                       colSpan={columns}
-                      className="sticky left-0 border-b bg-muted/40 px-3 py-1.5 text-left font-label text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                      className="sticky left-0 border-b bg-table-band px-3 py-1.5 text-left font-label text-xs font-medium uppercase tracking-wider text-muted-foreground"
                     >
                       {band.label}
                     </th>
@@ -261,17 +261,17 @@ export function ProjectStreamCard({
                   </tr>
                 ))}
                 {band.showSubtotal ? (
-                  <tr className="group bg-muted/20">
+                  <tr className="bg-table-subtotal">
                     <th
                       scope="row"
-                      className="sticky left-0 z-10 border-b bg-muted/40 px-3 py-2.5 text-left font-medium whitespace-nowrap"
+                      className="sticky left-0 z-10 border-t border-b bg-table-subtotal px-3 py-2.5 text-left font-medium whitespace-nowrap"
                     >
                       {band.label} total
                     </th>
                     {months.map((monthIndex) => (
                       <td
                         key={monthIndex}
-                        className="border-b border-l px-4 py-2.5 text-right"
+                        className="border-t border-b border-l px-4 py-2.5 text-right"
                       >
                         <Figure
                           {...monthTotals(bandItems(band), monthIndex)}
@@ -281,7 +281,7 @@ export function ProjectStreamCard({
                       </td>
                     ))}
                     {showsYearColumn ? (
-                      <td className="border-b border-l-2 px-4 py-2.5 text-right">
+                      <td className="border-t border-b border-l-2 px-4 py-2.5 text-right">
                         <Figure
                           {...yearTotals(bandItems(band))}
                           showUnits={tracksUnits}
@@ -295,17 +295,17 @@ export function ProjectStreamCard({
             ))}
             {showsTotal ? (
               <tfoot>
-                <tr className="bg-muted/50">
+                <tr className="bg-table-total text-table-total-foreground">
                   <th
                     scope="row"
-                    className="sticky left-0 z-10 border-t-2 bg-muted px-3 py-2.5 text-left font-medium"
+                    className="sticky left-0 z-10 border-t-2 border-t-table-total-edge bg-table-total px-3 py-2.5 text-left font-semibold"
                   >
                     Total
                   </th>
                   {months.map((monthIndex) => (
                     <td
                       key={monthIndex}
-                      className="border-t-2 border-l px-4 py-2.5 text-right"
+                      className="border-t-2 border-t-table-total-edge border-l px-4 py-2.5 text-right"
                     >
                       <Figure
                         {...monthTotals(items, monthIndex)}
@@ -315,7 +315,7 @@ export function ProjectStreamCard({
                     </td>
                   ))}
                   {showsYearColumn ? (
-                    <td className="border-t-2 border-l-2 px-4 py-2.5 text-right">
+                    <td className="border-t-2 border-t-table-total-edge border-l-2 px-4 py-2.5 text-right">
                       <Figure
                         amount={totals.amount}
                         units={totals.units}
@@ -345,10 +345,10 @@ export function ProjectStreamCard({
                   {projectStreamLabel(stream)} {year}, by property and month
                 </caption>
                 <thead>
-                  <tr className="bg-muted/50">
+                  <tr className="bg-table-header">
                     <th
                       scope="col"
-                      className="sticky left-0 z-10 border-b bg-muted px-3 py-2 text-left font-medium"
+                      className="sticky left-0 z-10 border-b bg-table-header px-3 py-2 text-left font-medium"
                     >
                       Property
                     </th>
@@ -375,7 +375,7 @@ export function ProjectStreamCard({
                       <th
                         scope="colgroup"
                         colSpan={months.length + 2}
-                        className="sticky left-0 border-b bg-muted/40 px-3 py-1.5 text-left font-label text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                        className="sticky left-0 border-b bg-table-band px-3 py-1.5 text-left font-label text-xs font-medium uppercase tracking-wider text-muted-foreground"
                       >
                         {propertyGroup.category}
                       </th>

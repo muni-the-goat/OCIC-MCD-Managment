@@ -27,6 +27,12 @@
   --color-status-good: var(--status-good);
   --color-status-warning: var(--status-warning);
   --color-status-critical: var(--status-critical);
+  --color-table-header: var(--table-header);
+  --color-table-band: var(--table-band);
+  --color-table-subtotal: var(--table-subtotal);
+  --color-table-total: var(--table-total);
+  --color-table-total-foreground: var(--table-total-foreground);
+  --color-table-total-edge: var(--table-total-edge);
   --color-department: var(--department);
   --color-department-foreground: var(--department-foreground);
   --color-department-edge: var(--department-edge);
@@ -123,6 +129,33 @@
   --department-foreground: #5c4708;
   --department-edge: #e0c983;
 
+  /* The project tables' four surfaces.
+     
+     Opaque, not an alpha tint over the card. The category column is sticky, and
+     a translucent cell has the rows it is meant to be covering sliding visibly
+     underneath it as the table scrolls — which is why the old header and total
+     rows had to paint their first cell a different shade from the rest of their
+     own row, drawing a stripe down the left of the table that meant nothing.
+     A row is one colour the whole way across now.
+
+     Three weights of summary, each a step further from the body rows:
+
+       band     — the group heading (BUILT PROPERTIES). Barely a tint; it names
+                  the rows under it rather than summarising them.
+       subtotal — one band added up. Reads as part of the body.
+       header   — deeper, and the only one of the three at the top of the table.
+       total    — the bottom line, and the one row that leaves the neutral
+                  ramp entirely. Header and total were both --muted before, so
+                  the last row of the table looked like another heading. A
+                  fourth step of grey would not have separated them; a change of
+                  hue does. */
+  --table-header: #e7dfcd;
+  --table-band: #faf7f0;
+  --table-subtotal: #f2ece0;
+  --table-total: #f5e5e8; /* ocic-red-pale */
+  --table-total-foreground: #7d1f1d; /* ocic-red-dark — 8.4:1 on the above */
+  --table-total-edge: #a42a28;
+
   /* The dashboard's categorical palette. Eight-slot method, six slots filled:
      a fixed hue order, assigned by position and never cycled or reordered.
      Its job is identity across charts: each single-series chart takes its own
@@ -198,6 +231,17 @@
   --department: #4a3f1e;
   --department-foreground: #edd060;
   --department-edge: rgba(237, 208, 96, 0.42);
+
+  /* Re-stepped for the dark card, not flipped — the ramp still runs from the
+     body rows outward. The total row carries gold rather than red for the same
+     reason --primary does on this theme: red at the weight a total row needs
+     goes muddy on a dark surface, and gold is the brand's other hue. */
+  --table-header: #362c24;
+  --table-band: #262019;
+  --table-subtotal: #2b231e;
+  --table-total: #3a2e18;
+  --table-total-foreground: #edd060; /* 9.1:1 on the above */
+  --table-total-edge: #dab428;
 
   /* Same six hues, re-stepped for the dark card surface rather than flipped —
      validated as a set the same way. All six clear 3:1 here. */
