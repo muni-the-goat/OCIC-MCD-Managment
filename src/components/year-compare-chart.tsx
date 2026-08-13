@@ -61,6 +61,22 @@ export interface YearCompareRow {
   previous: number | null;
 }
 
+// Monotone, specifically — not "natural", and not "basis".
+//
+// Every curve through monthly totals invents figures between the months that
+// nobody reported; the question is only how far the invention is allowed to go.
+// A natural cubic spline overshoots: run it through Feb near zero and then a
+// steep climb to Mar, and it dips the curve *below* zero on the way — a month
+// drawn as a loss that was really the smoothing. "basis" is worse still and
+// does not pass through the reported points at all.
+//
+// Monotone cubic is bounded by its own data. It never draws a value above the
+// highest neighbouring month or below the lowest, so the curve can round a
+// corner but cannot invent a peak that beats April or a month below $0. The
+// dots remain the claim about what was actually reported; the curve only joins
+// them.
+const CURVE = "monotone" as const;
+
 // The dot at each month, in the series' own colour.
 //
 // recharts hands the dot the *Line's* props as its base, and a Line's default
@@ -200,10 +216,7 @@ export function YearCompareChart({
                 <Line
                   dataKey="previous"
                   stroke="var(--color-previous)"
-                  // Straight segments, not a spline. A curve through monthly
-                  // totals invents figures between the months that nobody
-                  // reported, and the peak it draws is usually not on a month.
-                  type="linear"
+                  type={CURVE}
                   strokeWidth={2.5}
                   // Months are readings, not a continuous signal — the dot is
                   // where a number actually exists.
@@ -218,7 +231,7 @@ export function YearCompareChart({
               <Line
                 dataKey="current"
                 stroke="var(--color-current)"
-                type="linear"
+                type={CURVE}
                 strokeWidth={2.5}
                 dot={dot("var(--color-current)")}
                 activeDot={{ r: 5 }}
