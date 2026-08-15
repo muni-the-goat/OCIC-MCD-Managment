@@ -42,10 +42,16 @@ import {
   type Comparison,
   currency,
   filterItems,
+  monthRangeLabel,
+  monthSelectionValue,
   monthTotals,
   parseCategorySelection,
+  parseMonthSelection,
+  projectPeriodLabel,
   propertyComparison,
   reportedMonths,
+  restrictToMonth,
+  yearTotals,
 } from "@/lib/project-reports";
 import {
   getProjects,
@@ -143,6 +149,7 @@ export default async function ProjectsDashboardPage({
 }: {
   searchParams: Promise<{
     year?: string;
+    month?: string;
     project?: string;
     stream?: string;
     category?: string;
@@ -158,6 +165,8 @@ export default async function ProjectsDashboardPage({
 
   const requestedYear = Number(params.year);
   const year = years.includes(requestedYear) ? requestedYear : years[0];
+  const month = parseMonthSelection(params.month);
+  const period = projectPeriodLabel(month, year);
 
   const projectParam =
     params.project && projects.some((p) => p.id === params.project)
@@ -203,8 +212,18 @@ export default async function ProjectsDashboardPage({
     )
   );
   const selection = parseCategorySelection(params.category, options);
+  // Category first, then month, and both years the same way — a comparison
+  // narrowed on one side only would set March against the whole of last year.
   const narrow = (report: ProjectReport | null) =>
-    report ? { ...report, items: filterItems(report.items, selection) } : null;
+    report
+      ? {
+          ...report,
+          items: restrictToMonth(
+            filterItems(report.items, selection),
+            month
+          ),
+        }
+      : null;
 
   const blocks = loaded.map(({ project, streams }) => ({
     project,
@@ -226,7 +245,15 @@ export default async function ProjectsDashboardPage({
         return {
           stream: entry.stream,
           previousYear: previous?.period_year ?? null,
+          // The axis below is the union of both years, so a month only last
+          // year reported keeps its place on the chart. Whether the *card*
+          // appears at all is a different question, and this is it.
+          reported: currentMonths.size > 0,
           comparison: previous ? compareYears(items, previous.items) : null,
+          // What this year alone reported, for the figures block on a card
+          // whose month chart has stood down and which has no earlier year to
+          // set itself against.
+          totals: yearTotals(items),
           // One bar pair per building, so the properties can be read against
           // each other and against their own last year at the same time.
           properties: propertyComparison(items, previousItems).map(
@@ -256,7 +283,12 @@ export default async function ProjectsDashboardPage({
           ),
         };
       })
-      .filter((entry) => entry.rows.length > 0),
+      // A stream with nothing in it this period stands down rather than
+      // heading a card whose figure is $0.00 — which is a claim that it
+      // traded nothing, not that nobody has filed it yet. Pick a month sales
+      // has not reached and that is exactly the difference. Where every
+      // stream stands down, the page's own empty state says so by name.
+      .filter((entry) => entry.reported),
   }));
 
   const shownBlocks = blocks.filter((block) => block.streams.length > 0);
@@ -290,6 +322,10 @@ export default async function ProjectsDashboardPage({
     shownBlocks
       .flatMap((block) => block.streams)
       .find((entry) => entry.previousYear !== null)?.previousYear ?? null;
+  // Last year read at the same resolution: with March selected, this year's
+  // March is tracking against last year's March, not against last year.
+  const previousPeriod =
+    previousYear === null ? null : projectPeriodLabel(month, previousYear);
 
   // Worded exactly as the Projects page words it, so the two PDFs cannot
   // describe the same selection differently.
@@ -347,9 +383,9 @@ export default async function ProjectsDashboardPage({
                 Bonjour, {firstName}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {previousYear === null
-                  ? `Here is how ${year} is going.`
-                  : `Here is how ${year} is tracking against ${previousYear}.`}
+                {previousPeriod === null
+                  ? `Here is how ${period} is going.`
+                  : `Here is how ${period} is tracking against ${previousPeriod}.`}
               </p>
             </div>
           </div>
@@ -398,6 +434,7 @@ export default async function ProjectsDashboardPage({
         <ProjectFilters
           years={years}
           selectedYear={year}
+          selectedMonth={monthSelectionValue(month)}
           projects={projects}
           selectedProject={projectParam}
           selectedStream={streamParam}
@@ -418,8 +455,10 @@ export default async function ProjectsDashboardPage({
               icon={STREAM_ICONS[row.stream]}
               caption={
                 row.months.length === 0
-                  ? `${year}, with no earlier year to set it against`
-                  : `${MONTH_SHORT[row.months[0]]}–${MONTH_SHORT[row.months[row.months.length - 1]]} ${year}, against ${previousYear}`
+                  ? previousPeriod === null
+                    ? `${period}, with no earlier year to set it against`
+                    : `${period}, with nothing in ${previousPeriod} to set it against`
+                  : `${monthRangeLabel(row.months)} ${year}, against ${previousYear}`
               }
               value={row.value}
               previous={row.previous}
@@ -438,7 +477,7 @@ export default async function ProjectsDashboardPage({
 
       {shownBlocks.length === 0 ? (
         <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
-          Nothing recorded for this selection in {year}.
+          Nothing recorded for this selection in {period}.
         </p>
       ) : (
         <>
@@ -475,11 +514,17 @@ export default async function ProjectsDashboardPage({
                 const comparison = entry.comparison;
                 const range =
                   comparison && comparison.months.length > 0
-                    ? `${MONTH_SHORT[comparison.months[0]]}–${
-                        MONTH_SHORT[
-                          comparison.months[comparison.months.length - 1]
-                        ]
-                      }`
+                    ? monthRangeLabel(comparison.months)
+                    : null;
+                // A "by month" chart of a single month is not a chart: one dot
+                // per year, saying what the figures beside it already say in
+                // words. It stands down, and the figures take its place — which
+                // is the whole of the card once the month filter has narrowed
+                // the year to March.
+                const showsMonthChart = entry.rows.length > 1;
+                const compared =
+                  comparison && comparison.months.length > 0
+                    ? comparison
                     : null;
 
                 return (
@@ -488,37 +533,54 @@ export default async function ProjectsDashboardPage({
                       <CardTitle>{projectStreamLabel(entry.stream)}</CardTitle>
                       <CardDescription>
                         {range === null
-                          ? `${year}, with no earlier year to set it against.`
+                          ? entry.previousYear === null
+                            ? `${period}, with no earlier year to set it against.`
+                            : `${period}, with nothing in ${projectPeriodLabel(
+                                month,
+                                entry.previousYear
+                              )} to set it against.`
                           : `${range}, ${year} against ${entry.previousYear}.`}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-5">
-                      {/* The cards at the top already carry these figures, and
-                          with one project on screen they are the same figures.
-                          They earn their place only where there is more than
-                          one project for the roll-up to have rolled up. */}
-                      {shownProjects.length > 1 &&
-                      comparison &&
-                      comparison.months.length > 0 ? (
+                      {/* The cards at the top already carry these figures,
+                          and with one project on screen they are the same
+                          figures. They earn their place where there is more
+                          than one project for the roll-up to have rolled up —
+                          or where the month chart has stood down and they are
+                          the only thing left on the card to read. */}
+                      {shownProjects.length > 1 || !showsMonthChart ? (
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div className="space-y-1">
                             <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
                               Value
                             </p>
                             <p className="font-heading text-2xl font-semibold tabular-nums">
-                              {currency.format(comparison.current.amount)}
-                              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                                from{" "}
-                                {currency.format(comparison.previous.amount)}
-                              </span>
-                            </p>
-                            <Delta
-                              change={comparison.amountChange}
-                              percent={comparison.amountPercent}
-                              suffix={currency.format(
-                                Math.abs(comparison.amountChange)
+                              {/* The compared figure where there is a year to
+                                  compare against — the shared months, like
+                                  everything else here — and this year's own
+                                  total where there is not. */}
+                              {currency.format(
+                                compared
+                                  ? compared.current.amount
+                                  : entry.totals.amount
                               )}
-                            />
+                              {compared ? (
+                                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                                  from{" "}
+                                  {currency.format(compared.previous.amount)}
+                                </span>
+                              ) : null}
+                            </p>
+                            {compared ? (
+                              <Delta
+                                change={compared.amountChange}
+                                percent={compared.amountPercent}
+                                suffix={currency.format(
+                                  Math.abs(compared.amountChange)
+                                )}
+                              />
+                            ) : null}
                           </div>
                           {tracksUnits ? (
                             <div className="space-y-1">
@@ -526,32 +588,40 @@ export default async function ProjectsDashboardPage({
                                 Units
                               </p>
                               <p className="font-heading text-2xl font-semibold tabular-nums">
-                                {comparison.current.units}
-                                <span className="ml-2 text-sm font-normal text-muted-foreground">
-                                  from {comparison.previous.units}
-                                </span>
+                                {compared
+                                  ? compared.current.units
+                                  : entry.totals.units}
+                                {compared ? (
+                                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                                    from {compared.previous.units}
+                                  </span>
+                                ) : null}
                               </p>
-                              <Delta
-                                change={comparison.unitChange}
-                                percent={comparison.unitPercent}
-                                suffix={`${Math.abs(comparison.unitChange)}`}
-                              />
+                              {compared ? (
+                                <Delta
+                                  change={compared.unitChange}
+                                  percent={compared.unitPercent}
+                                  suffix={`${Math.abs(compared.unitChange)}`}
+                                />
+                              ) : null}
                             </div>
                           ) : null}
                         </div>
                       ) : null}
 
-                      <div className="space-y-2">
-                        <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                          By month
-                        </p>
-                        <YearCompareChart
-                          rows={entry.rows}
-                          currentYear={year}
-                          previousYear={entry.previousYear}
-                          variant="line"
-                        />
-                      </div>
+                      {showsMonthChart ? (
+                        <div className="space-y-2">
+                          <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            By month
+                          </p>
+                          <YearCompareChart
+                            rows={entry.rows}
+                            currentYear={year}
+                            previousYear={entry.previousYear}
+                            variant="line"
+                          />
+                        </div>
+                      ) : null}
 
                       {/* The month chart says when the money came in; this says
                           which building it came from, and how each one did
@@ -593,6 +663,8 @@ export default async function ProjectsDashboardPage({
         <PrintableProjectsDashboard
           year={year}
           previousYear={previousYear}
+          period={period}
+          previousPeriod={previousPeriod}
           scopeLabel={scopeLabel}
           presenter={profile.full_name || profile.email}
           headline={headline}

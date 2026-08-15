@@ -4,9 +4,12 @@ import {
   PrintYearCompareChart,
   type YearCompareRow,
 } from "@/components/year-compare-chart";
-import { currency, type ProjectRecord } from "@/lib/project-reports";
 import {
-  MONTH_SHORT,
+  currency,
+  monthRangeLabel,
+  type ProjectRecord,
+} from "@/lib/project-reports";
+import {
   projectStreamLabel,
   streamTracksUnits,
   type ProjectStream,
@@ -70,6 +73,8 @@ function Delta({
 export function PrintableProjectsDashboard({
   year,
   previousYear,
+  period,
+  previousPeriod,
   scopeLabel,
   presenter,
   headline,
@@ -78,6 +83,12 @@ export function PrintableProjectsDashboard({
 }: {
   year: number;
   previousYear: number | null;
+  // "2026" and "2025", or "March 2026" and "March 2025" once the month filter
+  // has been used. The subtitle names both, because a document that said only
+  // "2026" while its figures covered March would be the kind of mislabelling
+  // the workbook's own "Jan-May" heading was.
+  period: string;
+  previousPeriod: string | null;
   scopeLabel: string;
   presenter: string;
   headline: PrintDashHeadline[];
@@ -98,9 +109,9 @@ export function PrintableProjectsDashboard({
           <div className="print-title-block">
             <h1 className="print-title">Projects dashboard</h1>
             <p className="print-subtitle">
-              {previousYear === null
-                ? `How ${year} is going`
-                : `How ${year} is tracking against ${previousYear}`}
+              {previousPeriod === null
+                ? `How ${period} is going`
+                : `How ${period} is tracking against ${previousPeriod}`}
             </p>
           </div>
         </header>
@@ -147,10 +158,10 @@ export function PrintableProjectsDashboard({
                     assumed — the same guard the other two documents carry. */}
                 <p className="print-dash-range">
                   {row.months.length === 0
-                    ? `${year}, with no earlier year to set it against`
-                    : `${MONTH_SHORT[row.months[0]]}–${
-                        MONTH_SHORT[row.months[row.months.length - 1]]
-                      } ${year}, against ${previousYear}`}
+                    ? previousPeriod === null
+                      ? `${period}, with no earlier year to set it against`
+                      : `${period}, with nothing in ${previousPeriod} to set it against`
+                    : `${monthRangeLabel(row.months)} ${year}, against ${previousYear}`}
                 </p>
               </div>
             ))}
@@ -178,8 +189,15 @@ export function PrintableProjectsDashboard({
                 currentYear={year}
                 previousYear={entry.previousYear}
               />
-              <p className="print-detail-title">By month</p>
-              <PrintYearCompareChart rows={entry.rows} variant="line" />
+              {/* A month chart of a single month is one dot per year, saying
+                  what the cards above already say in words. It stands down,
+                  the same way it does on screen. */}
+              {entry.rows.length > 1 ? (
+                <>
+                  <p className="print-detail-title">By month</p>
+                  <PrintYearCompareChart rows={entry.rows} variant="line" />
+                </>
+              ) : null}
               {entry.properties.length > 1 ? (
                 <>
                   <p className="print-detail-title">By property</p>

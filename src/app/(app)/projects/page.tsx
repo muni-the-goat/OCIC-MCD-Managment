@@ -12,7 +12,11 @@ import {
   categorySelectionLabel,
   categorySelectionValue,
   filterItems,
+  monthSelectionValue,
   parseCategorySelection,
+  parseMonthSelection,
+  projectPeriodLabel,
+  restrictToMonth,
 } from "@/lib/project-reports";
 import {
   getProjects,
@@ -34,6 +38,7 @@ export default async function ProjectsPage({
 }: {
   searchParams: Promise<{
     year?: string;
+    month?: string;
     project?: string;
     stream?: string;
     category?: string;
@@ -51,6 +56,8 @@ export default async function ProjectsPage({
   // An out-of-range year in the URL falls back to the newest year with data
   // rather than rendering empty cards for 1998.
   const year = years.includes(requestedYear) ? requestedYear : years[0];
+  const month = parseMonthSelection(params.month);
+  const period = projectPeriodLabel(month, year);
 
   const projectParam =
     params.project && projects.some((p) => p.id === params.project)
@@ -110,9 +117,18 @@ export default async function ProjectsPage({
   // Applied to the rows themselves, before any grouping or summing, so every
   // figure downstream — subtotals, totals, the year-on-year comparison — is of
   // what was asked for. Last year is narrowed the same way, or the comparison
-  // would set one category against the whole portfolio.
+  // would set one category against the whole portfolio, and one month against
+  // the whole of it.
   const narrow = (report: ProjectReport | null) =>
-    report ? { ...report, items: filterItems(report.items, selection) } : null;
+    report
+      ? {
+          ...report,
+          items: restrictToMonth(
+            filterItems(report.items, selection),
+            month
+          ),
+        }
+      : null;
 
   const blocks = await Promise.all(
     loaded.map(async ({ project, streams: loadedStreams }) => {
@@ -163,6 +179,7 @@ export default async function ProjectsPage({
           <ProjectFilters
             years={years}
             selectedYear={year}
+            selectedMonth={monthSelectionValue(month)}
             projects={projects}
             selectedProject={projectParam}
             selectedStream={streamParam}
@@ -192,7 +209,7 @@ export default async function ProjectsPage({
             ) : null}
             {streams.length === 0 ? (
               <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
-                {project.label} has nothing recorded for {year}.
+                {project.label} has nothing recorded for {period}.
               </p>
             ) : (
               streams.map(({ stream, current, previous }) => (
@@ -200,6 +217,7 @@ export default async function ProjectsPage({
                   key={`${project.id}:${stream}`}
                   stream={stream}
                   year={year}
+                  period={period}
                   current={current}
                   previous={previous}
                   selection={selection}
@@ -216,6 +234,7 @@ export default async function ProjectsPage({
       <PrintPortal>
         <PrintableProjectReport
           year={year}
+          period={period}
           scopeLabel={scopeLabel}
           blocks={blocks}
           selection={selection}

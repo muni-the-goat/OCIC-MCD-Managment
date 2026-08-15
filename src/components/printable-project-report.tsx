@@ -8,6 +8,7 @@ import {
   currency,
   groupIntoBands,
   hasNamedProperties,
+  monthRangeLabel,
   monthTotals,
   propertyGroups,
   reportedMonths,
@@ -94,6 +95,7 @@ function densityFor(columns: number) {
 
 export function PrintableProjectReport({
   year,
+  period,
   scopeLabel,
   blocks,
   presenter,
@@ -101,6 +103,11 @@ export function PrintableProjectReport({
 }: {
   selection?: CategorySelection;
   year: number;
+  // "2026", or "March 2026" with the month filter in play. The letterhead
+  // states it, because a document handed round a room has to say which period
+  // it is of — and a single-column table that only said "2026" would be read
+  // as the year.
+  period: string;
   scopeLabel: string;
   blocks: PrintBlock[];
   presenter: string;
@@ -119,7 +126,7 @@ export function PrintableProjectReport({
           <div className="print-title-block">
             <h1 className="print-title">Project performance report</h1>
             <p className="print-subtitle">
-              Sales, leasing and property management · {year}
+              Sales, leasing and property management · {period}
             </p>
           </div>
         </header>
@@ -170,7 +177,7 @@ export function PrintableProjectReport({
 
                 {items.length === 0 || months.length === 0 ? (
                   <p className="print-empty">
-                    Nothing recorded for {year}.
+                    Nothing recorded for {period}.
                   </p>
                 ) : (
                   <>
@@ -345,14 +352,7 @@ export function PrintableProjectReport({
                         <thead>
                           <tr>
                             <th className="pt-item">
-                              {MONTH_NAMES[comparison.months[0]]} to{" "}
-                              {
-                                MONTH_NAMES[
-                                  comparison.months[
-                                    comparison.months.length - 1
-                                  ]
-                                ]
-                              }
+                              {monthRangeLabel(comparison.months, "long")}
                             </th>
                             <th className="pt-num">{previous?.period_year}</th>
                             <th className="pt-num">{year}</th>
@@ -416,7 +416,7 @@ export function PrintableProjectReport({
         )}
 
         <footer className="print-footer">
-          OCIC · Project performance {year} · prepared {printed}. Comparisons
+          OCIC · Project performance {period} · prepared {printed}. Comparisons
           cover only the months both years have reported.
         </footer>
       </div>

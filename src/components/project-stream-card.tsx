@@ -14,6 +14,7 @@ import {
   currency,
   groupIntoBands,
   hasNamedProperties,
+  monthRangeLabel,
   monthTotals,
   propertyGroups,
   reportedMonths,
@@ -121,12 +122,17 @@ function Delta({
 export function ProjectStreamCard({
   stream,
   year,
+  period,
   current,
   previous,
   selection = ALL_SELECTION,
 }: {
   stream: ProjectStream;
   year: number;
+  // "2026", or "March 2026" once the month filter has been used. The eyebrow
+  // and the empty state both name it, so a table showing a single column reads
+  // as the month that was asked for rather than as a year gone missing.
+  period: string;
   current: ProjectReport | null;
   previous: ProjectReport | null;
   // The rows are already narrowed to the selection by the time they arrive;
@@ -146,7 +152,11 @@ export function ProjectStreamCard({
   const showsYearColumn = months.length > 1;
   const columns = 1 + months.length + (showsYearColumn ? 1 : 0);
 
-  if (items.length === 0) {
+  // No rows at all is a report nobody has filled in; rows with no reported
+  // month is a month nothing was filed in — which is what the month filter
+  // lands on whenever a project traded in April but not in March. Both read as
+  // the same empty card, and the period is what tells them apart.
+  if (items.length === 0 || months.length === 0) {
     return (
       <Card className="rounded-2xl">
         <CardHeader>
@@ -155,7 +165,7 @@ export function ProjectStreamCard({
         </CardHeader>
         <CardContent>
           <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
-            Nothing recorded for {year} yet.
+            Nothing recorded for {period} yet.
           </p>
         </CardContent>
       </Card>
@@ -166,7 +176,7 @@ export function ProjectStreamCard({
     <Card className="rounded-2xl">
       <CardHeader>
         <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {year}
+          {period}
         </p>
         <CardTitle>{projectStreamLabel(stream)}</CardTitle>
         <CardDescription>{DESCRIPTIONS[stream]}</CardDescription>
@@ -422,9 +432,8 @@ export function ProjectStreamCard({
                   "$16,100,267.00 from $24,060,326.00" — newest, then what it
                   came from. Naming the years the other way round made the
                   heading contradict the sentence directly under it. */}
-              {MONTH_SHORT[comparison.months[0]]}–
-              {MONTH_SHORT[comparison.months[comparison.months.length - 1]]},{" "}
-              {year} against {previous?.period_year}
+              {monthRangeLabel(comparison.months)}, {year} against{" "}
+              {previous?.period_year}
             </p>
             <dl className="mt-3 grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">

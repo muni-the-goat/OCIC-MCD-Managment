@@ -3,6 +3,8 @@ import {
   BUILT_CATEGORIES,
   LAND_CATEGORY,
   MONTH_KEYS,
+  MONTH_NAMES,
+  MONTH_SHORT,
   UNIT_KEYS,
   isReportedMonth,
   itemTotal,
@@ -74,6 +76,74 @@ export function reportedMonths(
   return MONTH_KEYS.map((_, index) => index).filter((index) =>
     isReportedMonth(items, index)
   );
+}
+
+// One month of the year, or all twelve.
+//
+// Applied to the rows themselves — by zeroing the months nobody asked for —
+// rather than by teaching every sum downstream about a range. reportedMonths,
+// the totals, the year-on-year comparison and the charts then narrow
+// themselves: a table asked for March rules one column, and its comparison sets
+// March against last March, without any of them being told a month was chosen.
+// The same move filterItems makes for categories, for the same reason.
+export const ALL_MONTHS = "all";
+
+// A zero-based index into MONTH_KEYS, or null for every month.
+export type MonthSelection = number | null;
+
+export function restrictToMonth(
+  items: readonly ProjectReportItem[],
+  month: MonthSelection
+): ProjectReportItem[] {
+  if (month === null) return [...items];
+  return items.map((item) => {
+    const kept = { ...item };
+    MONTH_KEYS.forEach((key, index) => {
+      if (index !== month) kept[key] = 0;
+    });
+    UNIT_KEYS.forEach((key, index) => {
+      if (index !== month) kept[key] = 0;
+    });
+    return kept;
+  });
+}
+
+// The URL carries the month one-based, the way a person writes it: ?month=3 is
+// March. Anything else is every month, so a hand-edited or stale link opens on
+// the full year rather than on an empty page.
+export function parseMonthSelection(value: string | undefined): MonthSelection {
+  const month = Number(value);
+  return Number.isInteger(month) && month >= 1 && month <= 12 ? month - 1 : null;
+}
+
+export function monthSelectionValue(month: MonthSelection): string {
+  return month === null ? ALL_MONTHS : String(month + 1);
+}
+
+// The period the figures cover, for the card eyebrows, the empty states and the
+// print letterhead. Named for the project reports rather than taking the bare
+// name, which types.ts already gives to the activity report's own period.
+export function projectPeriodLabel(
+  month: MonthSelection,
+  year: number
+): string {
+  return month === null ? String(year) : `${MONTH_NAMES[month]} ${year}`;
+}
+
+// The span a run of reported months covers — "Jan–Jun", or just "Mar" where it
+// is one month. Written once because four places state it and each carried its
+// own em-dash join; with a month filter in play a single month is now the
+// ordinary case, and "Mar–Mar" is not a range.
+export function monthRangeLabel(
+  months: readonly number[],
+  style: "short" | "long" = "short"
+): string {
+  if (months.length === 0) return "";
+  const names = style === "long" ? MONTH_NAMES : MONTH_SHORT;
+  const first = names[months[0]];
+  const last = names[months[months.length - 1]];
+  if (first === last) return first;
+  return style === "long" ? `${first} to ${last}` : `${first}–${last}`;
 }
 
 export interface Comparison {
