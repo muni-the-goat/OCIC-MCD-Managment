@@ -299,17 +299,25 @@
 .rich-text p {
   margin-bottom: 0.5rem;
 }
+/* font-size is set explicitly because Tailwind's preflight resets every
+   heading to `font-size: inherit`. Without these a heading came out at body
+   size in a slightly heavier weight, which read as the button having done
+   nothing at all. */
 .rich-text h2,
 .rich-text h4 {
   margin-top: 1rem;
   margin-bottom: 0.25rem;
+  font-size: 1.125rem;
+  line-height: 1.35;
   font-weight: 600;
 }
 .rich-text h3,
 .rich-text h5 {
   margin-top: 0.875rem;
   margin-bottom: 0.25rem;
-  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1.4;
+  font-weight: 600;
 }
 .rich-text ul,
 .rich-text ol {

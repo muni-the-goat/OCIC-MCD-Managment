@@ -113,7 +113,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         id,
-        class: "rich-text rich-text-input px-3 py-2",
+        class: "rich-text rich-text-input px-3 py-2 text-sm",
         role: "textbox",
         "aria-multiline": "true",
       },
