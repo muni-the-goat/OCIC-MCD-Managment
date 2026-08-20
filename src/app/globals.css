@@ -302,21 +302,27 @@
 /* font-size is set explicitly because Tailwind's preflight resets every
    heading to `font-size: inherit`. Without these a heading came out at body
    size in a slightly heavier weight, which read as the button having done
-   nothing at all. */
+   nothing at all.
+
+   Both sit below the section title above them — Summary, Challenges and the
+   rest are set at text-lg. These are headings *inside* one of those sections,
+   which is what the renderer already says by emitting h4 and h5 beneath the
+   section's own h3, and a heading an author types must not outrank the name of
+   the box they typed it into. */
 .rich-text h2,
 .rich-text h4 {
   margin-top: 1rem;
   margin-bottom: 0.25rem;
-  font-size: 1.125rem;
-  line-height: 1.35;
+  font-size: 1rem;
+  line-height: 1.4;
   font-weight: 600;
 }
 .rich-text h3,
 .rich-text h5 {
   margin-top: 0.875rem;
   margin-bottom: 0.25rem;
-  font-size: 1rem;
-  line-height: 1.4;
+  font-size: 0.9375rem;
+  line-height: 1.45;
   font-weight: 600;
 }
 .rich-text ul,

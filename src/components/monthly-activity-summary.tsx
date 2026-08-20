@@ -307,10 +307,10 @@ export async function MonthlyActivitySummary({
                     </Link>
                   </div>
 
-                  <dl className="space-y-2.5">
+                  <dl className="space-y-4">
                     {MONTHLY_SECTIONS.map(({ key, label }) => (
                       <div key={key}>
-                        <dt className="text-xs font-semibold">{label}</dt>
+                        <dt className="mb-1.5 font-heading text-lg font-semibold">{label}</dt>
                         {/* Formatted, the same as on the detail page. This card
                             prints each section in full rather than trimming it
                             to a line, so stripping the headings and bullets did

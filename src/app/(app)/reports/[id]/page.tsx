@@ -207,7 +207,7 @@ export default async function ReportDetailPage({
           <CardContent className="space-y-4">
             {MONTHLY_SECTIONS.map(({ key, label }) => (
               <div key={key}>
-                <h3 className="mb-1 text-sm font-semibold">{label}</h3>
+                <h3 className="mb-1.5 font-heading text-lg font-semibold">{label}</h3>
                 <RichText
                   value={report.content[key]}
                   className="text-muted-foreground"
