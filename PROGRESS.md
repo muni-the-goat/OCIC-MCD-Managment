@@ -601,7 +601,7 @@ They hold plain strings and still do. `RichValue` is `string | RichDoc` for exac
 ### Three things that would have broken quietly
 
 1. **The required-summary check.** `if (intent === "submitted" && !summary)` was what stopped an empty report being filed. A cleared rich text field is not `""` — it posts a document holding one empty paragraph, which is truthy. It now asks `isRichTextEmpty()`, which tests the extracted words.
-2. **The summary preview.** `monthly-activity-summary.tsx` put the raw value into a table cell. It renders `richTextToPlain()` now — deliberately the words alone, because that page stacks many reports and six formatted documents per row would stop it being scannable.
+2. **The summary preview.** `monthly-activity-summary.tsx` put the raw value into a table cell. It renders through `RichText` now, formatted exactly as the detail page does. It went out as plain text first, on the reasoning that a page stacking many reports should stay scannable — which was wrong, because that card prints every section in full rather than trimming it to a line. Stripping the formatting bought no brevity and left bulleted lists reading as loose lines with gaps between them.
 3. **The placeholder.** Tiptap's `showOnlyCurrent` defaults to true, which shows the prompt only in the focused field and leaves the other five as unexplained empty boxes. Set to false.
 
 ### Constraints for anyone changing this

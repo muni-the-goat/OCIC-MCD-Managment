@@ -10,8 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { RichText } from "@/components/rich-text";
 import { departmentLabel } from "@/lib/departments";
-import { richTextToPlain } from "@/lib/rich-text";
 import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -311,13 +311,16 @@ export async function MonthlyActivitySummary({
                     {MONTHLY_SECTIONS.map(({ key, label }) => (
                       <div key={key}>
                         <dt className="text-xs font-semibold">{label}</dt>
-                        {/* The words alone. This is a summary of many reports at
-                            once, and giving each section its headings and lists
-                            here would turn a scannable column into six formatted
-                            documents stacked on top of each other — the detail
-                            page is where the formatting is worth reading. */}
-                        <dd className="whitespace-pre-wrap text-sm text-muted-foreground">
-                          {richTextToPlain(report.content?.[key]).trim() || "—"}
+                        {/* Formatted, the same as on the detail page. This card
+                            prints each section in full rather than trimming it
+                            to a line, so stripping the headings and bullets did
+                            not buy the brevity it was meant to — it just left a
+                            list reading as loose lines with gaps between them. */}
+                        <dd>
+                          <RichText
+                            value={report.content?.[key]}
+                            className="text-muted-foreground"
+                          />
                         </dd>
                       </div>
                     ))}
