@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { History, Plus, Trash2 } from "lucide-react";
 import { saveReport, type ActionState } from "@/app/(app)/reports/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CancelEditButton } from "@/components/cancel-edit-button";
 import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -803,6 +804,13 @@ export function ReportForm({
         >
           Submit for review
         </ActionButton>
+        {/* Back to the report being edited, or to the list for one that does
+            not exist yet. Quiet, and last, so it never competes with the two
+            actions that actually file something. */}
+        <CancelEditButton
+          href={report ? `/reports/${report.id}` : "/reports"}
+          disabled={pending}
+        />
       </div>
     </form>
   );
