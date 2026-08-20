@@ -94,6 +94,15 @@ export function RichTextEditor({
         code: false,
         codeBlock: false,
         horizontalRule: false,
+        // The gap cursor is the blinking horizontal bar ProseMirror parks
+        // beside the caret. It earns its place in a schema holding things a
+        // text cursor cannot sit inside — an image, a code block, a horizontal
+        // rule — by giving you somewhere to click before or after them. This
+        // schema has none of those, all three being off above, so it can only
+        // ever draw a stray line next to the cursor. Tiptap injects the CSS for
+        // it at runtime, so there is no stylesheet to override; the extension
+        // itself has to go.
+        gapcursor: false,
         // A link needs its href checked — `javascript:` is a valid one — and
         // nobody has asked to put links in a monthly report. Off until they do.
         link: false,
