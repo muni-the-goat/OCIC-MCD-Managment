@@ -28,8 +28,10 @@ import {
 } from "@/lib/auth";
 import { departmentLabel } from "@/lib/departments";
 import { getDepartments } from "@/lib/departments-server";
+import { RichText } from "@/components/rich-text";
 import { createClient } from "@/lib/supabase/server";
 import {
+  MONTHLY_SECTIONS,
   reportPeriodLabel,
   reportTypeLabel,
   type BudgetItem,
@@ -40,13 +42,6 @@ import {
 } from "@/lib/types";
 
 export const metadata = { title: "Report" };
-
-const MONTHLY_SECTIONS = [
-  ["summary", "Summary"],
-  ["accomplishments", "Accomplishments"],
-  ["challenges", "Challenges"],
-  ["next_month_plan", "Next month plan"],
-] as const;
 
 export default async function ReportDetailPage({
   params,
@@ -210,12 +205,13 @@ export default async function ReportDetailPage({
             <CardTitle>Report</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {MONTHLY_SECTIONS.map(([key, label]) => (
+            {MONTHLY_SECTIONS.map(({ key, label }) => (
               <div key={key}>
                 <h3 className="mb-1 text-sm font-semibold">{label}</h3>
-                <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                  {report.content[key]?.trim() || "—"}
-                </p>
+                <RichText
+                  value={report.content[key]}
+                  className="text-muted-foreground"
+                />
               </div>
             ))}
           </CardContent>

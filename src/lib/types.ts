@@ -1,3 +1,5 @@
+import type { RichValue } from "@/lib/rich-text";
+
 export type AppRole =
   | "admin"
   | "vice_president"
@@ -131,19 +133,69 @@ export const ASSIGNABLE_ROLES: readonly AppRole[] = [
   "admin",
 ];
 
-// A monthly activity report is four blocks of prose plus whatever documents the
+// A monthly activity report is six blocks of prose plus whatever documents the
 // author attaches. It also used to carry a typed task list and per-platform
 // social figures; both were removed once it became clear each team writes the
 // month up differently, and the structured fields fitted none of them. Reports
 // written before that still hold `tasks` and `metrics` keys in this jsonb —
 // nothing reads them, and a save rewrites the object without them. See
 // PROGRESS.md for the plan to bring structured activity data back.
+//
+// The blocks hold formatted text now rather than plain strings — see
+// src/lib/rich-text.ts, which is also why every value here can still be a
+// string: that is what every report filed before the editor arrived contains.
 export interface MonthlyContent {
-  summary?: string;
-  accomplishments?: string;
-  challenges?: string;
-  next_month_plan?: string;
+  summary?: RichValue;
+  accomplishments?: RichValue;
+  remarks?: RichValue;
+  challenges?: RichValue;
+  feedback_recommendation?: RichValue;
+  next_month_plan?: RichValue;
 }
+
+// The sections, in the order the office reads them. One list rather than the
+// three that grew up separately — the form, the detail page and the summary
+// each kept their own, which was three places to edit to add Remarks and three
+// chances to put it in a different position.
+//
+// The placeholder is only wanted by the form; carrying it here keeps the whole
+// definition of a section in one row.
+export const MONTHLY_SECTIONS = [
+  {
+    key: "summary",
+    label: "Summary",
+    placeholder: "Overall summary of the month (required to submit)",
+  },
+  {
+    key: "accomplishments",
+    label: "Accomplishments",
+    placeholder: "What was completed",
+  },
+  {
+    key: "remarks",
+    label: "Remarks",
+    placeholder: "Anything worth noting",
+  },
+  {
+    key: "challenges",
+    label: "Challenges",
+    placeholder: "Blockers or issues faced",
+  },
+  {
+    key: "feedback_recommendation",
+    label: "Feedbacks and Recommendation",
+    placeholder: "Feedback received, and what you recommend",
+  },
+  {
+    key: "next_month_plan",
+    label: "Next month plan",
+    placeholder: "What is planned next",
+  },
+] as const satisfies readonly {
+  key: keyof MonthlyContent;
+  label: string;
+  placeholder: string;
+}[];
 
 export interface Report {
   id: string;

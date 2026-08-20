@@ -10,10 +10,31 @@ import {
   canRejectReport,
   getProfile,
 } from "@/lib/auth";
+import {
+  isRichTextEmpty,
+  normalizeRichText,
+  type RichValue,
+} from "@/lib/rich-text";
 import { createClient } from "@/lib/supabase/server";
-import { type BudgetPeriod } from "@/lib/types";
+import { MONTHLY_SECTIONS, type BudgetPeriod } from "@/lib/types";
 
 export type ActionState = { error: string } | null;
+
+// What one section of a monthly activity report arrives as.
+//
+// The editor posts its document as JSON. Anything else — a form left open in a
+// tab since before the editor existed, or a request made by hand — is taken as
+// plain text rather than refused, because prose is a perfectly valid thing for
+// the field to hold and normalizeRichText stores it as such.
+function sectionValue(raw: FormDataEntryValue | null): unknown {
+  const value = String(raw ?? "").trim();
+  if (value === "" || !value.startsWith("{")) return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
 
 const amount = z.coerce.number().min(0).max(999_999_999).catch(0);
 
@@ -177,14 +198,23 @@ export async function saveReport(
   let budgetSections: z.infer<typeof budgetSectionSchema>[] = [];
 
   if (parsed.data.type === "monthly") {
-    const summary = String(formData.get("summary") ?? "").trim();
-    content = {
-      summary,
-      accomplishments: String(formData.get("accomplishments") ?? "").trim(),
-      challenges: String(formData.get("challenges") ?? "").trim(),
-      next_month_plan: String(formData.get("next_month_plan") ?? "").trim(),
-    };
-    if (intent === "submitted" && !summary) {
+    // Rebuilt from the allowlist in src/lib/rich-text.ts rather than stored as
+    // it arrives. The editor's schema already constrains what an author can
+    // type, but that runs in their browser and this action accepts a POST from
+    // anywhere — so this is the check that actually decides what gets written.
+    content = Object.fromEntries(
+      MONTHLY_SECTIONS.map(({ key }) => [
+        key,
+        normalizeRichText(sectionValue(formData.get(key))),
+      ])
+    );
+    // Asked of the words rather than the value. A section the author cleared
+    // still posts a document holding one empty paragraph, and testing that for
+    // truthiness would wave an empty report through.
+    if (
+      intent === "submitted" &&
+      isRichTextEmpty(content.summary as RichValue)
+    ) {
       return { error: "A summary is required before submitting" };
     }
   } else {

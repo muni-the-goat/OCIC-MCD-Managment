@@ -560,6 +560,57 @@ Colour follows the entity, never its rank. Filtering a ring down to three catego
 
 Estimated at a few hours, most of it in the selected and cleared states and keyboard behaviour rather than in the filtering itself.
 
+## Rich text in the monthly activity report
+
+Built. Raised as feedback from a manager using the live form: the sections were plain textareas, and people writing a month up wanted a heading, a bullet list and bold text.
+
+It is the consequence of an earlier decision rather than scope creep. The typed task list and per-platform metrics were removed because each team writes the month up differently and the structured fields fitted none of them — see **Monthly activity report — structured activity data**. Having given authors freeform prose, "let me put some structure inside it myself" is the next thing they ask for.
+
+Two sections were added at the same time, at the manager's request. The report now reads: Summary, Accomplishments, **Remarks**, Challenges, **Feedbacks and Recommendation**, Next month plan.
+
+### One list, three readers
+
+`MONTHLY_SECTIONS` in `src/lib/types.ts` is now the only place the sections are named, ordered, and given their placeholder. The form, the detail page and the monthly activity summary each kept their own copy before this — three places to edit to add Remarks, and three chances to put it in a different position.
+
+### Stored as a document tree, not as HTML
+
+This is the decision everything else follows from, and it went the other way from the original proposal.
+
+HTML put back onto a page is instructions the browser runs, so storing it would put every reader one sanitiser misconfiguration away from executing whatever an author pasted — in the browser of the Head of Department opening their report. A tree is a description. Nothing in it can execute, `src/components/rich-text.tsx` builds React elements from the node types it has cases for, and anything else is skipped.
+
+So there is **no sanitiser dependency, and no `dangerouslySetInnerHTML` anywhere in the app**. The allowlist in `src/lib/rich-text.ts` is the whole boundary. The editor's schema, the server-side normaliser and the renderer all read it from that file so the three cannot drift.
+
+### The normaliser rebuilds rather than filters
+
+`normalizeRichText()` runs in the server action on every save. It constructs a fresh document out of the nodes, marks and attributes the allowlist names, rather than inspecting the submitted one for things to remove. The distinction is the point: a filter has to anticipate what is dangerous, a rebuild only has to know what is allowed. A pasted style, a script node, a node type from a future version of the editor — none are stripped so much as never copied across.
+
+The editor's schema does the same job in the browser. That is the author's convenience, not the boundary — the server action accepts a POST from anywhere.
+
+### What was allowed, and what was not
+
+Bold, italic, two heading levels, bulleted and numbered lists. Blockquote, code, code block, horizontal rule, strike and underline are switched off **in the schema** rather than merely left off the toolbar, which is what makes a paste out of Word arrive as words instead of as somebody's font sizes.
+
+Links are off too, and deliberately: an href needs its own check — `javascript:` is a valid one — and nobody has asked to put links in a monthly report.
+
+Headings render as `h4`/`h5` on the detail page though the editor emits `h2`/`h3`. Each section already carries an `h3` above it, and a heading typed inside the text must not outrank its own label. `.rich-text` in `globals.css` styles both sets identically, so what the author composes is what everyone else reads.
+
+### Reports written before the editor
+
+They hold plain strings and still do. `RichValue` is `string | RichDoc` for exactly that reason, and there is no migration: rewriting stored records of what people actually wrote, in order to tidy a type, is not a trade worth making. A legacy report renders through the same `whitespace-pre-wrap` path it always did, and opening one in the editor turns its line breaks into paragraphs so nothing collapses into a single block.
+
+### Three things that would have broken quietly
+
+1. **The required-summary check.** `if (intent === "submitted" && !summary)` was what stopped an empty report being filed. A cleared rich text field is not `""` — it posts a document holding one empty paragraph, which is truthy. It now asks `isRichTextEmpty()`, which tests the extracted words.
+2. **The summary preview.** `monthly-activity-summary.tsx` put the raw value into a table cell. It renders `richTextToPlain()` now — deliberately the words alone, because that page stacks many reports and six formatted documents per row would stop it being scannable.
+3. **The placeholder.** Tiptap's `showOnlyCurrent` defaults to true, which shows the prompt only in the focused field and leaves the other five as unexplained empty boxes. Set to false.
+
+### Constraints for anyone changing this
+
+- **The editor ships to the browser; the renderer does not.** `rich-text.tsx` is a server component, so reading a report, the dashboard and the summary load none of it. ProseMirror is one 126 KB gzipped chunk, referenced only by `/reports/new` and `/reports/[id]/edit`. Keep it that way — importing the editor into a read path would put it on every page.
+- **Adding a mark or node means editing `src/lib/rich-text.ts` first**, then the editor schema and the renderer's switch. Adding it to the toolbar alone does nothing; adding it to the schema alone means the server drops it on save.
+- Budget reports are untouched — they are grids, not prose. Comments stay plain text.
+- If a monthly PDF export is ever built, `.rich-text` needs print rules for headings and lists. There is no monthly print path today.
+
 ## Review workflow and enforcement
 
 Review controls only appear when the report is `submitted` and the current role/ownership combination is permitted.

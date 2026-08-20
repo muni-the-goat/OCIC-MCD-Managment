@@ -279,6 +279,82 @@
   }
 }
 
+/* Formatted text in a monthly activity report — worn by the editor while the
+   author types and by the rendered report afterwards, so what they compose is
+   what everyone else reads. One class rather than a stack of arbitrary
+   variants, because the two have to match exactly and a rule added to one list
+   and forgotten in the other is invisible until somebody prints it.
+
+   The tags differ between the two by design. ProseMirror emits the schema's own
+   h2 and h3 as the author types; the rendered report drops those to h4 and h5,
+   because on the detail page each section already carries an h3 above it and a
+   heading typed inside the text must not outrank its own label. They are styled
+   as pairs so the visual result is identical either way. */
+.rich-text > :first-child {
+  margin-top: 0;
+}
+.rich-text > :last-child {
+  margin-bottom: 0;
+}
+.rich-text p {
+  margin-bottom: 0.5rem;
+}
+.rich-text h2,
+.rich-text h4 {
+  margin-top: 1rem;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+.rich-text h3,
+.rich-text h5 {
+  margin-top: 0.875rem;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+.rich-text ul,
+.rich-text ol {
+  margin-bottom: 0.5rem;
+  padding-left: 1.25rem;
+}
+.rich-text ul {
+  list-style: disc;
+}
+.rich-text ol {
+  list-style: decimal;
+}
+.rich-text li {
+  margin-bottom: 0.125rem;
+}
+.rich-text li > p {
+  margin-bottom: 0;
+}
+.rich-text strong {
+  font-weight: 600;
+}
+.rich-text em {
+  font-style: italic;
+}
+
+/* The editing surface itself. ProseMirror puts contenteditable on this node, so
+   the focus ring belongs on the wrapper around it rather than here — a ring on
+   the editable area sits inside the border and reads as a second box. */
+.rich-text-input {
+  outline: none;
+  min-height: 6.5rem;
+}
+
+/* The placeholder, which ProseMirror cannot render as a real attribute: an
+   empty document still contains one empty paragraph, so there is no :empty to
+   match. The editor extension tags that first node instead. */
+.rich-text-input p.is-editor-empty:first-child::before,
+.rich-text-input p.is-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-foreground);
+}
+
 /* Print-to-PDF budget report. PrintableBudgetReport renders a clean letterhead
    document that is hidden on screen; when the browser prints (the "Export PDF"
    button just calls window.print()), the app shell is hidden and only this

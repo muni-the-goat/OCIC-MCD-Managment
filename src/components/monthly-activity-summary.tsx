@@ -11,24 +11,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { departmentLabel } from "@/lib/departments";
+import { richTextToPlain } from "@/lib/rich-text";
 import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
 import {
   MONTH_NAMES,
+  MONTHLY_SECTIONS,
   type AppRole,
   type MonthlyContent,
   type Profile,
 } from "@/lib/types";
-
-// The four narrative sections, in the order the form asks for them. The detail
-// page keeps its own copy of this list; both exist because the two read the
-// same jsonb but lay it out differently.
-const SECTIONS = [
-  ["summary", "Summary"],
-  ["accomplishments", "Accomplishments"],
-  ["challenges", "Challenges"],
-  ["next_month_plan", "Next month plan"],
-] as const satisfies readonly (readonly [keyof MonthlyContent, string])[];
 
 interface SourceReport {
   id: string;
@@ -316,11 +308,16 @@ export async function MonthlyActivitySummary({
                   </div>
 
                   <dl className="space-y-2.5">
-                    {SECTIONS.map(([key, label]) => (
+                    {MONTHLY_SECTIONS.map(({ key, label }) => (
                       <div key={key}>
                         <dt className="text-xs font-semibold">{label}</dt>
+                        {/* The words alone. This is a summary of many reports at
+                            once, and giving each section its headings and lists
+                            here would turn a scannable column into six formatted
+                            documents stacked on top of each other — the detail
+                            page is where the formatting is worth reading. */}
                         <dd className="whitespace-pre-wrap text-sm text-muted-foreground">
-                          {report.content?.[key]?.trim() || "—"}
+                          {richTextToPlain(report.content?.[key]).trim() || "—"}
                         </dd>
                       </div>
                     ))}

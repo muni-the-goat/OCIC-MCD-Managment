@@ -17,11 +17,12 @@ import { FileUploadCard } from "@/components/ui/file-upload-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveSelect } from "@/components/ui/responsive-select";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import {
   MONTH_KEYS,
   MONTH_NAMES,
   MONTH_SHORT,
+  MONTHLY_SECTIONS,
   type BudgetHistoryReport,
   type BudgetItem,
   type Report,
@@ -417,22 +418,14 @@ export function ReportForm({
             <CardTitle>Report sections</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {(
-              [
-                ["summary", "Summary", "Overall summary of the month (required to submit)"],
-                ["accomplishments", "Accomplishments", "What was completed"],
-                ["challenges", "Challenges", "Blockers or issues faced"],
-                ["next_month_plan", "Next month plan", "What is planned next"],
-              ] as const
-            ).map(([name, label, placeholder]) => (
-              <div key={name} className="space-y-2">
-                <Label htmlFor={name}>{label}</Label>
-                <Textarea
-                  id={name}
-                  name={name}
-                  rows={4}
+            {MONTHLY_SECTIONS.map(({ key, label, placeholder }) => (
+              <div key={key} className="space-y-2">
+                <Label htmlFor={key}>{label}</Label>
+                <RichTextEditor
+                  id={key}
+                  name={key}
                   placeholder={placeholder}
-                  defaultValue={content[name] ?? ""}
+                  defaultValue={content[key]}
                 />
               </div>
             ))}
