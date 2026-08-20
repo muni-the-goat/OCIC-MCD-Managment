@@ -351,16 +351,35 @@
   min-height: 6.5rem;
 }
 
-/* The placeholder, which ProseMirror cannot render as a real attribute: an
-   empty document still contains one empty paragraph, so there is no :empty to
-   match. The editor extension tags that first node instead. */
-.rich-text-input p.is-editor-empty:first-child::before,
-.rich-text-input p.is-empty:first-child::before {
+/* The placeholder. There is no :empty to match on, because an empty document
+   still contains one empty paragraph — so the extension tags that node with a
+   class and a data-placeholder attribute and the prompt is drawn from those.
+
+   Matched on any first block rather than on `p` specifically. The tagged node
+   is whichever block the caret is in, so clicking H2 in an empty section makes
+   it a heading, and a `p`-only selector left that section with no prompt at all.
+
+   Positioned rather than floated. Tiptap's own recipe uses `float: left;
+   height: 0`, which leaves a zero-height box sitting in the text flow next to
+   the caret; taking the pseudo-element out of the flow entirely leaves nothing
+   there to paint.
+
+   Restricted to the first block, so clearing a paragraph halfway down a written
+   report does not sprout the prompt again in the middle of it. */
+.rich-text-input > :first-child.is-empty,
+.rich-text-input > :first-child.is-editor-empty {
+  position: relative;
+}
+.rich-text-input > :first-child.is-empty::before,
+.rich-text-input > :first-child.is-editor-empty::before {
   content: attr(data-placeholder);
-  float: left;
-  height: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
   pointer-events: none;
   color: var(--muted-foreground);
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 /* Print-to-PDF budget report. PrintableBudgetReport renders a clean letterhead
