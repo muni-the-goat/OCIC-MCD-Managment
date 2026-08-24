@@ -163,10 +163,25 @@ export function ReportsTable({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
+      {/* A pane rather than a table that grows the page.
+
+          The horizontal scrollbar belongs to the scroll box, so capping its
+          height keeps the bar on screen instead of stranding it below every
+          row — this list runs to 200 reports, and reaching the bar meant
+          scrolling past all of them first. max-h rather than h, so a short
+          list still takes only the room it needs.
+
+          The scrolling moved onto the Table's own container, which already
+          existed; this div keeps the border and clips the corners it rounds. */}
+      <div className="overflow-hidden rounded-lg border">
+        <Table containerClassName="max-h-[70vh] overflow-y-auto">
           <caption className="sr-only">Office reports</caption>
-          <TableHeader>
+          {/* Sticky per cell rather than on the row: a sticky thead under
+              border-collapse is not reliable across browsers. The underline is
+              an inset shadow for the same reason — a bottom border on a sticky
+              cell scrolls away from it. The background is the page's own, so
+              the header turns opaque without changing colour. */}
+          <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-background [&_th]:shadow-[inset_0_-1px_0_var(--border)]">
             <TableRow>
               {canBulkDelete ? (
                 <TableHead className="w-10">

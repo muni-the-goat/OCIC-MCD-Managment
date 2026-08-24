@@ -4,11 +4,19 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+function Table({
+  className,
+  containerClassName,
+  ...props
+}: React.ComponentProps<"table"> & { containerClassName?: string }) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      // The scroll container. Exposed so a caller can cap its height and turn
+      // it into a pane that scrolls in both directions — which is what keeps a
+      // long table's horizontal scrollbar in reach instead of stranding it
+      // below hundreds of rows. Left unset, this behaves exactly as before.
+      className={cn("relative w-full overflow-x-auto", containerClassName)}
     >
       <table
         data-slot="table"
