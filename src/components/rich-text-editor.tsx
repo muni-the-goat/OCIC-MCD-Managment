@@ -8,6 +8,8 @@ import {
   Bold,
   Heading2,
   Heading3,
+  IndentDecrease,
+  IndentIncrease,
   Italic,
   List,
   ListOrdered,
@@ -39,11 +41,13 @@ function ToolbarButton({
   icon: Icon,
   label,
   active,
+  disabled,
   onClick,
 }: {
   icon: LucideIcon;
   label: string;
   active: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -55,10 +59,12 @@ function ToolbarButton({
       aria-label={label}
       title={label}
       aria-pressed={active}
+      disabled={disabled}
       className={cn(
         "inline-flex size-7 items-center justify-center rounded transition-colors",
         "text-muted-foreground hover:bg-muted hover:text-foreground",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        "disabled:pointer-events-none disabled:opacity-40",
         active && "bg-secondary text-secondary-foreground"
       )}
     >
@@ -144,6 +150,11 @@ export function RichTextEditor({
       h3: editor?.isActive("heading", { level: 3 }) ?? false,
       bullet: editor?.isActive("bulletList") ?? false,
       ordered: editor?.isActive("orderedList") ?? false,
+      // Indenting only means something inside a list, and the first item of a
+      // list has nothing above it to nest under — ProseMirror knows both, so
+      // the buttons ask rather than guess.
+      canIndent: editor?.can().sinkListItem("listItem") ?? false,
+      canOutdent: editor?.can().liftListItem("listItem") ?? false,
     }),
   });
 
@@ -191,6 +202,23 @@ export function RichTextEditor({
           label="Numbered list"
           active={active?.ordered ?? false}
           onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+        />
+        {/* Tab and Shift+Tab have always done this — the schema nests without
+            being asked. The buttons are here because nobody discovers Tab, and
+            an author who cannot find it writes a flat list instead. */}
+        <ToolbarButton
+          icon={IndentIncrease}
+          label="Indent (Tab)"
+          active={false}
+          disabled={!active?.canIndent}
+          onClick={() => editor?.chain().focus().sinkListItem("listItem").run()}
+        />
+        <ToolbarButton
+          icon={IndentDecrease}
+          label="Outdent (Shift+Tab)"
+          active={false}
+          disabled={!active?.canOutdent}
+          onClick={() => editor?.chain().focus().liftListItem("listItem").run()}
         />
       </div>
 

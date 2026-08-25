@@ -336,6 +336,30 @@
 .rich-text ol {
   list-style: decimal;
 }
+/* Tiers. A nested list takes a different marker from its parent, so depth is
+   visible without counting indents — the same ladder Word and Docs use, and
+   what people expect when they press Tab inside a bullet. */
+.rich-text ul ul {
+  list-style: circle;
+}
+.rich-text ul ul ul {
+  list-style: square;
+}
+.rich-text ol ol {
+  list-style: lower-alpha;
+}
+.rich-text ol ol ol {
+  list-style: lower-roman;
+}
+
+/* A nested list sits *inside* its parent item, so the bottom margin every list
+   carries would open a gap in the middle of that item rather than after it. */
+.rich-text li > ul,
+.rich-text li > ol {
+  margin-top: 0.125rem;
+  margin-bottom: 0;
+}
+
 .rich-text li {
   margin-bottom: 0.125rem;
 }
