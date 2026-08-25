@@ -19,7 +19,7 @@ import {
 } from "@/lib/project-reports";
 import {
   MONTH_NAMES,
-  projectStreamLabel,
+  projectStreamLabelFor,
   streamTracksUnits,
   type ProjectReport,
   type ProjectStream,
@@ -172,7 +172,7 @@ export function PrintableProjectReport({
                 className="print-department"
               >
                 <h2 className="print-summary-title">
-                  {project.label} · {projectStreamLabel(stream)}
+                  {project.label} · {projectStreamLabelFor(project.id, stream)}
                 </h2>
 
                 {items.length === 0 || months.length === 0 ? (

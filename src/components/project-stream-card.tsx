@@ -24,7 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   MONTH_SHORT,
-  projectStreamLabel,
+  projectStreamLabelFor,
   streamTracksUnits,
   type ProjectReport,
   type ProjectStream,
@@ -120,6 +120,7 @@ function Delta({
 }
 
 export function ProjectStreamCard({
+  projectId,
   stream,
   year,
   period,
@@ -127,6 +128,10 @@ export function ProjectStreamCard({
   previous,
   selection = ALL_SELECTION,
 }: {
+  // Which project's card this is. Only the heading uses it: Chroy Changvar Bay
+  // calls its leasing report Commercial, and the label has to know whose report
+  // it is sitting above.
+  projectId: string;
   stream: ProjectStream;
   year: number;
   // "2026", or "March 2026" once the month filter has been used. The eyebrow
@@ -160,7 +165,7 @@ export function ProjectStreamCard({
     return (
       <Card className="rounded-2xl">
         <CardHeader>
-          <CardTitle>{projectStreamLabel(stream)}</CardTitle>
+          <CardTitle>{projectStreamLabelFor(projectId, stream)}</CardTitle>
           <CardDescription>{DESCRIPTIONS[stream]}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -178,7 +183,7 @@ export function ProjectStreamCard({
         <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {period}
         </p>
-        <CardTitle>{projectStreamLabel(stream)}</CardTitle>
+        <CardTitle>{projectStreamLabelFor(projectId, stream)}</CardTitle>
         <CardDescription>{DESCRIPTIONS[stream]}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -195,7 +200,7 @@ export function ProjectStreamCard({
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full min-w-max border-separate border-spacing-0 text-sm">
             <caption className="sr-only">
-              {projectStreamLabel(stream)} {year}, by category and month
+              {projectStreamLabelFor(projectId, stream)} {year}, by category and month
               {tracksUnits ? ", with unit counts" : ""}
             </caption>
             <thead>
@@ -352,7 +357,7 @@ export function ProjectStreamCard({
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full min-w-max border-separate border-spacing-0 text-sm">
                 <caption className="sr-only">
-                  {projectStreamLabel(stream)} {year}, by property and month
+                  {projectStreamLabelFor(projectId, stream)} {year}, by property and month
                 </caption>
                 <thead>
                   <tr className="bg-table-header">

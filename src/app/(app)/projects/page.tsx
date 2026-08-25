@@ -27,6 +27,7 @@ import {
 import {
   PROJECT_STREAMS,
   projectStreamLabel,
+  projectStreamLabelFor,
   type ProjectReport,
   type ProjectStream,
 } from "@/lib/types";
@@ -161,7 +162,11 @@ export default async function ProjectsPage({
     projectParam === ALL_PROJECTS
       ? "All projects"
       : (projects.find((p) => p.id === projectParam)?.label ?? "All projects"),
-    streamParam === ALL_STREAMS ? "All reports" : projectStreamLabel(streamParam),
+    streamParam === ALL_STREAMS
+      ? "All reports"
+      : projectParam === ALL_PROJECTS
+        ? projectStreamLabel(streamParam)
+        : projectStreamLabelFor(projectParam, streamParam),
     categorySelectionLabel(selection),
   ].join(" · ");
 
@@ -215,6 +220,7 @@ export default async function ProjectsPage({
               streams.map(({ stream, current, previous }) => (
                 <ProjectStreamCard
                   key={`${project.id}:${stream}`}
+                  projectId={project.id}
                   stream={stream}
                   year={year}
                   period={period}

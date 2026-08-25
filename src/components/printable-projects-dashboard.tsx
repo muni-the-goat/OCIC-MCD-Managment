@@ -11,6 +11,7 @@ import {
 } from "@/lib/project-reports";
 import {
   projectStreamLabel,
+  projectStreamLabelFor,
   streamTracksUnits,
   type ProjectStream,
 } from "@/lib/types";
@@ -183,7 +184,7 @@ export function PrintableProjectsDashboard({
               className="print-dash-block"
             >
               <h2 className="print-summary-title">
-                {project.label} · {projectStreamLabel(entry.stream)}
+                {project.label} · {projectStreamLabelFor(project.id, entry.stream)}
               </h2>
               <PrintChartLegend
                 currentYear={year}

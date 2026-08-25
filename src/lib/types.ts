@@ -31,6 +31,39 @@ export function projectStreamLabel(stream: ProjectStream) {
   return PROJECT_STREAM_LABELS[stream];
 }
 
+// A project may call one of the three reports by its own name. Chroy Changvar
+// Bay's leasing is Commercial.
+//
+// Only the wording changes. The stream underneath is still `leasing`, so the
+// figures roll up with every other project's leasing exactly as before — this
+// renames a heading, not a report.
+//
+// A map here rather than a column on public.projects, because it is one entry.
+// The day a second project wants its own wording, or somebody wants to change
+// this without a deploy, it belongs in the table beside the label.
+const PROJECT_STREAM_LABEL_OVERRIDES: Partial<
+  Record<string, Partial<Record<ProjectStream, string>>>
+> = {
+  chroy_changvar_bay: { leasing: "Commercial" },
+};
+
+// The label for one project's report, falling back to the shared name — so a
+// project with no wording of its own reads exactly as it always has.
+//
+// Deliberately not used where a heading covers more than one project: the
+// report filter, the dashboard's roll-up cards, the portfolio chart. There is
+// no single project to name there, and "Commercial" over a figure that includes
+// Koh Pich's leased houses would be a heading that misdescribes its own total.
+export function projectStreamLabelFor(
+  projectId: string,
+  stream: ProjectStream
+) {
+  return (
+    PROJECT_STREAM_LABEL_OVERRIDES[projectId]?.[stream] ??
+    projectStreamLabel(stream)
+  );
+}
+
 // What each stream's rows are, for column headers and empty states — "Add a
 // property" is a better prompt than "Add an item", and on the sales report
 // neither would be right.

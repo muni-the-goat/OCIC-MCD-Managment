@@ -25,7 +25,7 @@ import {
   PROJECT_CATEGORIES,
   PROJECT_STREAMS,
   UNASSIGNED_CATEGORY,
-  projectStreamLabel,
+  projectStreamLabelFor,
   projectStreamNoun,
   streamTracksUnits,
   type ProjectStream,
@@ -186,7 +186,7 @@ export function ProjectMonthForm({
         return (
           <Card key={stream} className="rounded-2xl">
             <CardHeader>
-              <CardTitle>{projectStreamLabel(stream)}</CardTitle>
+              <CardTitle>{projectStreamLabelFor(initialProject, stream)}</CardTitle>
               <CardDescription>
                 {tracksUnits
                   ? "Units sold and their value, by property type."

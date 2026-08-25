@@ -65,6 +65,7 @@ import {
   MONTH_SHORT,
   PROJECT_STREAMS,
   projectStreamLabel,
+  projectStreamLabelFor,
   roleLabel,
   streamTracksUnits,
   type ProjectReport,
@@ -530,7 +531,9 @@ export default async function ProjectsDashboardPage({
                 return (
                   <Card key={entry.stream} className="rounded-2xl">
                     <CardHeader>
-                      <CardTitle>{projectStreamLabel(entry.stream)}</CardTitle>
+                      <CardTitle>
+                        {projectStreamLabelFor(project.id, entry.stream)}
+                      </CardTitle>
                       <CardDescription>
                         {range === null
                           ? entry.previousYear === null
