@@ -566,7 +566,9 @@ Built. Raised as feedback from a manager using the live form: the sections were 
 
 It is the consequence of an earlier decision rather than scope creep. The typed task list and per-platform metrics were removed because each team writes the month up differently and the structured fields fitted none of them — see **Monthly activity report — structured activity data**. Having given authors freeform prose, "let me put some structure inside it myself" is the next thing they ask for.
 
-Two sections were added at the same time, at the manager's request. The report now reads: Summary, Accomplishments, **Remarks**, Challenges, **Feedbacks and Recommendation**, Next month plan.
+Sections have been added twice at the manager's request — Remarks and Feedbacks and Recommendation first, then Supporting Projects and Project Highlighted. The report now reads: Summary, Accomplishments, Supporting Projects, Project Highlighted, Remarks, Challenges, Feedbacks and Recommendation, Next month plan.
+
+Adding one is a single edit to `MONTHLY_SECTIONS` and nothing else, which is the point of that list existing. No migration either: the blocks live in the existing `content` jsonb, so a new key simply appears the first time somebody saves. Reports filed before it carry no such key and render an em dash, which is the truth.
 
 ### One list, three readers
 

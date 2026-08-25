@@ -133,7 +133,7 @@ export const ASSIGNABLE_ROLES: readonly AppRole[] = [
   "admin",
 ];
 
-// A monthly activity report is six blocks of prose plus whatever documents the
+// A monthly activity report is eight blocks of prose plus whatever documents the
 // author attaches. It also used to carry a typed task list and per-platform
 // social figures; both were removed once it became clear each team writes the
 // month up differently, and the structured fields fitted none of them. Reports
@@ -147,6 +147,8 @@ export const ASSIGNABLE_ROLES: readonly AppRole[] = [
 export interface MonthlyContent {
   summary?: RichValue;
   accomplishments?: RichValue;
+  supporting_projects?: RichValue;
+  project_highlighted?: RichValue;
   remarks?: RichValue;
   challenges?: RichValue;
   feedback_recommendation?: RichValue;
@@ -170,6 +172,16 @@ export const MONTHLY_SECTIONS = [
     key: "accomplishments",
     label: "Accomplishments",
     placeholder: "What was completed",
+  },
+  {
+    key: "supporting_projects",
+    label: "Supporting Projects",
+    placeholder: "Projects the team supported this month",
+  },
+  {
+    key: "project_highlighted",
+    label: "Project Highlighted",
+    placeholder: "The project worth calling out",
   },
   {
     key: "remarks",

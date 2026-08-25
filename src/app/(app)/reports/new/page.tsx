@@ -96,9 +96,8 @@ export default async function NewReportPage({
               <CalendarDays className="mb-2 size-8 text-primary" />
               <CardTitle>Monthly activity report</CardTitle>
               <CardDescription>
-                Summary, accomplishments, remarks, challenges, feedback and
-                next month&apos;s plan, plus any supporting documents you
-                attach.
+                What the month held, written up section by section, plus any
+                supporting documents you attach.
               </CardDescription>
             </CardHeader>
           </Card>
