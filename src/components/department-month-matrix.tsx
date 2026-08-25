@@ -133,10 +133,16 @@ export function DepartmentMonthMatrix({
           .
         </caption>
         <thead>
-          <tr className="border-b bg-muted/40 text-muted-foreground">
+          <tr className="border-b bg-muted text-muted-foreground">
+            {/* Flat, not tinted. The department columns scroll underneath this
+                cell, and a translucent fill lets them read straight through it.
+                Only a screen narrow enough to scroll the table shows it, which
+                is why it surfaced on phones and not on a desktop. The row
+                carries the same colour so the frozen cell does not read as a
+                darker cell of its own row. */}
             <th
               scope="col"
-              className="sticky left-0 z-10 min-w-28 bg-muted/40 p-2 text-left font-medium"
+              className="sticky left-0 z-10 min-w-28 bg-muted p-2 text-left font-medium"
             >
               Month
             </th>
@@ -218,10 +224,11 @@ export function DepartmentMonthMatrix({
           })}
         </tbody>
         <tfoot>
-          <tr className="border-t-2 bg-primary/5 font-semibold">
+          <tr className="border-t-2 bg-table-total font-semibold">
+            {/* Opaque for the same reason as the header. */}
             <th
               scope="row"
-              className="sticky left-0 z-10 bg-primary/5 p-2 text-left"
+              className="sticky left-0 z-10 bg-table-total p-2 text-left"
             >
               Total
             </th>
