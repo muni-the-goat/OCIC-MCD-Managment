@@ -34,6 +34,7 @@ import {
   PROJECT_CATEGORIES,
   PROJECT_STREAMS,
   UNASSIGNED_CATEGORY,
+  filesByCategory,
   projectStreamLabelFor,
   projectStreamNoun,
   streamTracksUnits,
@@ -158,18 +159,27 @@ export function ProjectMonthForm({
     setDirty(true);
     setRows((current) => ({
       ...current,
-      [stream]: current[stream].map((row, i) =>
-        i === index ? { ...row, [field]: value } : row
-      ),
+      [stream]: current[stream].map((row, i) => {
+        if (i !== index) return row;
+        const next = { ...row, [field]: value };
+        // On a report filed by category the name is the category, so changing
+        // one changes both. Which makes it a rename of the row, and a rename
+        // moves the row with all twelve months on it — see saveProjectMonth.
+        if (field === "category" && filesByCategory(initialProject, stream)) {
+          next.name = value;
+        }
+        return next;
+      }),
     }));
   };
 
   const addRow = (stream: ProjectStream) => {
     setDirty(true);
-    setRows((current) => ({
-      ...current,
-      [stream]: [...current[stream], emptyRow()],
-    }));
+    setRows((current) => {
+      const row = emptyRow();
+      if (filesByCategory(initialProject, stream)) row.name = row.category;
+      return { ...current, [stream]: [...current[stream], row] };
+    });
   };
 
   const removeRow = (stream: ProjectStream, index: number) => {
@@ -300,6 +310,11 @@ export function ProjectMonthForm({
         const noun = projectStreamNoun(stream);
         const clashes = duplicates[stream];
         const total = streamTotal(stream);
+        // Chroy Changvar Bay's Commercial report is one line that somebody puts
+        // a figure into each month. Its rows are its categories, so the name is
+        // the category and asking for it separately put the same word on screen
+        // three times.
+        const byCategory = filesByCategory(initialProject, stream);
         const seeded = (initialRows[stream] ?? []).some(
           (row) => row.original !== ""
         );
@@ -387,7 +402,12 @@ export function ProjectMonthForm({
                       />
                       <ResponsiveSelect
                         id={`${stream}-category-${index}`}
-                        className="w-full"
+                        className={cn(
+                          "w-full",
+                          byCategory &&
+                            duplicate &&
+                            "border-destructive ring-3 ring-destructive/20"
+                        )}
                         value={row.category}
                         onValueChange={(value) =>
                           setCell(stream, index, "category", value)
@@ -404,32 +424,56 @@ export function ProjectMonthForm({
                         ]}
                       />
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label
-                        htmlFor={`${stream}-name-${index}`}
-                        className="sm:sr-only"
-                      >
-                        {noun[0].toUpperCase() + noun.slice(1)}
-                      </Label>
-                      <Input
-                        id={`${stream}-name-${index}`}
-                        name={`row:${stream}:${index}:name`}
-                        value={row.name}
-                        onChange={(event) =>
-                          setCell(stream, index, "name", event.target.value)
-                        }
-                        placeholder={
-                          tracksUnits ? "Land / House / Condo" : "Property name"
-                        }
-                        maxLength={60}
-                        autoComplete="off"
-                        aria-invalid={duplicate || undefined}
-                        className={cn(
-                          duplicate &&
-                            "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/40"
-                        )}
-                      />
-                    </div>
+                    {/* The row still has a name — it is the row's identity,
+                        and the action still writes it — but on a report filed
+                        by category there is nothing to ask: the name is the
+                        category, kept in step by setCell above. */}
+                    {byCategory ? (
+                      <>
+                        <input
+                          type="hidden"
+                          name={`row:${stream}:${index}:name`}
+                          value={row.name}
+                        />
+                        {/* The name column stands empty rather than being
+                            reclaimed. Widening the category picker to fill it
+                            would give a five-item list the width of a sentence,
+                            and moving the amount left would take it out of line
+                            with the sales card directly above — the amount is
+                            the column the eye runs down, and it should be in
+                            the same place on both. */}
+                        <div className="hidden sm:block" />
+                      </>
+                    ) : (
+                      <div className="flex flex-col gap-1.5">
+                        <Label
+                          htmlFor={`${stream}-name-${index}`}
+                          className="sm:sr-only"
+                        >
+                          {noun[0].toUpperCase() + noun.slice(1)}
+                        </Label>
+                        <Input
+                          id={`${stream}-name-${index}`}
+                          name={`row:${stream}:${index}:name`}
+                          value={row.name}
+                          onChange={(event) =>
+                            setCell(stream, index, "name", event.target.value)
+                          }
+                          placeholder={
+                            tracksUnits
+                              ? "Land / House / Condo"
+                              : "Property name"
+                          }
+                          maxLength={60}
+                          autoComplete="off"
+                          aria-invalid={duplicate || undefined}
+                          className={cn(
+                            duplicate &&
+                              "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/40"
+                          )}
+                        />
+                      </div>
+                    )}
                     <div className="flex flex-col gap-1.5">
                       <Label
                         htmlFor={`${stream}-amount-${index}`}
@@ -495,8 +539,10 @@ export function ProjectMonthForm({
               {clashes.size > 0 ? (
                 <p role="alert" className="text-sm text-destructive">
                   {[...clashes].map((name) => `"${name}"`).join(", ")}{" "}
-                  {clashes.size === 1 ? "is" : "are"} on more than one row. A
-                  row is identified by its name, so each one needs its own.
+                  {clashes.size === 1 ? "is" : "are"} on more than one row.{" "}
+                  {byCategory
+                    ? "A row is identified by its category here, so each one needs its own."
+                    : "A row is identified by its name, so each one needs its own."}
                 </p>
               ) : null}
 
@@ -509,7 +555,7 @@ export function ProjectMonthForm({
                   onClick={() => addRow(stream)}
                 >
                   <Plus className="size-4" />
-                  Add {noun}
+                  Add {byCategory ? "category" : noun}
                 </Button>
                 {/* What is on screen, not what is stored — this is the figure
                     to check against the sheet being copied from, before the
