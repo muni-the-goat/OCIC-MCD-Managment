@@ -888,6 +888,29 @@
   }
 }
 
+/* The submitted-for-review starburst. It springs a little past its size and
+   settles, which is the whole of the celebration — the dialog it sits in is
+   already animating in behind it, and two competing entrances read as a
+   glitch. Applied via motion-safe:, so reduced motion gets the shape with no
+   entrance at all rather than a second rule to keep in sync. */
+@keyframes burstIn {
+  0% {
+    transform: scale(0.4) rotate(-24deg);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08) rotate(4deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+.animate-burst {
+  animation: burstIn 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* recharts' accessibility layer makes the plot focusable, so clicking a chart
    leaves a focus ring around it (the brand --ring, via the global outline base).
    Suppress it on every recharts focus target — the bars, tooltip and cross-filter

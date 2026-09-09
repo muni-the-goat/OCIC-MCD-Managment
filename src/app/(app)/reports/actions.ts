@@ -339,7 +339,11 @@ export async function saveReport(
 
   revalidatePath("/reports");
   revalidatePath("/dashboard");
-  redirect(`/reports/${id}`);
+  // The flag the detail page opens its confirmation on. It rides in the URL
+  // because redirect() throws — this action cannot return a success state for
+  // useActionToasts to pick up the way saveProjectMonth() does, and the form
+  // that would have shown one is unmounted by the navigation.
+  redirect(`/reports/${id}${intent === "submitted" ? "?submitted=1" : ""}`);
 }
 
 export async function deleteReport(formData: FormData) {

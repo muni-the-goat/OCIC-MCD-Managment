@@ -8,6 +8,7 @@ import { DepartmentBadge } from "@/components/department-badge";
 import { ExportPdfButton } from "@/components/export-pdf-button";
 import { PrintableBudgetReport } from "@/components/printable-budget-report";
 import { PrintPortal } from "@/components/print-portal";
+import { ReportSubmittedDialog } from "@/components/report-submitted-dialog";
 import { ReviewControls } from "@/components/review-controls";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -45,10 +46,16 @@ export const metadata = { title: "Report" };
 
 export default async function ReportDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ submitted?: string }>;
 }) {
-  const [{ id }, profile] = await Promise.all([params, getProfile()]);
+  const [{ id }, query, profile] = await Promise.all([
+    params,
+    searchParams,
+    getProfile(),
+  ]);
   const supabase = await createClient();
 
   const { data: reportData } = await supabase
@@ -117,11 +124,18 @@ export default async function ReportDetailPage({
   const canReject = inReach && canRejectReport(profile.role);
   // Self-review is permitted for every role that can decide at all.
   const canReview = (canApprove || canReject) && report.status === "submitted";
+  // Three conditions, not one. The flag alone is a query string anybody can
+  // type, so the report has to actually be submitted, and it has to be theirs —
+  // a reviewer landing on this URL should not be congratulated on someone
+  // else's work.
+  const justSubmitted =
+    query.submitted === "1" && isAuthor && report.status === "submitted";
 
   return (
     <div
       className={report.type === "budget" ? "space-y-6" : "max-w-4xl space-y-6"}
     >
+      {justSubmitted ? <ReportSubmittedDialog /> : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
