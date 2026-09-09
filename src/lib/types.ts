@@ -64,6 +64,39 @@ export function projectStreamLabelFor(
   );
 }
 
+// A project × stream whose rows are its categories rather than named properties
+// under them.
+//
+// Chroy Changvar Bay's Commercial report is one line. Somebody opens it each
+// month and types what came in — there is no building to name, because the
+// report *is* the building. The form asked for a name anyway, so the section
+// heading, the category and the name all read "Commercial", three times over,
+// and only two of them meant anything.
+//
+// Declared here rather than worked out from the rows, which was the first
+// answer and the wrong one. A row whose name equals its category already reads
+// as "the category, not a property under it" — hasNamedProperties() in
+// project-reports.ts is that rule, and it is what keeps the by-property table
+// off this report. But CCB's line only satisfies it because somebody set its
+// category to Commercial by hand: migration 0028 deliberately left it
+// Unassigned. A form that rearranges itself depending on a dropdown somebody
+// may set back is a form that breaks quietly. This is a fact about how the
+// project reports, so it is written down beside the other one.
+//
+// Koh Pich is deliberately absent. Its sales rows are named after their
+// categories too, and its form is not the one anybody has a problem with.
+const CATEGORY_FILED_STREAMS: Partial<Record<string, readonly ProjectStream[]>> =
+  {
+    chroy_changvar_bay: ["leasing"],
+  };
+
+// Whether this report's rows are its categories. The row still carries a name —
+// it is the row's identity, and has been since migration 0024 — but the name
+// follows the category rather than being asked for.
+export function filesByCategory(projectId: string, stream: ProjectStream) {
+  return CATEGORY_FILED_STREAMS[projectId]?.includes(stream) ?? false;
+}
+
 // What each stream's rows are, for column headers and empty states — "Add a
 // property" is a better prompt than "Add an item", and on the sales report
 // neither would be right.

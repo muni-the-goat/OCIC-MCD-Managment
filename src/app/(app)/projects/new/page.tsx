@@ -93,12 +93,31 @@ export default async function NewProjectReportPage({
         carriedForward || !current || !streamTracksUnits(stream)
           ? ""
           : cell(Number(item[unitKey] ?? 0)),
+      // What the row is stored under in *this* year's report, so a rename can
+      // move it. A carried-forward row has no such name — it is last year's row
+      // offered as a starting point, and this year has never held it — so it is
+      // an insert rather than a rename, and saying so here is what stops the
+      // action trying to rename a row that is not there.
+      original: carriedForward || !current ? "" : item.name,
     }));
 
     return [stream, rows.length > 0 ? rows : [emptyRow()]] as const;
   });
 
   const initialRows = Object.fromEntries(streams) as StreamRows;
+
+  // The streams this project files, on the same rule the Projects page uses to
+  // decide which cards to draw: either year having rows is enough. A project
+  // that files no property management report does not get a property management
+  // section it would open by saving — Chroy Changvar Bay has two empty ones in
+  // the database from exactly that, and the form is where they came from.
+  const reportedStreams = PROJECT_STREAMS.filter((stream) => {
+    const entry = reports.get(streamKey(project, stream));
+    return (
+      (entry?.current?.items.length ?? 0) > 0 ||
+      (entry?.previous?.items.length ?? 0) > 0
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -111,13 +130,20 @@ export default async function NewProjectReportPage({
           {MONTH_NAMES[month - 1]} {year}. Saving writes this month only.
         </p>
       </div>
+      {/* Keyed on the period, so changing it remounts the form with that
+          month's figures. The rows are useState seeded from initialRows, and
+          useState does not re-seed on a re-render — without the key, navigating
+          to another month would leave the previous month's figures on screen
+          under the new month's heading. */}
       <ProjectMonthForm
+        key={`${project}:${year}:${month}`}
         years={years}
         projects={projects}
         initialProject={project}
         initialYear={year}
         initialMonth={month}
         initialRows={initialRows}
+        reportedStreams={reportedStreams}
       />
     </div>
   );
@@ -129,5 +155,6 @@ function emptyRow(): StreamRow {
     name: "",
     amount: "",
     units: "",
+    original: "",
   };
 }
