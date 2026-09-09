@@ -888,11 +888,17 @@
   }
 }
 
-/* The submitted-for-review starburst. It springs a little past its size and
-   settles, which is the whole of the celebration — the dialog it sits in is
-   already animating in behind it, and two competing entrances read as a
-   glitch. Applied via motion-safe:, so reduced motion gets the shape with no
-   entrance at all rather than a second rule to keep in sync. */
+/* The submitted-for-review mark. A solid badge with a white check struck on
+   it, not a tinted shape with a dark check inside a ring — two stacked rings
+   in two weights read as an icon that has not finished loading.
+
+   The badge is a twelve-lobed polygon given a stroke of its own fill colour
+   with a round join, which is what rounds the points. A path with rounded
+   lobes drawn as a path would be four times the coordinates for the same
+   silhouette.
+
+   Everything here is applied through motion-safe:, so reduced motion gets the
+   finished mark and no entrance. Nothing needs a second rule to switch off. */
 @keyframes burstIn {
   0% {
     transform: scale(0.4) rotate(-24deg);
@@ -911,38 +917,51 @@
   animation: burstIn 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* The rest of the submitted-for-review mark, in the order a person would draw
-   it: the burst lands, a ripple goes out, the ring closes, the check is struck
-   through it, and the words arrive under it. Roughly 750ms end to end — long
-   enough to read as a sequence rather than a flicker, short enough that the
-   button underneath is never something you are waiting on.
- 
-   The two stroke steps reuse gaugeDraw rather than restating it: both are the
-   same dashoffset 100 -> 0, and the only difference between the dashboard's
-   arc and these is how long they take and when they start.
- 
-   Every one of these is applied through motion-safe:, so reduced motion gets
-   the finished mark with no entrance — a stroke at dashoffset 0 is simply a
-   drawn stroke. Nothing here needs a second rule to switch off. */
-.animate-check-ring {
-  animation: gaugeDraw 420ms ease-out 160ms both;
+/* The check lands after the badge it sits on, and overshoots — a back-out
+   curve rather than the ease-out the badge uses, because this is the beat the
+   whole dialog is built around and it should arrive like a stamp. */
+@keyframes markPop {
+  0% {
+    transform: scale(0.2) rotate(-16deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.18) rotate(5deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
 }
-.animate-check-mark {
-  animation: gaugeDraw 300ms cubic-bezier(0.65, 0, 0.35, 1) 440ms both;
+.animate-check-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: markPop 460ms cubic-bezier(0.34, 1.56, 0.64, 1) 220ms both;
 }
 
-@keyframes ripple {
-  from {
-    transform: scale(0.6);
-    opacity: 0.55;
+/* Confetti. Each piece carries its own direction, spin and delay as custom
+   properties, so twelve pieces share one keyframe instead of twelve. Colours
+   come from --series-1..6 — the palette already validated as a set for this
+   card surface — rather than a handful of hexes invented here. */
+@keyframes confettiFly {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(0.3);
+    opacity: 0;
   }
-  to {
-    transform: scale(1.9);
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1);
     opacity: 0;
   }
 }
-.animate-ripple {
-  animation: ripple 700ms ease-out 120ms both;
+.animate-confetti {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: confettiFly 900ms cubic-bezier(0.16, 1, 0.3, 1) var(--delay, 0ms)
+    both;
 }
 
 /* For the title and the sentence under it. Eight pixels, which is a settle
