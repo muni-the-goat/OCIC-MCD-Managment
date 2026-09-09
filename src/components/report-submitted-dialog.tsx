@@ -59,7 +59,7 @@ function Starburst() {
   );
 }
 
-export function ReportSubmittedDialog() {
+export function ReportSubmittedDialog({ locked }: { locked: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(true);
 
@@ -86,12 +86,20 @@ export function ReportSubmittedDialog() {
             Yaaayyy, your report is submitted for review!
           </DialogTitle>
           <DialogDescription>
-            {/* The part nobody was told before: submitting is a one-way door.
-                can_edit_report() drops the author at 'submitted', so the Edit
-                button they had a second ago is gone, and finding that out by
-                looking for it is a worse way to learn it. */}
-            It&apos;s waiting on a decision now, and can&apos;t be edited until
-            there is one. You&apos;ll see it move on your dashboard.
+            {/* The part nobody was told before: for most authors submitting is
+                a one-way door. The "reports: author update" policy allows an
+                author only at 'draft' and 'rejected', so the Edit button they
+                had a second ago is gone, and finding that out by going to look
+                for it is a worse way to learn it.
+
+                Not for everyone, though — "reports: admin update" keeps an
+                Admin's write, and a Head of Department reaches the same rows
+                through canManageAnyReport(). Telling them their report is
+                locked while the Edit button sits above the dialog would make
+                the sentence something to distrust rather than to read. */}
+            {locked
+              ? "It's waiting on a decision now, and can't be edited until there is one. You'll see it move on your dashboard."
+              : "It's waiting on a decision now. You'll see it move on your dashboard."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col sm:flex-col">

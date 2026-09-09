@@ -135,7 +135,7 @@ export default async function ReportDetailPage({
     <div
       className={report.type === "budget" ? "space-y-6" : "max-w-4xl space-y-6"}
     >
-      {justSubmitted ? <ReportSubmittedDialog /> : null}
+      {justSubmitted ? <ReportSubmittedDialog locked={!privileged} /> : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
