@@ -67,6 +67,47 @@ export function yearTotals(
   );
 }
 
+// One line of a table: the figure under each month shown, and the row's own
+// total.
+//
+// The table used to ask for these a cell at a time — monthTotals(items, month)
+// inside the loop that draws the months, once per column, once per band, once
+// for the footer. Each of those walks every row of the line it is summing, so a
+// six-month leasing card ran the same addition seven times over the same rows,
+// and the band subtotal re-flattened the band's columns inside the month loop,
+// allocating an array per cell. It is the same arithmetic either way; this is
+// one pass over the rows instead of one pass per cell.
+//
+// `total` sums all twelve months rather than the ones on screen. Those agree —
+// an unreported month is zero, and restrictToMonth zeroes the rest — but taking
+// the long way round means the Total column cannot drift from yearTotals()
+// should either definition ever change.
+export interface LineTotals {
+  // One entry per month in `months`, in that order.
+  cells: StreamTotals[];
+  total: StreamTotals;
+}
+
+export function lineTotals(
+  items: readonly ProjectReportItem[],
+  months: readonly number[]
+): LineTotals {
+  const cells = months.map(() => ({ amount: 0, units: 0 }));
+  const total = { amount: 0, units: 0 };
+
+  for (const item of items) {
+    for (let slot = 0; slot < months.length; slot++) {
+      const monthIndex = months[slot];
+      cells[slot].amount += Number(item[MONTH_KEYS[monthIndex]] ?? 0);
+      cells[slot].units += Number(item[UNIT_KEYS[monthIndex]] ?? 0);
+    }
+    total.amount += itemTotal(item as MonthlyAmounts);
+    total.units += itemUnitTotal(item as MonthlyUnits);
+  }
+
+  return { cells, total };
+}
+
 // Which months have actually been reported, so the table stops at June rather
 // than trailing six empty columns for a year that is half done — and so the
 // year-on-year comparison compares like periods.
@@ -609,6 +650,34 @@ export function hasNamedProperties(
   );
 }
 
+
+// What the month form's two kinds of box accept.
+//
+// Here rather than in the server action because the form adds the same figures
+// up to show a running total, and a total computed by one parser against a
+// figure stored by another is a total that can disagree with what was saved.
+// This file already holds the arithmetic both sides share and imports nothing
+// from the server, so it is the one place both can reach.
+//
+// "1,234.56", "$1,234.56" and "1234.56" all mean the same thing to someone
+// pasting out of the workbook, and refusing two of the three would be pedantry
+// dressed up as validation. Null is "that is not a figure", which the caller
+// reports; empty is zero.
+export function parseAmountInput(raw: string): number | null {
+  const cleaned = raw.replace(/[$,\s]/g, "").trim();
+  if (cleaned === "") return 0;
+  const value = Number(cleaned);
+  if (!Number.isFinite(value) || value < 0) return null;
+  return Math.round(value * 100) / 100;
+}
+
+export function parseUnitsInput(raw: string): number | null {
+  const cleaned = raw.replace(/[,\s]/g, "").trim();
+  if (cleaned === "") return 0;
+  const value = Number(cleaned);
+  if (!Number.isInteger(value) || value < 0) return null;
+  return value;
+}
 
 export const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
