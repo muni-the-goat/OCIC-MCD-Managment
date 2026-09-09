@@ -139,7 +139,7 @@ export function BudgetApprovalBar({
     FormData
   >(setBudgetApproval, null);
   useActionToasts(
-    state as never,
+    state,
     useCallback((result: { success: string }) => {
       toast.success(result.success);
       setOpen(false);
