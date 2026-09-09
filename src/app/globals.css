@@ -916,6 +916,57 @@
   animation: burstIn 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* The rest of the submitted-for-review mark, in the order a person would draw
+   it: the burst lands, a ripple goes out, the ring closes, the check is struck
+   through it, and the words arrive under it. Roughly 750ms end to end — long
+   enough to read as a sequence rather than a flicker, short enough that the
+   button underneath is never something you are waiting on.
+ 
+   The two stroke steps reuse gaugeDraw rather than restating it: both are the
+   same dashoffset 100 -> 0, and the only difference between the dashboard's
+   arc and these is how long they take and when they start.
+ 
+   Every one of these is applied through motion-safe:, so reduced motion gets
+   the finished mark with no entrance — a stroke at dashoffset 0 is simply a
+   drawn stroke. Nothing here needs a second rule to switch off. */
+.animate-check-ring {
+  animation: gaugeDraw 420ms ease-out 160ms both;
+}
+.animate-check-mark {
+  animation: gaugeDraw 300ms cubic-bezier(0.65, 0, 0.35, 1) 440ms both;
+}
+
+@keyframes ripple {
+  from {
+    transform: scale(0.6);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+.animate-ripple {
+  animation: ripple 700ms ease-out 120ms both;
+}
+
+/* For the title and the sentence under it. Eight pixels, which is a settle
+   rather than a slide — the dialog itself has already moved, and a second
+   entrance travelling any further would read as a separate event. */
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-rise {
+  animation: riseIn 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* recharts' accessibility layer makes the plot focusable, so clicking a chart
    leaves a focus ring around it (the brand --ring, via the global outline base).
    Suppress it on every recharts focus target — the bars, tooltip and cross-filter
