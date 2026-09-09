@@ -244,7 +244,7 @@ export function ProjectMonthForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-4">
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="project-project">Project</Label>
             <ResponsiveSelect
               id="project-project"
@@ -258,7 +258,7 @@ export function ProjectMonthForm({
               }))}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="project-year">Year</Label>
             <ResponsiveSelect
               id="project-year"
@@ -272,7 +272,7 @@ export function ProjectMonthForm({
               }))}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="project-month">Month</Label>
             <ResponsiveSelect
               id="project-month"
@@ -330,6 +330,20 @@ export function ProjectMonthForm({
               {rows[stream].map((row, index) => {
                 const duplicate =
                   row.name.trim() !== "" && clashes.has(row.name.trim());
+                // Every cell in this row is flex + gap rather than space-y.
+                //
+                // space-y hangs a margin on each child that is not :last-child,
+                // and :last-child is structural — it counts a child that paints
+                // nothing. Radix's Select renders a visually-hidden <select>
+                // after its trigger whenever it is inside a form, so in the
+                // category cell the trigger stopped being the last child and
+                // picked up 6px of margin beneath it. Under items-end that is
+                // 6px of clear air holding the control up off the row, which is
+                // why the category box sat high against the name beside it.
+                //
+                // A gap cannot do this: an absolutely positioned child is not a
+                // flex item, so neither that <select> nor the sr-only label can
+                // put space under anything.
                 return (
                   <div
                     key={index}
@@ -343,7 +357,7 @@ export function ProjectMonthForm({
                       name={`row:${stream}:${index}:original`}
                       value={row.original}
                     />
-                    <div className="space-y-1.5">
+                    <div className="flex flex-col gap-1.5">
                       <Label
                         htmlFor={`${stream}-category-${index}`}
                         className="sm:sr-only"
@@ -390,7 +404,7 @@ export function ProjectMonthForm({
                         ]}
                       />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="flex flex-col gap-1.5">
                       <Label
                         htmlFor={`${stream}-name-${index}`}
                         className="sm:sr-only"
@@ -416,7 +430,7 @@ export function ProjectMonthForm({
                         )}
                       />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="flex flex-col gap-1.5">
                       <Label
                         htmlFor={`${stream}-amount-${index}`}
                         className="sm:sr-only"
@@ -437,7 +451,7 @@ export function ProjectMonthForm({
                       />
                     </div>
                     {tracksUnits ? (
-                      <div className="space-y-1.5">
+                      <div className="flex flex-col gap-1.5">
                         <Label
                           htmlFor={`${stream}-units-${index}`}
                           className="sm:sr-only"
