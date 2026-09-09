@@ -716,12 +716,18 @@ export function ProjectStreamCard({
           <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
             <div>
               <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {/* Current year first, because the figures below it read
+                {/* Says what the block is, in the words someone would use for
+                    it. It read "Jan–Aug, 2026 against 2025", which front-loaded
+                    a month range to qualify a comparison the reader had not
+                    been told about yet — and "against" is a word about the
+                    figures rather than about what they are for. The range is
+                    still stated, underneath, where it qualifies something.
+
+                    Current year first, because the figures below it read
                     "$16,100,267.00 from $24,060,326.00" — newest, then what it
                     came from. Naming the years the other way round made the
                     heading contradict the sentence directly under it. */}
-                {monthRangeLabel(comparison.months)}, {year} against{" "}
-                {previous.period_year}
+                Comparison between {year} and {previous.period_year}
               </p>
               <dl className="mt-3 grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1">
@@ -773,16 +779,22 @@ export function ProjectStreamCard({
               showUnits={tracksUnits}
             />
 
-            {/* Stated rather than assumed, and now stating two things, because
-                the block and the table above deliberately do not cover the same
-                months. The workbook's own comparison was labelled "Jan-May"
-                while summing Jan–June; naming what each figure actually covers
-                is how that stops being possible. */}
+            {/* Stated rather than assumed, and stating two things, because the
+                figures and the table deliberately do not cover the same months.
+                The workbook's own comparison was labelled "Jan-May" while
+                summing Jan–June; naming what each figure actually covers is how
+                that stops being possible.
+
+                This is also where the month range went when the heading above
+                stopped carrying it. A range is a qualification, and it belongs
+                next to the thing it qualifies rather than in front of it. */}
             <p className="text-xs text-muted-foreground">
-              The figures above compare only the {comparison.months.length}{" "}
-              {comparison.months.length === 1 ? "month" : "months"} both years
-              have reported. The table shows every month either year has, so its
-              totals can run ahead of them.
+              The figures above compare {monthRangeLabel(comparison.months)} —{" "}
+              {comparison.months.length === 1
+                ? "the only month"
+                : `the ${comparison.months.length} months`}{" "}
+              both years have reported. The table shows every month either year
+              has, so its totals can run ahead of them.
             </p>
           </div>
         ) : null}
