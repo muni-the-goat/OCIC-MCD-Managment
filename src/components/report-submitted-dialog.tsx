@@ -18,64 +18,98 @@ import {
 // redirect: the form is unmounted before it could show anything, and the page
 // the redirect lands on is the only place left to say it.
 
-// The mark, drawn in five steps rather than dropped in finished. Everything is
-// inline SVG and CSS keyframes — no motion library — so this component stays
-// standalone whether or not the animated nav icons ship with it.
+// The mark. A solid badge with a white check struck on it — one shape, high
+// contrast — rather than a pale tint holding a dark check inside a ring, which
+// stacked two rings of different weights and read as unfinished.
 //
-// The starburst is twelve points on two alternating radii. A path this small
-// does not need a dependency, and it is the app's own status green with the
-// same check the Reviewed badge already carries, rather than a second visual
-// vocabulary invented for one dialog.
-function SuccessMark() {
-  const points = Array.from({ length: 24 }, (_, index) => {
-    const radius = index % 2 === 0 ? 47 : 34;
-    const angle = (index / 24) * Math.PI * 2 - Math.PI / 2;
-    return `${(50 + radius * Math.cos(angle)).toFixed(2)},${(50 + radius * Math.sin(angle)).toFixed(2)}`;
-  }).join(" ");
+// All inline SVG and CSS keyframes, no motion library: this branch may ship
+// without the animated nav icons, and a success mark is not a reason to take
+// on framer-motion.
+const CENTRE = 70;
 
+// Twelve lobes on two radii. The round stroke in the same colour as the fill
+// is what turns twelve sharp points into the soft badge in the reference — a
+// path with genuinely rounded lobes would be four times the coordinates for
+// the same silhouette.
+const BADGE_POINTS = Array.from({ length: 24 }, (_, index) => {
+  const radius = index % 2 === 0 ? 37 : 27;
+  const angle = (index / 24) * Math.PI * 2 - Math.PI / 2;
+  return `${(CENTRE + radius * Math.cos(angle)).toFixed(2)},${(CENTRE + radius * Math.sin(angle)).toFixed(2)}`;
+}).join(" ");
+
+// Thrown outward past the badge's edge, alternating a chip and a dot so the
+// scatter is not twelve of the same thing. Deterministic — a mark that dealt
+// itself a different hand on every render would be a different picture each
+// time somebody submitted.
+const CONFETTI = Array.from({ length: 12 }, (_, index) => {
+  // Twelve pieces on exact thirty-degree spokes is a clock face. The jitter is
+  // arithmetic rather than random for the same reason the rest of this is:
+  // every submission should throw the same handful.
+  const jitter = (((index * 53) % 17) - 8) * (Math.PI / 180) * 1.6;
+  const angle = (index / 12) * Math.PI * 2 - Math.PI / 2 + jitter;
+  const distance = 42 + ((index * 7) % 17);
+  return {
+    dx: `${(distance * Math.cos(angle)).toFixed(1)}px`,
+    dy: `${(distance * Math.sin(angle)).toFixed(1)}px`,
+    rot: `${((index * 97) % 200) - 100}deg`,
+    delay: `${(index % 4) * 45}ms`,
+    colour: `var(--series-${(index % 6) + 1})`,
+    chip: index % 2 === 0,
+  };
+});
+
+function SuccessMark() {
   return (
-    <svg viewBox="0 0 100 100" className="size-24" aria-hidden>
-      {/* Goes out from under the burst and is gone before the check lands. */}
-      <circle
-        cx="50"
-        cy="50"
-        r="26"
-        fill="none"
-        strokeWidth={3}
-        stroke="var(--status-good)"
-        className="origin-center motion-safe:animate-ripple"
-      />
+    <svg viewBox="0 0 140 140" className="size-28" aria-hidden>
+      {CONFETTI.map((piece, index) => {
+        const style = {
+          "--dx": piece.dx,
+          "--dy": piece.dy,
+          "--rot": piece.rot,
+          "--delay": piece.delay,
+        } as React.CSSProperties;
+        return piece.chip ? (
+          <rect
+            key={index}
+            x={CENTRE - 2.5}
+            y={CENTRE - 3.5}
+            width={5}
+            height={7}
+            rx={1.5}
+            fill={piece.colour}
+            style={style}
+            className="motion-safe:animate-confetti motion-reduce:hidden"
+          />
+        ) : (
+          <circle
+            key={index}
+            cx={CENTRE}
+            cy={CENTRE}
+            r={2.6}
+            fill={piece.colour}
+            style={style}
+            className="motion-safe:animate-confetti motion-reduce:hidden"
+          />
+        );
+      })}
+      {/* Solid, not a tint. The check on top is white, which is the contrast
+          the reference gets and the tinted version never could. */}
       <polygon
-        points={points}
-        // 18% of the status green: enough to read as a shape on the popover's
-        // white, light enough that the stroked check on top of it stays the
-        // thing you look at.
-        fill="color-mix(in oklab, var(--status-good) 18%, transparent)"
+        points={BADGE_POINTS}
+        fill="var(--status-good)"
+        stroke="var(--status-good)"
+        strokeWidth={9}
+        strokeLinejoin="round"
         className="origin-center motion-safe:animate-burst"
       />
-      {/* pathLength normalises both strokes to 100 units, so one dash pattern
-          and one keyframe serve a circle and a polyline of quite different
-          real lengths. Rotated so the ring closes from the top. */}
-      <circle
-        cx="50"
-        cy="50"
-        r="20"
-        fill="none"
-        strokeWidth={4}
-        pathLength={100}
-        strokeDasharray={100}
-        transform="rotate(-90 50 50)"
-        className="stroke-foreground motion-safe:animate-check-ring"
-      />
       <path
-        d="M41 50.5 L47.5 57 L59.5 44"
+        d="M57 70.5 L66.5 80 L84 60"
         fill="none"
-        strokeWidth={4}
+        stroke="#fff"
+        strokeWidth={7}
         strokeLinecap="round"
         strokeLinejoin="round"
-        pathLength={100}
-        strokeDasharray={100}
-        className="stroke-foreground motion-safe:animate-check-mark"
+        className="motion-safe:animate-check-pop"
       />
     </svg>
   );
