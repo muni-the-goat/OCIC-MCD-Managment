@@ -362,7 +362,14 @@ export function ProjectMonthForm({
                 return (
                   <div
                     key={index}
-                    className="grid gap-2 sm:grid-cols-[9rem_minmax(0,1fr)_10rem_7rem_auto] sm:items-end"
+                    className={cn(
+                      "grid gap-2 sm:items-end",
+                      byCategory
+                        ? tracksUnits
+                          ? "sm:grid-cols-[9rem_10rem_7rem_minmax(0,1fr)_auto]"
+                          : "sm:grid-cols-[9rem_10rem_minmax(0,1fr)_auto]"
+                        : "sm:grid-cols-[9rem_minmax(0,1fr)_10rem_7rem_auto]"
+                    )}
                   >
                     {/* Not shown, and not derived on the server either: the
                         action has to be told which row this was so it can move
@@ -429,21 +436,11 @@ export function ProjectMonthForm({
                         by category there is nothing to ask: the name is the
                         category, kept in step by setCell above. */}
                     {byCategory ? (
-                      <>
-                        <input
-                          type="hidden"
-                          name={`row:${stream}:${index}:name`}
-                          value={row.name}
-                        />
-                        {/* The name column stands empty rather than being
-                            reclaimed. Widening the category picker to fill it
-                            would give a five-item list the width of a sentence,
-                            and moving the amount left would take it out of line
-                            with the sales card directly above — the amount is
-                            the column the eye runs down, and it should be in
-                            the same place on both. */}
-                        <div className="hidden sm:block" />
-                      </>
+                      <input
+                        type="hidden"
+                        name={`row:${stream}:${index}:name`}
+                        value={row.name}
+                      />
                     ) : (
                       <div className="flex flex-col gap-1.5">
                         <Label
@@ -516,8 +513,12 @@ export function ProjectMonthForm({
                         />
                       </div>
                     ) : (
-                      <div className="hidden sm:block" />
+                      !byCategory && <div className="hidden sm:block" />
                     )}
+                    {/* Everything left over, so the amount sits against the
+                        category it belongs to and the delete control still
+                        lands at the edge of the row like every other one. */}
+                    {byCategory ? <div className="hidden sm:block" /> : null}
                     {/* Removes the unit from the report on save — all twelve of
                         its months, not just this one. A month you have no
                         figure for is left blank; this is for a row that should
