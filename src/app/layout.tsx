@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fustat, Geist_Mono, Montserrat, Poppins } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,16 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+// Without viewport-fit=cover, env(safe-area-inset-bottom) resolves to 0 on a
+// notched iPhone and the tab bar sits under the home indicator. The width and
+// scale are Next's own defaults, restated because declaring this export
+// replaces the tag it would otherwise write for us.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: {
