@@ -1,5 +1,6 @@
 import { LogOut } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { OcicLogo } from "@/components/ocic-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,11 +56,16 @@ export default async function AppLayout({
             </form>
           </div>
         </header>
-        <div className="border-b px-4 py-2 md:hidden">
-          <AppNav role={profile.role} />
-        </div>
-        <main className="flex-1 p-4 md:p-8">{children}</main>
+        {/* The tab bar is fixed, so the page has to end above it. Without this
+            the last thing on a long page — a Complete button, the bottom line
+            of the budget matrix — sits underneath the bar permanently. */}
+        <main className="flex-1 p-4 pb-[calc(var(--tab-bar-height)+env(safe-area-inset-bottom)+1rem)] md:p-8 md:pb-8">
+          {children}
+        </main>
       </div>
+      {/* Below md only. The rail above is the same navigation on a wider
+          screen, and the two are never on screen together. */}
+      <MobileTabBar role={profile.role} />
     </div>
   );
 }

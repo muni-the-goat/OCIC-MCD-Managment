@@ -11,6 +11,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      // A toast anchored to the bottom lands behind the mobile tab bar. Lifted
+      // clear of it by the bar's own height token, so the two cannot drift.
+      mobileOffset={{
+        bottom: "calc(var(--tab-bar-height) + env(safe-area-inset-bottom) + 0.5rem)",
+      }}
       icons={{
         success: (
           <CircleCheckIcon className="size-4" />

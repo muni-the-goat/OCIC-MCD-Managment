@@ -91,6 +91,11 @@
   --chart-4: #4f5556; /* slate */
   --chart-5: #c24a3e; /* red-soft */
   --radius: 0.625rem;
+
+  /* The mobile tab bar's own row, without the safe-area inset beneath it. Read
+     by the bar and by the padding that keeps page content clear of it, so a
+     change to one cannot leave the other covering the last line of a report. */
+  --tab-bar-height: 3.5rem;
   --sidebar: #fcfaf5; /* ocic-cream */
   --sidebar-foreground: #212721;
   --sidebar-primary: #a42a28;
