@@ -2,15 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Building2,
-  CircleUser,
-  FilePlus2,
-  Files,
-  LayoutDashboard,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
+import { NAV_ICONS, useNavIcon, type NavIconKey } from "@/components/nav-icon";
 import {
   canOpenUsersPage,
   livesOnProjectsOnly,
@@ -19,14 +11,41 @@ import {
 import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/types";
 
-const ICONS: Record<string, LucideIcon> = {
-  dashboard: LayoutDashboard,
-  reports: Files,
-  new: FilePlus2,
-  users: Users,
-  profile: CircleUser,
-  projects: Building2,
-};
+interface NavItem {
+  href: string;
+  label: string;
+  icon: NavIconKey;
+}
+
+// One row of the rail. Its own component because each row holds a ref to its
+// glyph, and a hook cannot be called inside the map that builds them.
+function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+  const { ref, play, reset } = useNavIcon();
+  const Icon = NAV_ICONS[item.icon];
+
+  return (
+    <Link
+      href={item.href}
+      // The hover lives on the row, not on the 16px glyph inside it. Bound
+      // here, the animation answers the pointer arriving anywhere on the row,
+      // which is the target the reader is actually aiming at.
+      onMouseEnter={play}
+      onMouseLeave={reset}
+      onFocus={play}
+      onBlur={reset}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+        active
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+    >
+      <Icon ref={ref} size={16} className="flex shrink-0" aria-hidden />
+      {item.label}
+    </Link>
+  );
+}
 
 export function AppNav({ role }: { role: AppRole }) {
   const pathname = usePathname();
@@ -37,16 +56,19 @@ export function AppNav({ role }: { role: AppRole }) {
   // their profile, which is the whole of their job here.
   const projectsOnly = livesOnProjectsOnly(role);
 
-  const items = projectsOnly
+  // The rail carries every destination. The phone's tab bar in
+  // mobile-tab-bar.tsx carries five of them and drops the create actions —
+  // the two lists differ on purpose, so a new page needs a decision in both.
+  const items: NavItem[] = projectsOnly
     ? [
         { href: "/projects/dashboard", label: "Dashboard", icon: "dashboard" },
         { href: "/projects", label: "Projects", icon: "projects" },
-        { href: "/projects/new", label: "Project report", icon: "new" },
+        { href: "/projects/new", label: "Project report", icon: "projectReport" },
         // A Vice President keeps account management, so the Users link
         // survives the projects-only nav on its own predicate. A VP Assistant
         // fails canOpenUsersPage() and simply does not see it.
         ...(canOpenUsersPage(role)
-          ? [{ href: "/admin/users", label: "Users", icon: "users" }]
+          ? [{ href: "/admin/users", label: "Users", icon: "users" as const }]
           : []),
         { href: "/profile", label: "Profile", icon: "profile" },
       ]
@@ -60,23 +82,23 @@ export function AppNav({ role }: { role: AppRole }) {
         // report and no sign that one existed.
         ...(seesProjectReports(role)
           ? [
-              { href: "/projects", label: "Projects", icon: "projects" },
+              { href: "/projects", label: "Projects", icon: "projects" as const },
               {
                 href: "/projects/dashboard",
                 label: "Projects dashboard",
-                icon: "dashboard",
+                icon: "projectsDashboard" as const,
               },
               {
                 href: "/projects/new",
                 label: "Project report",
-                icon: "new",
+                icon: "projectReport" as const,
               },
             ]
           : []),
         { href: "/reports", label: "Reports", icon: "reports" },
-        { href: "/reports/new", label: "New report", icon: "new" },
+        { href: "/reports/new", label: "New report", icon: "newReport" },
         ...(canOpenUsersPage(role)
-          ? [{ href: "/admin/users", label: "Users", icon: "users" }]
+          ? [{ href: "/admin/users", label: "Users", icon: "users" as const }]
           : []),
         { href: "/profile", label: "Profile", icon: "profile" },
       ];
@@ -84,7 +106,6 @@ export function AppNav({ role }: { role: AppRole }) {
   return (
     <nav className="flex flex-col gap-1">
       {items.map((item) => {
-        const Icon = ICONS[item.icon];
         // "/projects" must not light up while on "/projects/new", the same way
         // "/reports" already steps aside for "/reports/new" — a parent that
         // stays highlighted under its own child makes the nav lie about where
@@ -95,21 +116,7 @@ export function AppNav({ role }: { role: AppRole }) {
             : item.href === "/projects"
               ? pathname === "/projects"
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              active
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            <Icon className="size-4" />
-            {item.label}
-          </Link>
-        );
+        return <NavLink key={item.href} item={item} active={active} />;
       })}
     </nav>
   );

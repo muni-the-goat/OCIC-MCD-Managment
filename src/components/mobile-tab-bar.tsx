@@ -2,12 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useRef } from "react";
-import { FileTextIcon } from "@/components/ui/file-text";
-import { FolderKanbanIcon } from "@/components/ui/folder-kanban";
-import { LayoutGridIcon } from "@/components/ui/layout-grid";
-import { UserIcon } from "@/components/ui/user";
-import { UsersIcon } from "@/components/ui/users";
+import { NAV_ICONS, useNavIcon, type NavIconKey } from "@/components/nav-icon";
 import {
   canOpenUsersPage,
   livesOnProjectsOnly,
@@ -29,12 +24,10 @@ import type { AppRole } from "@/lib/types";
 //
 // Adding a page? It needs a decision here as well as in AppNav — the two lists
 // differ on purpose, so neither can be derived from the other.
-type IconKey = "dashboard" | "projects" | "reports" | "users" | "profile";
-
 interface Tab {
   href: string;
   label: string;
-  icon: IconKey;
+  icon: NavIconKey;
   // Which routes light this tab. Written per tab rather than as one rule,
   // because the same path means different things to different roles: for a VP
   // /projects/dashboard is their Dashboard, and for an Admin it is Projects.
@@ -117,49 +110,18 @@ function tabsFor(role: AppRole): Tab[] {
   ];
 }
 
-interface IconHandle {
-  startAnimation: () => void;
-  stopAnimation: () => void;
-}
-
-type AnimatedIcon = React.ForwardRefExoticComponent<
-  React.HTMLAttributes<HTMLDivElement> & { size?: number } & React.RefAttributes<IconHandle>
->;
-
-// Lucide's own glyphs, wrapped in motion. The registry has no animated
-// building or layout-dashboard, so Projects and Dashboard take the nearest
-// distinct pair rather than two variations on a grid of squares — at 22px,
-// "four panels" and "a block of squares" are the same icon.
-const ICONS: Record<IconKey, AnimatedIcon> = {
-  dashboard: LayoutGridIcon as AnimatedIcon,
-  projects: FolderKanbanIcon as AnimatedIcon,
-  reports: FileTextIcon as AnimatedIcon,
-  users: UsersIcon as AnimatedIcon,
-  profile: UserIcon as AnimatedIcon,
-};
-
 function TabLink({ tab, active }: { tab: Tab; active: boolean }) {
-  const icon = useRef<IconHandle>(null);
-  const Icon = ICONS[tab.icon];
-
-  // These icons ship hover-driven, which is no use on the one surface this bar
-  // exists for. Attaching a ref puts them into controlled mode and hands the
-  // trigger to us; the tap is the event.
-  //
-  // Fired on pointer down rather than on arrival. Every route behind these tabs
-  // is dynamic and can take a few hundred milliseconds, and an acknowledgement
-  // that waits for the server is not an acknowledgement of the touch.
-  //
-  // Reduced motion is read at tap time rather than cached, matching CountUp —
-  // the setting can change while the page is open.
-  const play = useCallback(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    icon.current?.startAnimation();
-  }, []);
+  const { ref, play } = useNavIcon();
+  const Icon = NAV_ICONS[tab.icon];
 
   return (
     <Link
       href={tab.href}
+      // Pointer down, not hover — there is none here — and not arrival either.
+      // Every route behind these tabs is dynamic and can take a few hundred
+      // milliseconds, and an acknowledgement that waits for the server is not
+      // an acknowledgement of the touch. No reset on the way out: the tap is
+      // over by the time the finger lifts.
       onPointerDown={play}
       aria-current={active ? "page" : undefined}
       className={cn(
@@ -168,7 +130,7 @@ function TabLink({ tab, active }: { tab: Tab; active: boolean }) {
         active ? "text-primary" : "text-muted-foreground"
       )}
     >
-      <Icon ref={icon} size={22} aria-hidden />
+      <Icon ref={ref} size={22} className="flex shrink-0" aria-hidden />
       <span className="max-w-full truncate font-label text-[10px] font-medium leading-none">
         {tab.label}
       </span>
