@@ -8,8 +8,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { redirect } from "next/navigation";
-import { getProfile, livesOnProjectsOnly } from "@/lib/auth";
+import {
+  canManageAnyReport,
+  getProfile,
+  livesOnProjectsOnly,
+} from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import type { FiledPeriod } from "@/lib/submit-check";
 import type { BudgetHistoryReport, BudgetItem } from "@/lib/types";
 
 export const metadata = { title: "New report" };
@@ -29,10 +34,21 @@ export default async function NewReportPage({
   if (livesOnProjectsOnly(me.role)) redirect("/projects/new");
 
   if (type === "budget" || type === "monthly") {
+    const supabase = await createClient();
     let budgetHistory: BudgetHistoryReport[] = [];
 
+    // Every period this author has already filed for this kind of report, so
+    // the check before submitting can say when a month is being used twice.
+    // Deliberately not the same query as budgetHistory: that one drags all the
+    // line items along to seed the form, and this one wants six columns.
+    const { data: filed } = await supabase
+      .from("reports")
+      .select("id, title, type, budget_period, period_month, period_year")
+      .eq("author_id", me.id)
+      .eq("type", type)
+      .limit(300);
+
     if (type === "budget") {
-      const supabase = await createClient();
       const { data } = await supabase
         .from("reports")
         .select(
@@ -64,7 +80,12 @@ export default async function NewReportPage({
         <h1 className="text-2xl font-semibold tracking-tight">
           New {type} report
         </h1>
-        <ReportForm type={type} budgetHistory={budgetHistory} />
+        <ReportForm
+          type={type}
+          budgetHistory={budgetHistory}
+          filedPeriods={(filed ?? []) as FiledPeriod[]}
+          locksOnSubmit={!canManageAnyReport(me.role)}
+        />
       </div>
     );
   }
