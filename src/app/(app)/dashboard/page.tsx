@@ -26,6 +26,7 @@ import {
   MonthlyActivitySummary,
   MonthlyActivitySummarySkeleton,
 } from "@/components/monthly-activity-summary";
+import { ReportProgressDialog } from "@/components/report-progress-dialog";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +45,10 @@ import {
   seesOtherAuthors,
 } from "@/lib/auth";
 import { departmentLabel } from "@/lib/departments";
+import {
+  progressFromDecisions,
+  type DecidedReport,
+} from "@/lib/report-progress";
 import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -146,12 +151,32 @@ export default async function DashboardPage({
     recentQuery = recentQuery.eq("author_id", profile.id);
   }
 
+  // The reader's own side of the ledger, for the arrival summary below. Kept
+  // apart from the counts above on purpose: those are a statistic about the
+  // office, this is news addressed to one person — and a reviewer reading an
+  // office-wide dashboard is still an author of their own reports.
+  //
+  // reviewed_by is excluded when it is the reader. An Admin who decided on
+  // their own report does not need to be told what they just did.
+  const decidedQuery = supabase
+    .from("reports")
+    .select(
+      "id, title, type, budget_period, status, period_month, period_year, reviewed_at, reviewer:profiles!reviewed_by(full_name)"
+    )
+    .eq("author_id", profile.id)
+    .in("status", ["reviewed", "rejected"])
+    .not("reviewed_at", "is", null)
+    .neq("reviewed_by", profile.id)
+    .order("reviewed_at", { ascending: false })
+    .limit(6);
+
   const [
     total,
     submitted,
     reviewed,
     rejected,
     { data: recentData },
+    { data: decidedData },
     departments,
   ] = await Promise.all([
     countBy(undefined, mineOnly),
@@ -159,6 +184,7 @@ export default async function DashboardPage({
     countBy("reviewed", mineOnly),
     countBy("rejected", mineOnly),
     recentQuery,
+    decidedQuery,
     getDepartments(),
   ]);
   const recent = (recentData ?? []) as unknown as RecentReport[];
@@ -168,8 +194,19 @@ export default async function DashboardPage({
   const drafts = Math.max(0, total - submitted - reviewed - rejected);
   const now = new Date();
 
+  // `now` rather than a second clock read: two reads in one render can straddle
+  // a boundary, and react-hooks/purity is right that a component should not be
+  // asking the time twice anyway.
+  const progress = progressFromDecisions(
+    (decidedData ?? []) as unknown as DecidedReport[],
+    now
+  );
+
   return (
     <div className="space-y-5">
+      {/* Renders no element of its own until it opens, and opens into a portal,
+          so it costs the space-y-5 stack above nothing. */}
+      <ReportProgressDialog updates={progress} />
       <section className="rounded-2xl bg-card p-5 shadow-xs ring-1 ring-foreground/10 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
           <div className="flex min-w-0 items-center gap-4">
