@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
-  canDecideOnReport,
   canManageAnyReport,
   canMarkReviewed,
   canRejectReport,
@@ -462,24 +461,10 @@ export async function reviewReport(
 
   const supabase = await createClient();
 
-  // A Coordinator decides on budget reports and their own only. RLS enforces it,
-  // but reading the row first turns a silent "not awaiting review" into an
-  // answer that says what actually happened.
-  const { data: target } = await supabase
-    .from("reports")
-    .select("type, author_id")
-    .eq("id", reportId)
-    .maybeSingle();
-  if (
-    target &&
-    !canDecideOnReport(
-      profile.role,
-      target.type as "budget" | "monthly",
-      target.author_id === profile.id
-    )
-  ) {
-    return { error: "A Coordinator can only review budget reports" };
-  }
+  // A read of the report used to sit here, to tell a Coordinator that their
+  // reach stopped at budget reports. It stopped narrowing anything in 0029, and
+  // the two checks above already refuse every decision a role cannot make, so
+  // the read went with it — one fewer round trip on every review.
 
   // The RPC applies the status and feedback atomically; its update/insert still
   // run under the caller's RLS policies.

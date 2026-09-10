@@ -21,7 +21,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { BudgetGrid } from "@/components/budget-grid";
 import {
-  canDecideOnReport,
   canManageAnyReport,
   canMarkReviewed,
   canRejectReport,
@@ -117,11 +116,11 @@ export default async function ReportDetailPage({
   const privileged = canManageAnyReport(profile.role);
   const canEdit = isAuthor || privileged;
   const canDelete = (isAuthor && report.status === "draft") || privileged;
-  // A Coordinator's reach stops at budget reports plus their own, so the
-  // controls have to ask about this report rather than about the role alone.
-  const inReach = canDecideOnReport(profile.role, report.type, isAuthor);
-  const canApprove = inReach && canMarkReviewed(profile.role);
-  const canReject = inReach && canRejectReport(profile.role);
+  // Every reviewer reaches every report since 0029, so which decision a role
+  // may make is the whole of the question. A Coordinator can approve and still
+  // cannot reject.
+  const canApprove = canMarkReviewed(profile.role);
+  const canReject = canRejectReport(profile.role);
   // Self-review is permitted for every role that can decide at all.
   const canReview = (canApprove || canReject) && report.status === "submitted";
   // Three conditions, not one. The flag alone is a query string anybody can

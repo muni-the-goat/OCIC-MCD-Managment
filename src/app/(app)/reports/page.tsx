@@ -55,7 +55,6 @@ export default async function ReportsPage({
   // the page's own description all follow the wider question rather than
   // isReviewer().
   const showsOtherAuthors = seesOtherAuthors(profile.role);
-  const isCoordinator = profile.role === "coordinator";
 
   let query = supabase
     .from("reports")
@@ -121,11 +120,9 @@ export default async function ReportsPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
           <p className="text-sm text-muted-foreground">
-            {isCoordinator
-              ? "Every budget report across the office, plus your own reports."
-              : showsOtherAuthors
-                ? "All submitted reports across the office, plus your own."
-                : "Your monthly budget and activity reports."}
+            {showsOtherAuthors
+              ? "All submitted reports across the office, plus your own."
+              : "Your monthly budget and activity reports."}
           </p>
         </div>
         <Button asChild className="gap-2">

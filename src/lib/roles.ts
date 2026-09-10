@@ -60,14 +60,19 @@ export function isPrivileged(role: AppRole) {
   return role === "admin" || role === "head_of_department";
 }
 
-// Reads every report in the office, of either type, without deciding on any.
+// Reads every report in the office, of either type, without necessarily
+// deciding on any.
 //
-// Only the privileged tier now. The VP Assistant briefly had this in 0017, when
-// the role was "reads the whole office and decides nothing"; 0018 narrowed them
-// to the projects side once it became clear the three project reports *are* the
-// job. They compile those and read no marketing report but their own.
+// The Coordinator joined this in 0029. They had the office's budget reports
+// since 0012 and nothing else, on the reading that their oversight was spend;
+// it is what the office files, so the activity reports came with it.
+//
+// The VP Assistant briefly had this in 0017, when the role was "reads the whole
+// office and decides nothing"; 0018 narrowed them to the projects side once it
+// became clear the three project reports *are* the job. They compile those and
+// read no marketing report but their own.
 export function seesAllReports(role: AppRole) {
-  return isPrivileged(role);
+  return isPrivileged(role) || role === "coordinator";
 }
 
 // ---------------------------------------------------------------------------
@@ -127,16 +132,20 @@ export function seesOtherAuthors(role: AppRole) {
   return isReviewer(role) || seesAllBudgetReports(role);
 }
 
-// A Coordinator's cross-office visibility stops at budget reports. Monthly
-// activity reports stay private to their author and the review chain — migration
-// 0012 is the enforcement; this only decides how the page describes itself.
+// Everyone who reads the office's budget reports beyond their own.
+//
+// Kept as its own name even though 0029 made it identical to seesAllReports():
+// the budget summary, the department matrix and annualBudgetScope() ask a
+// question about budgets, and the day a role reads one kind and not the other
+// again, this is where that difference belongs.
 export function seesAllBudgetReports(role: AppRole) {
-  return seesAllReports(role) || role === "coordinator";
+  return seesAllReports(role);
 }
 
 // Approving. A Coordinator may approve, including their own report — they are
-// the office's budget oversight, and a budget they can already read across every
-// team is a budget they can sign off.
+// the office's reporting oversight, and a report they can already read across
+// every team is a report they can sign off. Since 0029 that covers activity
+// reports as well as budgets.
 export function canMarkReviewed(role: AppRole) {
   return isPrivileged(role) || role === "coordinator";
 }
@@ -148,18 +157,15 @@ export function canRejectReport(role: AppRole) {
   return isPrivileged(role);
 }
 
-// What a Coordinator may decide on, given they only ever see budget reports plus
-// their own. Enforced in the `reports: review submitted` policy; this keeps the
-// detail page from offering a control the database would refuse.
-export function canDecideOnReport(
-  role: AppRole,
-  reportType: "budget" | "monthly",
-  isAuthor: boolean
-) {
-  if (!isReviewer(role)) return false;
-  if (role === "coordinator") return reportType === "budget" || isAuthor;
-  return true;
-}
+// canDecideOnReport() lived here until 0029. It existed to answer "may this
+// role decide on *this* report", because a Coordinator reached budget reports
+// and their own and nothing else. Now that every reviewer reaches every report
+// it reduces to isReviewer(), and at both of its call sites it reduced further
+// than that: `canDecideOnReport(...) && canMarkReviewed(role)` is just
+// canMarkReviewed(role), since isReviewer() is those two predicates OR-ed. A
+// function whose arguments no longer change its answer is a function that
+// misleads the next reader about what the rule depends on, so it is gone rather
+// than kept with its arguments underscored.
 
 // Editing and deleting a report someone else authored, and the Reports page's
 // bulk delete.
