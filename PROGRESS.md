@@ -208,6 +208,14 @@ The portfolio is read at three levels, and the filter offers all of them in one 
 
 The form's fields are indexed (`row:<stream>:<index>:category`) rather than keyed by unit name, so a row can move between categories without appearing to be a different row.
 
+**Why "Where the year stands" has no Commercial bar — known, and deliberately left.** Asked on 2026-09-10. Commercial is not a fourth report: it is Chroy Changvar Bay's *name* for its Leasing report. `0028` renamed a heading, and the stream underneath is still `leasing`, so its money rolls up with every other project's leasing. The chart draws one bar per stream, so Commercial is inside the Leasing bar — on Jan–Aug it is $2,220,829 of 2026's $5,080,236 and $2,180,486 of 2025's $4,280,008, about 44% either way, sitting beside Koh Pich's leasing.
+
+That is the right label while the bar covers both projects. `projectStreamLabelFor()` in `src/lib/types.ts` says so in its own comment: it is deliberately not used where a heading covers more than one project, because "Commercial" over a total that includes Koh Pich's leased houses would misdescribe itself.
+
+**The gap is the single-project view.** Filter the dashboard to Chroy Changvar Bay alone and the bar still reads "Leasing", though every dollar in it is that project's Commercial and there is no Koh Pich money left to justify the shared name. The Projects page names the same thing "Commercial" in the same situation, so the two screens disagree about what the reader is looking at. `scopeLabel` at `src/app/(app)/projects/dashboard/page.tsx` has it too, and that string titles the exported PDF — so a Chroy Changvar Bay + Commercial export is headed "Leasing".
+
+One rule fixes both: where the selection is a single project, label with `projectStreamLabelFor(thatProject, stream)` instead of `projectStreamLabel(stream)`; the all-projects view keeps the shared name unchanged. Read-side only, no data touched. Not done — the operator was shown it on 2026-09-10 and chose to leave it.
+
 ### Two bugs the first real use of the form found
 
 **A category change cloned the row instead of moving it.** `0022` keyed items on `(report_id, category, name)`, which makes the category part of what a row *is* rather than something it *has*. The upsert matched on the category too, found nothing, and inserted a second row beside the original — which is where the Koh Pich sales report's phantom `Unassigned / Commercial` came from. `0024` moves the key back to `(report_id, name)`; a category is now an attribute, and changing it updates the row in place with all twelve months intact.
