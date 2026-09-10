@@ -313,7 +313,6 @@ export async function MonthlyActivitySummary({
                   authorName={author?.name ?? "Unknown"}
                   department={author?.department ?? null}
                   title={report.title}
-                  period={`${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`}
                   files={files}
                   content={body}
                 />

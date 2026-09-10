@@ -7,22 +7,35 @@ import { MONTHLY_SECTIONS, type MonthlyContent } from "@/lib/types";
 
 // One team's month, in the activity summary's list.
 //
-// The card used to print all six sections of every report in full, one after
-// another. That was readable while a single report had been reviewed. Eight
-// managers file these, and once the Coordinator works through the queue the
-// same card would run to something like ten screens of prose above everything
-// else on the dashboard — so a row now says who filed what, and opens.
+// The card used to print all eight sections of every reviewed report in full,
+// one after another. That reads well while one report has been reviewed, which
+// is where the office is now. Eight managers file these, so the same card grows
+// to about ten screens of prose as the queue clears — hence a row that says who
+// filed what, and opens.
 //
-// A component of its own so the row can be put in front of a browser without a
-// session behind it: the summary that uses it is a server component holding a
-// Supabase query, and the parts worth looking at here are the disclosure
-// behaviour and the layout, neither of which needs data to be wrong.
+// The layout below is arranged around one question: what is this row for? It is
+// scanned, down a list of eight, for two things — whose month this is, and the
+// document they filed. Everything is placed to serve that and nothing else.
+//
+//   Identity   the line you scan. Name first, department beside it, and the
+//              report's own title pushed to the far end where it stays out of
+//              the way of the scan but is there when you need it.
+//
+//   Actions    a band of its own below, with real space above it. The two
+//              things you can do with a report — take its document, or go and
+//              read it — belong together, so they sit together with a hairline
+//              between them rather than at opposite edges of the row. A gap
+//              that wide reads as "unrelated", which they are not.
+//
+// A component of its own so the row can be put in front of a real browser
+// without a session behind it. The summary that uses it is a server component
+// wrapped around a Supabase query, and what is worth looking at here — the
+// disclosure, the spacing, the behaviour under a finger — needs no data.
 export function ActivityReportRow({
   reportId,
   authorName,
   department,
   title,
-  period,
   files,
   content,
 }: {
@@ -30,116 +43,143 @@ export function ActivityReportRow({
   authorName: string;
   department: string | null;
   title: string;
-  period: string;
   files: { id: string; file_name: string }[];
   content: MonthlyContent | null;
 }) {
   return (
-    <li>
-              {/* <details> rather than a client component holding an open
-                  flag. It is a disclosure widget, which is what this element
-                  is for: keyboard and screen-reader behaviour come for free,
-                  it works before hydration, and it keeps this card a pure
-                  server component with no JavaScript shipped for it at all.
-                  This card is not in any print path, so nothing needs it
-                  forced open on paper. */}
-              <details className="group">
-                <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/50 [&::-webkit-details-marker]:hidden">
-                  <ChevronRight
-          className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
-          aria-hidden
-        />
-        {/* Who filed it leads, because that is what a reviewer scans by.
-            Above sm the title and period sit out on the right of the same line,
-            so eight of these read down as a list. Below it there is no room for
-            four things on one line — the name was wrapping mid-word and the
-            title was being dropped — so they take a second line rather than
-            disappearing. */}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            <span className="font-heading text-base font-semibold">
-              {authorName}
-            </span>
-            <DepartmentBadge label={department} />
-            <span className="ml-auto hidden min-w-0 items-baseline gap-3 sm:flex">
-              <span className="truncate text-sm text-muted-foreground">
-                {title}
-              </span>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {period}
-              </span>
-            </span>
-          </div>
-          {/* The period is not repeated here. Every row in this card is the
-              same month — the card's own heading says which — and authors put
-              it in the title as well, so on a phone "Digital Team Report |
-              January 2026 · January…" was truncating the title to make room for
-              its third statement of the same fact. */}
-          <p className="mt-0.5 truncate text-sm text-muted-foreground sm:hidden">
+    <li className="px-4 py-3.5">
+      {/* <details> rather than a client component holding an open flag. It is a
+          disclosure widget and this is the element for it: keyboard and
+          screen-reader behaviour come for free, it works before hydration, and
+          the card stays a pure server component shipping no JavaScript. This
+          card is in no print path, so nothing needs forcing open on paper. */}
+      <details className="group">
+        {/* The negative margin lets the hover and press states paint a rounded
+            surface slightly wider than the text without moving anything, so the
+            highlight reads as the row lighting up rather than as a box drawn
+            around the words.
+
+            Press feedback is on pointer-down and it is instant: :active fires
+            before the click the disclosure listens to, so the row acknowledges
+            the finger before it does anything. 100ms down, 200ms back — a
+            press should feel immediate and a release should settle. */}
+        <summary
+          className="-mx-2 flex cursor-pointer list-none items-start gap-2.5 rounded-lg px-2 py-1.5 transition-[background-color,transform] duration-200 ease-out hover:bg-muted/60 active:scale-[0.995] active:bg-muted active:duration-100 motion-reduce:transition-[background-color] motion-reduce:active:scale-100 [&::-webkit-details-marker]:hidden"
+        >
+          <span
+            className="mt-0.5 grid size-5 shrink-0 place-items-center text-muted-foreground transition-transform duration-200 ease-out group-open:rotate-90 motion-reduce:transition-none"
+            aria-hidden
+          >
+            <ChevronRight className="size-4" />
+          </span>
+
+          {/* The identity is its own flex row so it can wrap. Without a
+              wrapping container basis-full below has nothing to break into:
+              flattened onto the summary itself, at 390px the name split across
+              two lines with the badge landing on top of it. */}
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
+          {/* Slightly negative tracking on the name only. At 16px semibold the
+              default spacing reads loose against the 14px text beside it;
+              the muted title stays at normal tracking, which is where small
+              text wants to be. */}
+          <span className="font-heading text-base font-semibold tracking-[-0.01em]">
+            {authorName}
+          </span>
+          <DepartmentBadge label={department} />
+
+          {/* One element for both layouts rather than a copy hidden at each
+              breakpoint. basis-full puts it on its own line where there is no
+              room for four things across; from sm it goes back to sitting on
+              the end of the identity line.
+
+              The period is not printed here. Every row in this card is the same
+              month, the card's own heading says which, and authors put it in
+              the title as well — three statements of January 2026 in one row,
+              and on a phone the third was truncating the title to make room for
+              itself. */}
+          <span className="min-w-0 basis-full truncate text-sm text-muted-foreground sm:ml-auto sm:basis-auto sm:text-right">
             {title}
-          </p>
-        </div>
+          </span>
+          </div>
         </summary>
 
-                <div className="border-t px-4 py-4 sm:pl-11">
-                  <dl className="space-y-4">
-                    {MONTHLY_SECTIONS.map(({ key, label }) => (
-                      <div key={key}>
-                        <dt className="mb-1.5 font-heading text-lg font-semibold">
-                          {label}
-                        </dt>
-                        {/* Formatted, the same as on the detail page. */}
-                        <dd>
-                          <RichText
-                            value={content?.[key]}
-                            className="text-muted-foreground"
-                          />
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                </div>
-              </details>
-
-              {/* Outside the <details>, so the documents are readable
-                  without opening anything — they are the point of the
-                  report now, and a click to reach them would undo that.
-                  Outside also because a link inside a <summary> both
-                  follows itself and toggles the row. */}
-              <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:pl-11">
-                {files.length === 0 ? (
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Paperclip className="size-3.5" aria-hidden="true" />
-                    No documents attached.
-                  </p>
-                ) : (
-                  files.map((file) => (
-                    <Button
-                      key={file.id}
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className="h-7 max-w-full gap-1.5 text-xs"
-                    >
-                      <a
-                        href={`/api/attachments/${file.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <Download className="size-3.5" />
-                        <span className="truncate">{file.file_name}</span>
-                      </a>
-                    </Button>
-                  ))
-                )}
-                <Link
-                  href={`/reports/${reportId}`}
-                  className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
-                >
-                  Open report
-                  <ExternalLink className="size-3" aria-hidden />
-                </Link>
+        {/* Materialises rather than appearing. The panel's height snaps — that
+            is what <details> does without JavaScript — so the content settling
+            four pixels into place is what makes the open read as one movement
+            instead of a jump. Nothing overshoots: a tap carries no momentum, so
+            there is none to hand on. */}
+        <div className="mt-4 motion-safe:animate-disclose sm:pl-[30px]">
+          <dl className="space-y-4">
+            {MONTHLY_SECTIONS.map(({ key, label }) => (
+              <div key={key}>
+                <dt className="mb-1.5 font-heading text-lg font-semibold tracking-[-0.01em]">
+                  {label}
+                </dt>
+                {/* Formatted, the same as on the detail page. */}
+                <dd>
+                  <RichText value={content?.[key]} className="text-muted-foreground" />
+                </dd>
               </div>
-            </li>
+            ))}
+          </dl>
+        </div>
+      </details>
+
+      {/* Outside the <details>, so the documents are readable without opening
+          anything — since the structured fields were dropped they are most of
+          what a report is, and putting them behind a click would undo the point
+          of this card. Outside also because a link inside a <summary> both
+          follows itself and toggles the row.
+
+          mt-3 is the space the identity line needs above this: enough that the
+          two read as separate bands, not so much that they stop being one row.
+          The pl matches the chevron's width plus its gap exactly, so the band
+          starts under the name rather than near it. */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2 sm:pl-[30px]">
+        {files.length === 0 ? (
+          <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Paperclip className="size-3.5" aria-hidden="true" />
+            No documents attached
+          </p>
+        ) : (
+          files.map((file) => (
+            <Button
+              key={file.id}
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-7 max-w-[min(100%,24rem)] gap-1.5 text-xs font-normal"
+            >
+              <a
+                href={`/api/attachments/${file.id}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Download className="size-3.5 text-muted-foreground" />
+                <span className="truncate">{file.file_name}</span>
+              </a>
+            </Button>
+          ))
+        )}
+
+        {/* A hairline, not an auto gap. The documents and the report are two
+            kinds of the same thing — what you can do with this row — so they
+            are separated by the smallest mark that says "different kind", and
+            kept close enough to read as one group. */}
+        {/* Only where the band is a single line. Once the chips wrap onto
+            their own rows the rule has nothing left to separate and strands
+            itself on a line of its own — the wrapping already does the
+            separating. */}
+        <span className="hidden h-3.5 w-px shrink-0 bg-border sm:block" aria-hidden />
+
+        <Link
+          href={`/reports/${reportId}`}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          Open report
+          <ExternalLink className="size-3" aria-hidden />
+        </Link>
+      </div>
+    </li>
   );
 }

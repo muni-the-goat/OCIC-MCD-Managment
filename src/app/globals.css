@@ -986,6 +986,26 @@
   animation: riseIn 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* A disclosure opening. Four pixels and 220ms, both smaller than riseIn above,
+   and deliberately so: that one covers something arriving on screen, this one
+   covers content settling into a space that has just opened for it. A tap
+   carries no momentum, so there is nothing to overshoot — the curve eases out
+   and stops. Applied through motion-safe:, so reduced motion gets the content
+   with no travel at all rather than a slower version of the same movement. */
+@keyframes discloseIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-disclose {
+  animation: discloseIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* recharts' accessibility layer makes the plot focusable, so clicking a chart
    leaves a focus ring around it (the brand --ring, via the global outline base).
    Suppress it on every recharts focus target — the bars, tooltip and cross-filter
