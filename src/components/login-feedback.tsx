@@ -3,71 +3,72 @@
 import { useEffect } from "react";
 import { Dialog } from "radix-ui";
 import { ArrowRight } from "lucide-react";
-import type { LoginResult } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
 import { safeNextPath } from "@/lib/login-rules";
 import styles from "@/app/login/sign-in.module.css";
 
-export function LoginFeedback({
-  result,
-  open,
-  onDismiss,
-  onReturnFocus,
-}: {
-  result: LoginResult;
-  open: boolean;
-  onDismiss: () => void;
-  onReturnFocus: () => void;
-}) {
-  const success = result.status === "success";
-  const destination = success ? safeNextPath(result.next) ?? "/dashboard" : null;
+// Shown once the sign-in has actually succeeded, and only then.
+//
+// It began as a confirmation that waited 1.6 seconds before navigating. The
+// wait was the problem: it is paid on every sign-in, forever, to say something
+// the dashboard arriving says by itself. So the navigation starts immediately
+// and this covers it — the reader sees the confirmation for exactly as long as
+// the next page takes to load, which is honest feedback rather than a manufactured
+// pause. It is the same job the full-screen overlay did before the redesign.
+//
+// Full document load, not router.push: the browser has to carry the auth
+// cookies the Server Action just set through proxy.ts, and a soft navigation
+// would not.
+//
+// An error never reaches this component. It is written under the field that
+// caused it, where the person is already looking.
+export function LoginFeedback({ next }: { next: string }) {
+  // Sanitised on the way out of the action too. Repeated here because this is
+  // the line that actually moves the browser, and a redirect target is worth
+  // checking at the point of use.
+  const destination = safeNextPath(next) ?? "/dashboard";
 
   useEffect(() => {
-    if (!open || !destination) return;
-    // A short acknowledgement, with a direct Continue action for people who
-    // don't want to wait. Full navigation reads the newly set auth cookies and
-    // leaves role-specific routing to the existing dashboard guard.
-    const timer = window.setTimeout(() => window.location.replace(destination), 1600);
-    return () => window.clearTimeout(timer);
-  }, [open, destination]);
-
-  const continueOrDismiss = () => {
-    if (destination) window.location.replace(destination);
-    else onDismiss();
-  };
+    window.location.replace(destination);
+  }, [destination]);
 
   return (
-    <Dialog.Root open={open} onOpenChange={(value) => { if (!value) continueOrDismiss(); }}>
+    <Dialog.Root open>
       <Dialog.Portal>
         <Dialog.Overlay className={styles.overlay} />
         <Dialog.Content
           className={styles.feedback}
-          data-result={success ? "success" : "error"}
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            if (!success) onReturnFocus();
-          }}
+          data-result="success"
+          // Nothing here to act on, and the page is leaving.
+          onCloseAutoFocus={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
         >
           <div className={styles.resultMark} aria-hidden="true">
             <svg viewBox="0 0 48 48" fill="none">
-              {success ? (
-                <path className={styles.markStroke} pathLength="1" d="m13 24 7.5 7.5L35 17" />
-              ) : (
-                <path className={styles.markStroke} pathLength="1" d="m16 16 16 16m0-16L16 32" />
-              )}
+              <path
+                className={styles.markStroke}
+                pathLength="1"
+                d="m13 24 7.5 7.5L35 17"
+              />
             </svg>
           </div>
           <div className={styles.feedbackCopy}>
             <Dialog.Title className={styles.feedbackTitle}>
-              {success ? "You’re signed in" : "Unable to sign in"}
+              You&rsquo;re signed in
             </Dialog.Title>
             <Dialog.Description className={styles.feedbackDescription}>
-              {success ? "Welcome back. Opening your workspace…" : result.message}
+              Welcome back. Opening your workspace&hellip;
             </Dialog.Description>
           </div>
-          <Button className={styles.feedbackButton} onClick={continueOrDismiss}>
-            {success ? "Continue" : "Try again"}
-            {success ? <ArrowRight className="size-4" aria-hidden /> : null}
+          {/* A way through if the navigation is slow or something blocks it,
+              rather than the only way through. */}
+          <Button
+            className={styles.feedbackButton}
+            onClick={() => window.location.replace(destination)}
+          >
+            Continue
+            <ArrowRight className="size-4" aria-hidden />
           </Button>
         </Dialog.Content>
       </Dialog.Portal>
