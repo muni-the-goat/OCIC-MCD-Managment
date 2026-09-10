@@ -1,0 +1,163 @@
+.page {
+  --sign-in-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: max(32px, env(safe-area-inset-top)) 20px max(32px, env(safe-area-inset-bottom));
+  font-family: var(--sign-in-font);
+}
+
+.workspace {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logo { margin-bottom: 28px; }
+
+.card {
+  width: 100%;
+  padding: 36px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--card);
+  box-shadow: 0 8px 32px rgb(33 39 33 / 3%);
+}
+
+.header { margin-bottom: 32px; text-align: center; }
+.header h1 {
+  margin: 0 0 8px;
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -1px;
+}
+.header p { color: var(--muted-foreground); font-size: 15px; line-height: 1.5; }
+.form { display: flex; flex-direction: column; gap: 20px; }
+.field { display: grid; gap: 8px; }
+.field label { font-size: 14px; font-weight: 550; }
+.input {
+  height: 48px;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 16px;
+  box-shadow: none;
+  background: var(--card);
+}
+.input::placeholder { color: var(--muted-foreground); opacity: 0.85; }
+.input:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent); }
+.passwordField { position: relative; }
+.passwordField .input { padding-right: 50px; }
+.revealButton { position: absolute; right: 2px; top: 2px; width: 44px; height: 44px; color: var(--muted-foreground); }
+.submitArea { margin-top: 4px; }
+
+/* Adapt the reference's 44px / 19px proportion to the office login. The OCIC
+   identity stays above the form; this button does not represent Apple OAuth. */
+.signInButton {
+  width: 100%;
+  min-width: 140px;
+  height: 44px;
+  padding-inline: 8%;
+  gap: 10px;
+  border-radius: 10px;
+  background: var(--foreground);
+  color: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 19px;
+  font-weight: 550;
+  line-height: 1;
+  letter-spacing: -0.25px;
+}
+.signInButton:hover { background: color-mix(in srgb, var(--foreground) 88%, var(--card)); }
+.signInButton:disabled { opacity: 0.7; }
+.spinner { width: 20px; height: 20px; animation: spin 900ms linear infinite; }
+.helpButton {
+  align-self: center;
+  min-height: 44px;
+  margin: -8px 0 -12px;
+  padding: 10px 8px;
+  border-radius: 6px;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.helpButton:hover { text-decoration: underline; text-underline-offset: 3px; }
+.helpButton:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.helpText { font-size: 14px; line-height: 1.6; color: var(--muted-foreground); }
+.inlineError { font-size: 14px; line-height: 1.5; color: var(--destructive); }
+.accountNote { margin-top: 24px; max-width: 290px; text-align: center; font-size: 13px; line-height: 1.6; color: var(--muted-foreground); }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgb(20 23 20 / 28%);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 180ms ease-out both;
+}
+.feedback {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 51;
+  transform: translate(-50%, -50%);
+  width: calc(100% - 40px);
+  max-width: 380px;
+  max-height: calc(100svh - 40px);
+  overflow-y: auto;
+  padding: 32px;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 20px 80px rgb(0 0 0 / 14%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-align: center;
+  outline: none;
+  animation: dialogIn 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.resultMark {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 24px;
+  border-radius: 50%;
+  background: #197541;
+  color: white;
+  animation: markIn 380ms cubic-bezier(0.2, 0.8, 0.2, 1) 80ms both;
+}
+.feedback[data-result="error"] .resultMark { background: #a42a28; }
+.resultMark svg { width: 48px; height: 48px; }
+.markStroke { stroke: currentColor; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; animation: draw 320ms ease-out 200ms both; }
+.feedbackCopy { margin-bottom: 24px; }
+.feedbackTitle { font-family: inherit; font-size: 24px; line-height: 1.25; font-weight: 650; letter-spacing: -0.6px; margin-bottom: 10px; }
+.feedbackDescription { font-size: 15px; line-height: 1.6; color: var(--muted-foreground); }
+.feedbackButton { width: 100%; min-height: 44px; border-radius: 10px; font-family: inherit; font-size: 16px; background: var(--foreground); color: var(--background); }
+.feedbackButton:hover { background: color-mix(in srgb, var(--foreground) 88%, var(--card)); }
+.overlay[data-state="closed"] { animation: fadeOut 150ms ease-in both; }
+.feedback[data-state="closed"] { animation: dialogOut 150ms ease-in both; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeOut { to { opacity: 0; } }
+@keyframes dialogIn {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 10px)) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes dialogOut { to { opacity: 0; transform: translate(-50%, -50%) scale(0.98); } }
+@keyframes markIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+@media (max-width: 440px) {
+  .page { padding-inline: 16px; }
+  .card { padding: 28px 24px; border-radius: 20px; }
+  .header h1 { font-size: 28px; }
+  .feedback { padding: 28px 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .overlay, .feedback, .resultMark, .markStroke, .spinner { animation: none; }
+}
