@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { ResponsiveSelect } from "@/components/ui/responsive-select";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { SubmitCheckDialog } from "@/components/submit-check-dialog";
+import { swapMonthAmounts } from "@/lib/budget-months";
 import {
   buildSubmitCheck,
   type FiledPeriod,
@@ -280,6 +281,22 @@ export function ReportForm({
     setStructureDirty(false);
   };
 
+  // Takes a monthly budget report's figures with it when the month changes.
+  // Without this the inputs redraw against an empty column and the next save
+  // writes zero over both months — see src/lib/budget-months.ts for the report
+  // that lost its figures that way.
+  const moveFiguresToMonth = (from: number, to: number) => {
+    setSections((prev) =>
+      prev.map((section) => ({
+        ...section,
+        items: section.items.map((item) => ({
+          ...item,
+          amounts: swapMonthAmounts(item.amounts, from, to),
+        })),
+      }))
+    );
+  };
+
   const changeBudgetPeriod = (month: number, year: number) => {
     if (!report && !structureDirty) {
       applyHistory(findPreviousBudget(budgetHistory, month, year));
@@ -406,6 +423,9 @@ export function ReportForm({
                   value={String(budgetMonth)}
                   onValueChange={(value) => {
                     const month = Number(value);
+                    // Before setBudgetMonth, so the move reads the month being
+                    // left rather than the one being arrived at.
+                    if (isMonthlyBudget) moveFiguresToMonth(budgetMonth, month);
                     setBudgetMonth(month);
                     changeBudgetPeriod(month, budgetYear);
                   }}
