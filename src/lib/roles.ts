@@ -150,11 +150,20 @@ export function canMarkReviewed(role: AppRole) {
   return isPrivileged(role) || role === "coordinator";
 }
 
-// Rejecting, which sends a report back with required feedback. Reserved to the
-// Head of Department and the Admin above them: it is the one decision that
-// creates work for someone else.
+// Rejecting, which sends a report back with required feedback.
+//
+// It was reserved to the Head of Department and the Admin above them, on the
+// grounds that it is the one decision that creates work for someone else. 0030
+// closed that split at the office's request, so this and canMarkReviewed() now
+// give the same answer.
+//
+// They stay two functions. The office has moved this line three times — 0006
+// split the pair, 0014 split it again, 0030 closed it — and the day it moves a
+// fourth time, the two questions need somewhere to disagree. A predicate that
+// currently agrees with its neighbour is not the same problem as one whose
+// arguments no longer change its answer.
 export function canRejectReport(role: AppRole) {
-  return isPrivileged(role);
+  return isPrivileged(role) || role === "coordinator";
 }
 
 // canDecideOnReport() lived here until 0029. It existed to answer "may this
