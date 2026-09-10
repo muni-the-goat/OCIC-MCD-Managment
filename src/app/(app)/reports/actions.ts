@@ -450,10 +450,7 @@ export async function reviewReport(
     };
   }
   if (decision === "rejected" && !canRejectReport(profile.role)) {
-    return {
-      error:
-        "Only an Admin, Vice President or Head of Department can reject a report",
-    };
+    return { error: "You do not have permission to reject a report" };
   }
   if (decision === "rejected" && !comment) {
     return { error: "A comment explaining the rejection is required" };

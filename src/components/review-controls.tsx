@@ -52,10 +52,14 @@ export function ReviewControls({
       <CardHeader>
         <CardTitle>Review</CardTitle>
         <CardDescription>
+          {/* Named roles have been wrong in this sentence twice: it credited a
+              Vice President after 0019 took the marketing side away from them,
+              and it would have excluded a Coordinator after 0030. It says what
+              the reader can do instead of who else can do it. */}
           {canMarkReviewed && canReject
             ? "Mark this report as reviewed, or reject it with feedback. The author can edit and resubmit a rejected report."
             : canMarkReviewed
-              ? "Mark this report as reviewed. Only an Admin or the Head of Department can reject a report and send it back."
+              ? "Mark this report as reviewed. Sending it back with feedback is not available to you."
               : "Reject this report with feedback. The author can edit and resubmit it."}
         </CardDescription>
       </CardHeader>
