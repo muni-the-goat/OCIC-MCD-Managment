@@ -41,11 +41,29 @@ const DESCRIPTIONS: Record<ProjectStream, string> = {
 // two main ones share a scroll box and sit their months over one another.
 // Fixed layout rather than auto, because a column that sizes itself to its own
 // contents is a column that lands somewhere different on each table.
+// Measured rather than guessed, against the compiled stylesheet with Poppins
+// actually loaded — which is the step that was missing when these were first
+// set. The widest figures the reports hold are "-$10,180,184.00" at 118px and
+// "Diamond Bay Garden" at 151px; a month column carries px-4 either side and a
+// label column px-3, so the padding is in the numbers below.
+//
+// 136 was too narrow for every money column on the card. Nothing looked broken
+// because a currency figure has nowhere to break, so it quietly overhung its
+// cell — except on the change row, where the sign and the number are two pieces
+// and the browser took the gap between them.
 const LABEL_WIDTH = 192;
-const MONTH_WIDTH = 136;
+// The year table's rows are "2026" and "Change". It has its own scroll box, so
+// it is under no obligation to carry a column sized for "Diamond Bay Garden" —
+// and the 96px it gives back is most of what the wider month columns cost.
+const YEAR_LABEL_WIDTH = 96;
+const MONTH_WIDTH = 160;
 
-function tableWidth(months: readonly number[], showsTotalColumn: boolean) {
-  return LABEL_WIDTH + (months.length + (showsTotalColumn ? 1 : 0)) * MONTH_WIDTH;
+function tableWidth(
+  months: readonly number[],
+  showsTotalColumn: boolean,
+  labelWidth: number = LABEL_WIDTH
+) {
+  return labelWidth + (months.length + (showsTotalColumn ? 1 : 0)) * MONTH_WIDTH;
 }
 
 // One cell of the table.
@@ -83,7 +101,12 @@ function Figure({
 
   return (
     <span className="flex flex-col items-end leading-tight">
-      <span className={cn("tabular-nums", strong && "font-semibold")}>
+      <span
+        className={cn(
+          "tabular-nums whitespace-nowrap",
+          strong && "font-semibold"
+        )}
+      >
         {currency.format(amount)}
       </span>
       {showUnits ? (
@@ -137,9 +160,12 @@ function ChangeFigure({
             : "text-status-critical"
       )}
     >
-      <span className="font-medium">
-        {sign(amount)}
-        {currency.format(Math.abs(amount))}
+      {/* One piece. Written as two — a sign and a number — it gave the
+          browser a break opportunity between them, and a column that was
+          15px too narrow took it: "-" on one line and "$4,727,860.00" on the
+          next. */}
+      <span className="font-medium whitespace-nowrap">
+        {`${sign(amount)}${currency.format(Math.abs(amount))}`}
       </span>
       {showUnits ? (
         <span className="text-xs">
@@ -241,13 +267,15 @@ function MonthHead({
 function MonthCols({
   months,
   showsTotalColumn,
+  labelWidth = LABEL_WIDTH,
 }: {
   months: readonly number[];
   showsTotalColumn: boolean;
+  labelWidth?: number;
 }) {
   return (
     <colgroup>
-      <col style={{ width: LABEL_WIDTH }} />
+      <col style={{ width: labelWidth }} />
       {months.map((monthIndex) => (
         <col key={monthIndex} style={{ width: MONTH_WIDTH }} />
       ))}
@@ -452,10 +480,16 @@ function YearComparisonTable({
     <div className="overflow-x-auto rounded-lg border bg-card">
       <table
         className="w-full table-fixed border-separate border-spacing-0 text-sm"
-        style={{ minWidth: tableWidth(months, showsTotalColumn) }}
+        style={{
+          minWidth: tableWidth(months, showsTotalColumn, YEAR_LABEL_WIDTH),
+        }}
       >
         <caption className="sr-only">{caption}</caption>
-        <MonthCols months={months} showsTotalColumn={showsTotalColumn} />
+        <MonthCols
+          months={months}
+          showsTotalColumn={showsTotalColumn}
+          labelWidth={YEAR_LABEL_WIDTH}
+        />
         <MonthHead
           rowHeading="Year"
           months={months}
