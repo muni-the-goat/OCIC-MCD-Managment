@@ -1,8 +1,5 @@
-import { Download, Paperclip } from "lucide-react";
-import Link from "next/link";
-import { DepartmentBadge } from "@/components/department-badge";
+import { ActivityReportRow } from "@/components/activity-report-row";
 import { SummaryFilters } from "@/components/summary-filters";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -10,24 +7,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { RichText } from "@/components/rich-text";
 import { departmentLabel } from "@/lib/departments";
 import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
 import {
   MONTH_NAMES,
-  MONTHLY_SECTIONS,
   type AppRole,
   type MonthlyContent,
   type Profile,
 } from "@/lib/types";
 
+// The year's reports, as the month picker needs them: enough to label a row
+// and to know which months have something behind them. Deliberately without
+// `content` — see the query below.
 interface SourceReport {
   id: string;
   author_id: string;
   title: string;
   period_month: number;
-  content: MonthlyContent | null;
 }
 
 interface SourceAttachment {
@@ -112,9 +109,16 @@ export async function MonthlyActivitySummary({
   // Reviewed only, exactly like the budget tab: what is shown here has been
   // signed off, so a draft in progress never surfaces on someone else's
   // dashboard.
+  // The whole year, but only the columns that describe a report — not the six
+  // sections of prose inside it. The year-wide fetch is what makes the month
+  // picker honest (see below), and it used to drag every month's full body
+  // along for the trip: with eight managers filing twelve months that is about
+  // 830 KB fetched to render one month's worth, 92% of it dropped on the floor
+  // one line later. The bodies are fetched further down, for the month that is
+  // actually on screen, in a round trip that was already happening.
   let reportQuery = supabase
     .from("reports")
-    .select("id, author_id, title, period_month, content")
+    .select("id, author_id, title, period_month")
     .eq("type", "monthly")
     .eq("status", "reviewed")
     .eq("period_year", selectedYear)
@@ -193,7 +197,8 @@ export async function MonthlyActivitySummary({
   const authorIds = Array.from(
     new Set(monthReports.map((report) => report.author_id))
   );
-  const [attachmentsResult, peopleResult, departments] = await Promise.all([
+  const [attachmentsResult, peopleResult, bodiesResult, departments] =
+    await Promise.all([
     reportIds.length > 0
       ? supabase
           .from("report_attachments")
@@ -206,6 +211,12 @@ export async function MonthlyActivitySummary({
           .from("profiles")
           .select("id, full_name, email, department")
           .in("id", authorIds)
+      : Promise.resolve({ data: [], error: null }),
+    // The prose, for the month on screen only. This rides in the same batch as
+    // the attachments and the author names, so it adds no round trip — the page
+    // was already waiting on this step before it could render.
+    reportIds.length > 0
+      ? supabase.from("reports").select("id, content").in("id", reportIds)
       : Promise.resolve({ data: [], error: null }),
     getDepartments(),
   ]);
@@ -233,8 +244,14 @@ export async function MonthlyActivitySummary({
     ])
   );
 
+  const bodies = new Map(
+    ((bodiesResult.data ?? []) as { id: string; content: MonthlyContent | null }[])
+      .map((row) => [row.id, row.content])
+  );
+
   const failed =
     reportsResult.error ||
+    bodiesResult.error ||
     yearsResult.error ||
     authorsResult.error ||
     attachmentsResult.error ||
@@ -284,83 +301,21 @@ export async function MonthlyActivitySummary({
             {MONTH_NAMES[selectedMonth - 1]} {selectedYear}.
           </p>
         ) : (
-          <ul className="space-y-4">
+          <ul className="divide-y overflow-hidden rounded-xl border">
             {monthReports.map((report) => {
               const files = byReport.get(report.id) ?? [];
               const author = people.get(report.author_id);
+              const body = bodies.get(report.id) ?? null;
               return (
-                <li key={report.id} className="rounded-xl border p-4">
-                  {/* Who filed it leads, because that is what a reviewer scans
-                      by — the title repeats the month they already picked. */}
-                  <div className="mb-3 border-b pb-3">
-                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                      <span className="font-heading text-base font-semibold">
-                        {author?.name ?? "Unknown"}
-                      </span>
-                      <DepartmentBadge label={author?.department ?? null} />
-                    </div>
-                    <Link
-                      href={`/reports/${report.id}`}
-                      className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-                    >
-                      {report.title}
-                    </Link>
-                  </div>
-
-                  <dl className="space-y-4">
-                    {MONTHLY_SECTIONS.map(({ key, label }) => (
-                      <div key={key}>
-                        <dt className="mb-1.5 font-heading text-lg font-semibold">{label}</dt>
-                        {/* Formatted, the same as on the detail page. This card
-                            prints each section in full rather than trimming it
-                            to a line, so stripping the headings and bullets did
-                            not buy the brevity it was meant to — it just left a
-                            list reading as loose lines with gaps between them. */}
-                        <dd>
-                          <RichText
-                            value={report.content?.[key]}
-                            className="text-muted-foreground"
-                          />
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-
-                  {/* The documents are the point of the report now, so they sit
-                      below the narrative rather than on the detail page alone. */}
-                  <div className="mt-3 border-t pt-3">
-                    {files.length === 0 ? (
-                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Paperclip className="size-3.5" aria-hidden="true" />
-                        No documents attached.
-                      </p>
-                    ) : (
-                      <ul className="flex flex-wrap gap-2">
-                        {files.map((file) => (
-                          <li key={file.id}>
-                            <Button
-                              asChild
-                              variant="outline"
-                              size="sm"
-                              className="h-8 max-w-full gap-1.5"
-                            >
-                              <a
-                                href={`/api/attachments/${file.id}`}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <Download className="size-3.5" />
-                                <span className="truncate">
-                                  {file.file_name}
-                                </span>
-                              </a>
-                            </Button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </li>
+                <ActivityReportRow
+                  key={report.id}
+                  reportId={report.id}
+                  authorName={author?.name ?? "Unknown"}
+                  department={author?.department ?? null}
+                  title={report.title}
+                  files={files}
+                  content={body}
+                />
               );
             })}
           </ul>
