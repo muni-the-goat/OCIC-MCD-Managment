@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 import { History, Plus, Trash2 } from "lucide-react";
 import { saveReport, type ActionState } from "@/app/(app)/reports/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -19,6 +19,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveSelect } from "@/components/ui/responsive-select";
 import { RichTextEditor } from "@/components/rich-text-editor";
+import { SubmitCheckDialog } from "@/components/submit-check-dialog";
+import {
+  buildSubmitCheck,
+  type FiledPeriod,
+  type SubmitCheck,
+} from "@/lib/submit-check";
 import {
   MONTH_KEYS,
   MONTH_NAMES,
@@ -115,11 +121,20 @@ export function ReportForm({
   report,
   budgetItems,
   budgetHistory = [],
+  filedPeriods = [],
+  locksOnSubmit = true,
 }: {
   type: ReportType;
   report?: Report;
   budgetItems?: BudgetItem[];
   budgetHistory?: BudgetHistoryReport[];
+  // Everything this author has already filed, so the check before submitting
+  // can say when a month has been used twice.
+  filedPeriods?: FiledPeriod[];
+  // Whether submitting takes the author's own edit away. False for the roles
+  // that keep it, so the dialog does not warn them about something that will
+  // not happen to them.
+  locksOnSubmit?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     saveReport,
@@ -127,6 +142,13 @@ export function ReportForm({
   );
   // Which of the two submit buttons was pressed, so only that one reports work.
   const [intent, setIntent] = useState<"draft" | "submit" | null>(null);
+
+  // Submitting goes through a confirmation now, so the button that files the
+  // report is no longer the button that was pressed. requestSubmit() with an
+  // explicit submitter is what keeps `intent=submit` in the FormData; a plain
+  // submit() would drop it and file every report as a draft.
+  const formRef = useRef<HTMLFormElement>(null);
+  const submitterRef = useRef<HTMLButtonElement>(null);
 
   const now = new Date();
   const content = report?.content ?? {};
@@ -264,8 +286,38 @@ export function ReportForm({
     }
   };
 
+  // Read at the moment Submit is pressed. The activity report's month picker is
+  // uncontrolled and the budget's is not, so going through the form rather than
+  // through state is the one way to get what is on screen for both.
+  const summarise = (): SubmitCheck => {
+    const data = formRef.current
+      ? new FormData(formRef.current)
+      : new FormData();
+    const month = Number(data.get("period_month")) || 1;
+    const year = Number(data.get("period_year")) || now.getFullYear();
+
+    return buildSubmitCheck({
+      type,
+      budgetPeriod: type === "budget" ? budgetPeriod : "annual",
+      month,
+      year,
+      title: String(data.get("title") ?? ""),
+      // A monthly budget report files one month's figure. An annual one carries
+      // all twelve, and an activity report carries none.
+      monthTotal:
+        type !== "budget"
+          ? null
+          : budgetPeriod === "monthly"
+            ? (monthTotals[month - 1] ?? 0)
+            : grandTotal,
+      filed: filedPeriods,
+      currentReportId: report?.id ?? null,
+      locked: locksOnSubmit,
+    });
+  };
+
   return (
-    <form action={formAction} className="space-y-6">
+    <form action={formAction} ref={formRef} className="space-y-6">
       <input type="hidden" name="type" value={type} />
       <input
         type="hidden"
@@ -793,17 +845,26 @@ export function ReportForm({
         >
           Save draft
         </ActionButton>
-        <ActionButton
+        {/* The real submitter, never pressed by hand. It stays inside the form
+            so requestSubmit() can name it and its intent survives. */}
+        <button
+          ref={submitterRef}
           type="submit"
           name="intent"
           value="submit"
+          hidden
+          tabIndex={-1}
+          aria-hidden
+        />
+        <SubmitCheckDialog
+          summarise={summarise}
           pending={pending && intent === "submit"}
-          pendingLabel="Submitting…"
           disabled={pending}
-          onClick={() => setIntent("submit")}
-        >
-          Submit for review
-        </ActionButton>
+          onConfirm={() => {
+            setIntent("submit");
+            formRef.current?.requestSubmit(submitterRef.current ?? undefined);
+          }}
+        />
         {/* Back to the report being edited, or to the list for one that does
             not exist yet. Quiet, and last, so it never competes with the two
             actions that actually file something. */}
