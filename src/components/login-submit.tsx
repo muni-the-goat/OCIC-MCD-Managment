@@ -1,36 +1,23 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { ActionButton } from "@/components/ui/action-button";
-import { LumaSpin } from "@/components/ui/luma-spin";
+import { ArrowRight, LoaderCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import styles from "@/app/login/sign-in.module.css";
 
-// The sign-in Server Action authenticates and then redirects, a round trip with
-// no feedback until now. useFormStatus reports the parent form's pending state,
-// which stays true for the whole action, so the button reads "Signing in…" and a
-// full-screen overlay covers the wait through to the dashboard load.
-export function LoginSubmit() {
+export function LoginSubmit({ signedIn = false }: { signedIn?: boolean }) {
   const { pending } = useFormStatus();
 
   return (
-    <>
-      {/* No success state: a successful sign-in redirects, so the only
-          completion that matters is the dashboard arriving. */}
-      <ActionButton
-        type="submit"
-        className="w-full"
-        pending={pending}
-        pendingLabel="Signing in…"
-      >
-        Sign in
-      </ActionButton>
-      {pending ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-5">
-            <LumaSpin />
-            <p className="text-sm text-muted-foreground">Signing you in…</p>
-          </div>
-        </div>
-      ) : null}
-    </>
+    <Button
+      type="submit"
+      className={styles.signInButton}
+      disabled={pending || signedIn}
+      aria-busy={pending}
+    >
+      {pending ? <LoaderCircle className={styles.spinner} aria-hidden /> : null}
+      <span>{pending ? "Signing in…" : signedIn ? "Signed in" : "Sign in"}</span>
+      {!pending && !signedIn ? <ArrowRight className="size-5" aria-hidden /> : null}
+    </Button>
   );
 }
