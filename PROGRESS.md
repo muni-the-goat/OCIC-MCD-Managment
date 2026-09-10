@@ -2,30 +2,17 @@
 
 ## Current status
 
-The main reporting workflow is implemented, production-build verified, and pushed to GitHub `main`. Vercel is connected to the repository for automatic deployments.
+**In production and in daily use.** GitHub `main` deploys to Vercel automatically; every migration through `0030` is applied to the Supabase project. The office files two kinds of marketing report and the Vice President's side files three project reports, and both halves have been through real use by the people who own them.
 
-The monthly report tab, the office-domain sign-in restriction, and departments were developed on `feat/monthly-report-tab` (pull request #1) and merged to `main`. Later work on `main` prints each author's department as a chip wherever a report names them (see **Where department is shown**), and widens the Coordinator role to every budget report in the office while leaving monthly activity reports private (see **Coordinator**).
+What has settled since the first launch push:
 
-**The most recent work strips the monthly activity report back to prose and attachments**, removing the task list and the social performance figures ahead of launch — see **Monthly activity report — structured activity data**. That section records why, what a rebuild has to reckon with, and the one way old data can still be lost.
+- **The Coordinator is the office's reporting oversight.** They read every submitted report of both types (`0029`) and may approve or reject either (`0030`). See **Review workflow and enforcement**, and the note under it on the one thing that model does not yet do.
+- **The monthly activity report is prose and attachments**, not structured fields — see **Monthly activity report — structured activity data**, which records why they were removed and what a rebuild has to reckon with.
+- **The projects side is complete through the dashboard and its PDF**, including the year-against-year comparison table and the category filter.
+- The team's real January–June 2026 spend is seeded — see **Seeded data — Actual Expenses 2026** for what reconciles and the two figures that do not.
+- No migration is required for the Marketing Communication alignment described below: report content rides in the existing `reports.content` jsonb column.
 
-Supabase migrations `0001` through `0012` have been applied to the production project.
-
-`0013` and `0014` were applied and confirmed: the `departments` table holds its eight rows, every assigned department resolves through the new foreign key, and the seeded January–June spend came through the migration to the cent.
-
-Every migration through `0017` has been applied to the production project. The annual budget card reads `budget_approvals` and the percentage column shows "% of budget" rather than its "% of year" fallback.
-
-`0017` was applied ahead of the code that uses it, so the `vice_president` and `vp_assistant` enum values exist in production before either role can be assigned from the app.
-
-The team's real January–June 2026 spend is seeded into production — see **Seeded data — Actual Expenses 2026** for what reconciles and the two figures that do not.
-
-No migration is required for the Marketing Communication alignment described below: report content rides in the existing `reports.content` jsonb column.
-
-Latest verification completed successfully:
-
-- `npx tsc --noEmit`
-- `npm run lint`
-- `npm run build` with Next.js 16.2.10 and Turbopack
-- `git diff --check`
+Verification run on every change: `npx tsc --noEmit`, `npm run lint`, `npm test`, `npm run build`, `git diff --check`.
 
 ## Product model
 
@@ -625,9 +612,9 @@ They hold plain strings and still do. `RichValue` is `string | RichDoc` for exac
 
 Review controls only appear when the report is `submitted` and the current role/ownership combination is permitted.
 
-- **Mark reviewed:** Admin, Head of Department, or Coordinator. A Coordinator reaches budget reports and their own only.
-- **Reject:** Admin or Head of Department; rejection requires a comment.
-- **Self-review:** allowed for all three. It is the decision most worth revisiting — self-review is what review exists to prevent. Restoring it means putting the author check back in `review_report()` and `enforce_report_review_transition()`, both in `0014`.
+- **Mark reviewed:** Admin, Head of Department, or Coordinator — every submitted report, of both types, since `0029`.
+- **Reject:** the same three, since `0030`. Rejection still requires a comment: that rule is not about who is deciding, it is about the author being told why, and it is the only thing that makes a rejection actionable.
+- **Self-review:** allowed for all three. It is the decision most worth revisiting — self-review is what review exists to prevent. Restoring it means putting the author check back in `review_report()` and `enforce_report_review_transition()`, now in `0030`.
 - **Manager and Staff:** no review authority. A Manager lost it along with their cross-office visibility in `0013` — see the role matrix.
 - Authors can edit submitted or reviewed reports. A saved revision first returns to `draft`; choosing Submit for review moves the revised content to `submitted` and clears the previous `reviewed_by`/`reviewed_at` values.
 
@@ -638,6 +625,10 @@ The rule is enforced in three layers:
 3. Supabase review policy, transactional `review_report` RPC, and `enforce_report_review_transition` trigger.
 
 The RPC updates the status and adds an optional review comment in one transaction. The database trigger protects the workflow even if a caller bypasses the application UI or calls the database directly.
+
+**One decision point, where the office has two — known, and deliberately left.** The office's real process is that the Coordinator goes through every submitted report first, checking for mistakes and wrong budget figures, and only then do the Heads of Department review it. `report_status` is `draft | submitted | reviewed | rejected` and every reviewer's pending queue is `status = 'submitted'`, so whoever decides first ends the review: a report the Coordinator approves becomes `reviewed` and leaves the Heads' queue entirely.
+
+Asked on 2026-09-10, the answer was to let the Coordinator approve and reject first and model the two stages later, so `0030` shipped the single-stage version knowing it does not match the process. Until it is built, the working arrangement is that the Coordinator rejects what is wrong and leaves the correct reports for a Head to approve. The shape agreed for later is `submitted → Coordinator checks → waiting for Head → reviewed`, with a rejection at either stage going back to the author rather than a Head overturning a Coordinator. That means a new status plus policies, the status badge, the report filters, the dashboard queue and the review panel.
 
 ## User administration
 
@@ -775,36 +766,27 @@ Same machinery as the budget documents — `.print-only`, the letterhead, the `p
 9. `0009_monthly_budget_uniqueness_and_revisions.sql` — permits authors to revise submitted/reviewed reports and blocks new duplicate monthly budgets per author/month/year without deleting existing duplicates.
 10. `0010_profile_department.sql` — adds `profiles.department`, the `user_department()` helper, and a self-update policy that pins department the way it already pins role.
 11. `0011_event_marketing_department.sql` — widens the department check constraint to include Event Marketing.
-12. `0012_coordinator_budget_visibility.sql` — widens `reports: select` and `can_view_report()` so a Coordinator reads every non-draft budget report across the office. Monthly activity reports and `can_edit_report()` are untouched.
+12. `0012_coordinator_budget_visibility.sql` — widens `reports: select` and `can_view_report()` so a Coordinator reads every non-draft budget report across the office. Monthly activity reports and `can_edit_report()` are untouched. **Superseded by `0029`**, which gave them every submitted report of both types.
 13. `0013_departments_table_and_role_powers.sql` — three changes at once, because they overlap on the same policies: departments become `public.departments` with a foreign key from `profiles`; a Manager loses cross-office visibility and every review power; Head of Department becomes admin-equivalent on reports and accounts. **Applied.**
-
-14. `0014_coordinator_review.sql` — splits approving from rejecting. A Coordinator may mark reviewed (budget reports and their own) but never reject. **Applied, after `0013`.**
-
+14. `0014_coordinator_review.sql` — splits approving from rejecting. A Coordinator may mark reviewed (budget reports and their own) but never reject. **Applied, after `0013`. Superseded by `0029` and `0030`** — the reach widened to both report types and the rejection split closed.
 15. `0015_budget_approval.sql` — adds `budget_approvals`, one approved figure per fiscal year, seeded with FY2026 = $150,000.00. **Applied.**
-
 16. `0016_allow_multiple_monthly_budgets.sql` — drops the `0009` uniqueness trigger and its function, allowing multiple monthly budgets per author/month/year. Keeps the lookup index. **Applied.**
-
 17. `0017_vice_president_roles.sql` — adds the `vice_president` and `vp_assistant` enum values, introduces `public.is_privileged()` and rewrites every policy and function that used to spell out `('admin', 'head_of_department')` to call it, and widens `reports: select` / `can_view_report()` so a VP Assistant reads every non-draft report of either type. Depends only on `0013`/`0014`, so its position relative to `0015` and `0016` does not matter. **Applied.**
+18. `0018_project_reports.sql` — adds `project_reports` and `project_report_items`, the read/write predicates for them, the VP Assistant narrowing, and the seeded 2025–2026 Jan–June figures. Validated by running it against a scratch Postgres 17 and checking every aggregate against the workbook. **Applied.**
+19. `0019_vice_president_projects_only.sql` — narrows `is_privileged()` to Admin and Head of Department, and names the project-report predicates outright so the Vice President keeps the side they were given. Three function bodies; nine policies follow. **Applied.**
+20. `0020_projects_dimension.sql` — makes projects rows in `public.projects` rather than an assumption, adds `project_id` to `project_reports`, backfills every seeded row to Koh Pich (the workbook is "KP Sale Performance" and "KOH PICH LEASING REPORT"), and moves uniqueness to `(project_id, stream, period_year)`. The constraint it drops was looked up in a scratch database rather than guessed. **Applied.**
+21. `0021_chroy_changvar_bay.sql` — seeds Chroy Changvar Bay's sales and leasing for 2025 and 2026 from the CCV workbooks. No property management: that project does not file one. **Applied.**
+22. `0022_project_categories.sql` — adds `category` to `project_report_items`, moves uniqueness to `(report_id, category, name)`, maps the sales rows onto themselves, and adds an empty Commercial row to the Koh Pich sales report. Leasing and property-management units land in `Unassigned`. **Applied.**
+23. `0023_koh_pich_categories.sql` — files the Koh Pich buildings: The Elysée as Commercial, La Seine / Elite Cove / Elite Garden as House, across both the leasing and property-management reports. Adds Diamond Bay Garden as a Condo on property management. **Applied.**
+24. `0024_item_identity_is_name.sql` — de-duplicates `project_report_items` and moves uniqueness from `(report_id, category, name)` back to `(report_id, name)`. **Applied.**
+25. `0025_the_elysee_one_spelling.sql` — renames every spelling of The Elysée onto the accented one, so the leasing and property-management reports name the same building. Refuses to run if a single report holds both: two rows of real figures for one building could be a duplicate to merge or two halves to add, and a migration cannot tell which. **Applied.**
+26. `0026_login_attempt_throttle.sql` — adds `public.login_attempts`, so eight wrong passwords from one address inside fifteen minutes stop further attempts and the message names the way out. RLS on, no policies: only the service role touches it. **Applied.**
+27. `0027_pr_communication_moves_to_monyrath.sql` — moves the FY2026 PR / Communication budget from Jeriko Enriquez to Monyrath Hor by changing one column. Spend is attributed through `reports.author_id` and the department is read off that author's current profile at render time, so the total, the per-month chart, the line items, the badge and the matrix all move together. `reviewed_by`, comment authorship and attachment uploaders deliberately stay where they are: those things happened. **Applied.**
+28. `0028_ccb_leasing_line_is_commercial.sql` — renames Chroy Changvar Bay's leasing line from External to Commercial, at the Vice President's request, in both years at once. A unit's name is its identity here and `propertyComparison()` matches year against year on it, so renaming 2026 alone would have invented a second property rather than relabelled one. The category is deliberately left Unassigned — filing it under Commercial was offered and declined. **Applied.**
+29. `0029_coordinator_sees_every_submitted_report.sql` — gives the Coordinator every submitted report, of both types. They had the office's budget reports since `0012` and nothing else, on the reading that their oversight was spend; the office's reading is that it is the reporting. Four scattered clauses had to move in step — `reports: select`, `can_view_report()`, `reports: review submitted` and `enforce_report_review_transition()`. Drafts stay private to their author. **Applied.**
+30. `0030_coordinator_may_reject.sql` — closes the split `0014` opened: a Coordinator may now reject as well as approve, on both kinds of report. The rejection comment is still required, only a submitted report can be decided on, and `can_edit_report()` is untouched. Rather than change the same clause in three shapes for the fourth time, the question moves into `public.reviews_reports()` and the policy, the RPC and the trigger all ask it. **Applied.**
 
-17. `0018_project_reports.sql` — adds `project_reports` and `project_report_items`, the read/write predicates for them, the VP Assistant narrowing, and the seeded 2025–2026 Jan–June figures. Validated by running it against a scratch Postgres 17 and checking every aggregate against the workbook. **Applied.**
-
-24. `0026_login_attempt_throttle.sql` — adds `public.login_attempts`, so eight wrong passwords from one address inside fifteen minutes stop further attempts and the message names the way out. RLS on, no policies: only the service role touches it. **Applied.**
-
-23. `0025_the_elysee_one_spelling.sql` — renames every spelling of The Elysée onto the accented one, so the leasing and property-management reports name the same building. Refuses to run if a single report holds both: two rows of real figures for one building could be a duplicate to merge or two halves to add, and a migration cannot tell which. **Applied.**
-
-22. `0024_item_identity_is_name.sql` — de-duplicates `project_report_items` and moves uniqueness from `(report_id, category, name)` back to `(report_id, name)`. **Applied.**
-
-21. `0023_koh_pich_categories.sql` — files the Koh Pich buildings: The Elysée as Commercial, La Seine / Elite Cove / Elite Garden as House, across both the leasing and property-management reports. Adds Diamond Bay Garden as a Condo on property management. **Applied.**
-
-20. `0022_project_categories.sql` — adds `category` to `project_report_items`, moves uniqueness to `(report_id, category, name)`, maps the sales rows onto themselves, and adds an empty Commercial row to the Koh Pich sales report. Leasing and property-management units land in `Unassigned`. **Applied.**
-
-19. `0021_chroy_changvar_bay.sql` — seeds Chroy Changvar Bay's sales and leasing for 2025 and 2026 from the CCV workbooks. No property management: that project does not file one. **Applied.**
-
-18. `0020_projects_dimension.sql` — makes projects rows in `public.projects` rather than an assumption, adds `project_id` to `project_reports`, backfills every seeded row to Koh Pich (the workbook is "KP Sale Performance" and "KOH PICH LEASING REPORT"), and moves uniqueness to `(project_id, stream, period_year)`. The constraint it drops was looked up in a scratch database rather than guessed. **Applied.**
-
-17. `0019_vice_president_projects_only.sql` — narrows `is_privileged()` to Admin and Head of Department, and names the project-report predicates outright so the Vice President keeps the side they were given. Three function bodies; nine policies follow. **Applied.**
-
-Migrations `0001`–`0026` are confirmed applied in Supabase. The operator runs each one as it is written, so a new migration should be recorded here as applied in the same commit as the SQL rather than left marked pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
+Migrations `0001`–`0030` are confirmed applied in Supabase. The operator runs each one as it is written, so a new migration should be recorded here as applied in the same commit as the SQL rather than left marked pending. Do not delete or rewrite an applied migration; add a new numbered migration for future database changes.
 
 ## Departments
 
@@ -890,36 +872,38 @@ Department is otherwise still an attribute of a person — **no query filters on
 - GitHub repository: `muni-the-goat/OCIC-MCD-Managment`
 - Deployed branch: `main`
 - Hosting: Vercel, connected for automatic deployment from GitHub
-- Database: Supabase, migrations `0001`–`0014` applied; `0015` pending
+- Database: Supabase, migrations `0001`–`0030` applied
 - Supabase region: Northeast Asia (Seoul)
 
-## Remaining validation checklist
+## Acceptance checks
 
-These are production acceptance checks, not unfinished implementation:
+Production acceptance checks against the rules **as they stand**, not unfinished implementation. Written against today's behaviour: the "after `0013`" / "after `0017`" scaffolding that used to qualify half of these is gone, because every migration named in it has been applied for months and the qualifier only made the list harder to read. Items that described rules since replaced have been removed rather than left to mislead — the two worst were a Coordinator having "no Reject button anywhere" and seeing "no one else's monthly activity report", both of which `0029` and `0030` reversed.
 
-1. Confirm a second monthly budget for the same author/month/year is blocked and the form links to the existing report.
-2. Confirm editing a reviewed report removes it from the annual summary until its revision is reviewed again.
-3. Confirm an Admin can review their own submitted report.
-4. Confirm a Head of Department can review a Manager's submitted report, and — since `0013` — one they authored themselves.
-5. Confirm a Manager's annual summary contains only that Manager's reviewed expenses and has no Author filter.
-6. Confirm the Head of Department sees only Manager-authored expenses and can filter by Manager.
-7. Confirm the all-author annual summary labels and separates each author's expense grid.
-8. Confirm Admin can select one, several, or all visible reports and delete them after confirmation.
-9. Confirm Staff do not see the annual summary, and that neither Staff nor Coordinator see bulk-delete controls.
-10. Confirm a Coordinator can reset an eligible user's password but cannot invite, change roles, delete users, or reset Admin/HoD passwords.
-11. Confirm a Coordinator sees every non-draft budget report on the Reports page and every author in the annual summary, sees no one else's monthly activity report, sees no drafts, and has no Edit, Delete, Mark reviewed, or Reject control on a report they did not author.
-12. Confirm a reviewed monthly budget enters the correct annual-summary month while draft, submitted, and rejected budgets stay excluded.
-13. Confirm a new monthly budget reuses the nearest earlier section/item structure but leaves current amounts empty.
-15. After `0013`, confirm a Manager sees no other author's reports anywhere — no pending queue, no Author column, no author filter — and has no Reject control on any report.
-16. After `0013`, confirm a Head of Department can invite, change roles and departments, delete users, edit and bulk-delete reports, and add a department; and that they cannot reset any password, cannot select Admin in either role picker, and see an Admin row with its controls disabled.
-17. Confirm "Add department" creates a department that appears immediately in both department pickers and, once someone in it files a reviewed budget, as a matrix column.
-18. After `0014`, confirm a Coordinator can mark a submitted budget report reviewed — including their own — has no Reject button anywhere, and gets neither control on someone else's monthly activity report.
-19. After `0015`, confirm the percentage column reads "% of budget" and its Total matches spend ÷ $150,000, and that a year with no approval falls back to "% of year".
-20. Confirm the Head of Department and Vice President are the only accounts with an Edit control on the approved budget — Admin, VP Assistant and Coordinator see the figure without one — and that posting to `setBudgetApproval` as an Admin is refused.
-14. Confirm the department × month matrix appears for every role that reads all budgets (Admin, Vice President, Head of Department, VP Assistant, Coordinator) and not for a Manager, that its Total reconciles with the per-author grids below it, and that reports by an author with no department land in the Unassigned column rather than vanishing.
-21. After `0017`, confirm a Vice President behaves exactly as a Head of Department: reviews and rejects, edits and bulk-deletes, invites and changes roles, sets the approved budget, and is refused a password reset and the Admin option in both role pickers.
-22. After `0017`, confirm a VP Assistant sees every non-draft report of both types on the Reports page with the Author and Department columns, sees the annual summary and matrix across all authors, sees no drafts, gets "Recent reports" rather than a pending-review queue on their dashboard, and has no Edit, Delete, Mark reviewed, or Reject control anywhere — while their Users page is read-only with no reset-password or delete button.
-23. After `0017`, confirm a Coordinator is refused when resetting a Vice President's password, the same as for an Admin or Head of Department.
+**Reports and review**
+
+1. A Coordinator sees every non-draft report of both types, sees no drafts but their own, and has both Approve and Reject on a submitted report — including one they authored.
+2. Rejecting without a comment is refused, at the RPC and at the trigger, not only in the form.
+3. Only a `submitted` report can be decided on; a decision cannot be revisited by deciding again.
+4. A Manager sees no other author's reports anywhere — no pending queue, no Author column, no author filter — and has no review control on any report.
+5. A VP Assistant reads every non-draft report of both types with the Author and Department columns, gets "Recent reports" rather than a pending queue, and has no Edit, Delete, Approve or Reject anywhere.
+6. Editing a reviewed report removes it from the annual summary until its revision is reviewed again.
+7. A reviewed monthly budget enters the correct annual-summary month while draft, submitted and rejected budgets stay excluded.
+8. Submitting shows the check dialog, and the month it names is the month the report is filed under.
+
+**Budget entry**
+
+9. Changing a monthly budget report's month carries its figures into the new month and leaves the old one clear.
+10. A new monthly budget reuses the nearest earlier section/item structure but leaves the amounts empty.
+11. The department × month matrix appears for every role that reads all budgets and not for a Manager, its Total reconciles with the per-author grids, and an author with no department lands in Unassigned rather than vanishing.
+12. The percentage column reads "% of budget" against the approved figure, falling back to "% of year" for a year with no approval.
+13. The Head of Department and Vice President are the only accounts with an Edit control on the approved budget, and posting to `setBudgetApproval` as an Admin is refused.
+
+**Accounts**
+
+14. A Coordinator can reset an eligible user's password but cannot invite, change roles, delete users, or reset an Admin, Head of Department or Vice President password.
+15. A Head of Department can invite, change roles and departments, delete users, edit and bulk-delete reports, and add a department; cannot reset any password; cannot select Admin in either role picker; and sees an Admin row with its controls disabled.
+16. "Add department" creates a department that appears immediately in both pickers and, once someone in it files a reviewed budget, as a matrix column.
+17. Neither Staff nor Coordinator see bulk-delete controls, and Staff do not see the annual summary.
 
 ## Known limitations and future options
 
@@ -927,19 +911,33 @@ These are production acceptance checks, not unfinished implementation:
 - The matrix reads a department off the author's **current** profile, so reassigning someone moves their whole spend history to the new column. Correct for "which team spends what", wrong for "what did the old team spend". Fixing the second question means stamping the department onto the report at submission time, which is a schema change and is not worth making until someone actually asks it.
 - The author filter dropdowns on both dashboard tabs still list names only. Adding the department would disambiguate two people who share a first name, but it risks truncating inside the select's width and wants a two-line item rather than a longer single line.
 - Annual aggregation matches normalized text names; it does not use permanent line-item IDs. Historical structure reuse reduces spelling drift, but a future canonical expense-category table would provide stronger guarantees.
-- Multiple monthly budgets per author/month/year are now allowed (migration `0016`); duplicates for one period are expected, not an anomaly, and all of them feed the aggregates. The old note here about a single July 2026 author with three reviewed reports is moot.
+- Multiple monthly budgets per author/month/year are allowed (migration `0016`); duplicates for one period are expected, not an anomaly, and all of them feed the aggregates.
 - Supabase is hosted in Seoul while users are primarily closer to Southeast Asia, which can add network latency. Moving regions requires creating a new project and migrating data/configuration.
 - The project is stored inside OneDrive, which can slow local dependency operations or cause file locks.
 - **Deleting a user destroys their entire reporting history**, silently and irreversibly — see **Deleting a user is a hard, cascading delete**. Phase 4 is the fix, and it is the one future item worth doing before it is needed rather than after.
-- The next planned work is the Marketing Communication alignment (Phases 1 and 2), chart cross-filtering (Phase 3), and archiving a leaver (Phase 4), all described above.
+- The named future builds are the Marketing Communication alignment (Phases 1 and 2), chart cross-filtering (Phase 3), and archiving a leaver (Phase 4), all described above. None is started.
 - Budget reports and the whole annual budget both export to PDF via browser print — see **PDF export (budget reports)**. Still open: a print body for **activity reports** (four narrative blocks, awaiting a sample of that format), an **Excel** export, and — only if attachments must be embedded — a server-generated PDF route.
 - Possible future phases beyond it: departments/teams, canonical budget categories, notifications, and audit logs.
 
+**Open as of 2026-09-10.** Each of these is known, each was raised with the operator, and none is a bug being hidden — they are calls that were made or work that was deferred.
+
+- **`saveProjectMonth` is not atomic.** It loops the three streams with an early return on failure, so a failure on leasing leaves sales already written. All validation is front-loaded so the common failures happen before any write, but the guarantee wants a `security invoker` Postgres function on the `review_report` precedent — one transaction, still under the caller's RLS. Deferred past launch.
+- **`Delta` exists three times** — in the projects table, the projects dashboard and the print document. Three copies of one arithmetic is three places to fix a rounding decision.
+- **Two empty Chroy Changvar Bay property-management reports**, 2025 and 2026, nought items each. That project does not file property management (`0021` says so and seeds none); these were conjured by a form that used to post all three streams unconditionally. That path is closed. The rows are live data and deleting them is a separate call.
+- **The budget month picker defaults to today's month.** Actual expenses are written up after the month they cover, so the common case needs the picker changed every time. It is what filed a July report under August and cost $506.68 of social spend, which had to be typed back in from a screenshot. The check before submitting now reads the month back and the figures follow a month change, so the mistake is caught and no longer destroys anything — but the default is still wrong for the normal case. Changing it is a behaviour change for everyone and was not asked for.
+- **The Commercial label on a single-project dashboard** — see the note under **The projects dashboard**.
+- **The two-stage review flow** — see the note under **Review workflow and enforcement**.
+- **Email notifications are still deferred.** The dashboard now tells an author on arrival what happened to their reports, which closes the gap that mattered most, and it writes nothing to the database. Sending mail as `@ocic.com.kh` still needs SPF/DKIM records OCIC's IT controls — the agreed ask is a `notify.ocic.com.kh` subdomain, and that request has external lead time.
+
+Not on this list, though it has been mistaken for a defect twice: **"Total Land" and "Land" select the same rows in the category filter, and that is deliberate.** Land is a band of one category, the Vice President asked for the report to read at all three tiers, and a filter that hid a tier to avoid repeating itself would be answering a question he did not ask — `ALL_CATEGORIES` in `src/lib/project-reports.ts` says so.
+
+
 ## Local environment notes
 
-- Node.js: v22.14.0
+- Node.js: v26.5.0
 - npm: 10.9.2
 - Next.js: 16.2.10
+- `npm test` runs `node --test tests/*.test.mjs`. The glob is deliberate: Node 26 treats a bare directory argument as a module and fails.
 - Next.js 16 uses `src/proxy.ts` instead of middleware and treats `cookies()`, `params`, and `searchParams` as async APIs.
 - `turbopack.root` is pinned in `next.config.ts` because another `package-lock.json` exists at `Desktop\Web3\package-lock.json`.
 - If local installs or builds become slow, pause OneDrive sync or exclude this project directory.
