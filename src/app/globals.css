@@ -525,6 +525,8 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: #4f5556;
+    /* A label stranded at the foot of a page has labelled nothing. */
+    break-after: avoid;
   }
 
   .print-table {
@@ -727,8 +729,21 @@
     font-size: 7px;
   }
 
-  /* The year-on-year block. Narrower than the month table above it and set
-     apart, because it is a conclusion rather than more data. */
+  /* The month-by-month year-on-year grid. Full width, because it carries the
+     same columns as the month table above it and the two are read against each
+     other — a reader checking August wants the two Augusts in the same place on
+     the page. Kept with that table across a page break for the same reason. */
+  .print-compare-grid {
+    /* Its own label carries the space above it now. */
+    margin-top: 0;
+    break-before: avoid;
+  }
+  .print-compare-grid tbody td:first-child {
+    font-weight: 600;
+  }
+
+  /* The summary pair. Narrower than the tables above it and set apart, because
+     it is a conclusion rather than more data. */
   .print-compare {
     margin-top: 10px;
     width: auto;
@@ -741,6 +756,20 @@
   }
   .print-compare thead th {
     border-bottom: 1px solid #212721;
+  }
+  /* Sits under the comparison block and is bound to it: break-before avoid so a
+     page break can never separate the figures from the sentence that qualifies
+     them, which is the whole reason this line exists rather than a footnote. */
+  .print-compare-note {
+    margin: 5px 0 0;
+    max-width: 60%;
+    font-size: 9px;
+    line-height: 1.35;
+    color: #4f5556;
+    break-before: avoid;
+  }
+  .print-doc-wide .print-compare-note {
+    max-width: 40%;
   }
   .print-footer {
     margin-top: 24px;

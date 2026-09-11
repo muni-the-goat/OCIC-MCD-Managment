@@ -9,6 +9,7 @@ import {
   groupIntoBands,
   hasNamedProperties,
   monthRangeLabel,
+  lineTotals,
   monthTotals,
   propertyGroups,
   reportedMonths,
@@ -78,6 +79,57 @@ function Figure({
       {isTotal ? currency.format(totals.amount) : cell(totals.amount)}
       {tracksUnits ? (
         <span className="pt-sub">{units(totals.units)}</span>
+      ) : null}
+    </>
+  );
+}
+
+// One cell of the year-on-year row.
+//
+// Figure() draws a zero as an em dash, because an unreported month is not a
+// month that earned nothing. Here the reading flips: two years that both
+// reported and landed on the same figure is a real answer — "no change" — and a
+// dash would hide it. So the dash is kept only for a month neither year
+// reported, and everything else carries its sign.
+//
+// The sign is in the text as well as the colour. This document is photocopied
+// and read in black and white, where a rise and a fall distinguished by hue
+// alone are the same mark.
+function Change({
+  current,
+  previous,
+  tracksUnits,
+}: {
+  current: StreamTotals;
+  previous: StreamTotals;
+  tracksUnits: boolean;
+}) {
+  const reported =
+    current.amount !== 0 ||
+    current.units !== 0 ||
+    previous.amount !== 0 ||
+    previous.units !== 0;
+  if (!reported) return <>—</>;
+
+  const amount = current.amount - previous.amount;
+  const unitChange = current.units - previous.units;
+  const sign = (value: number) => (value > 0 ? "+" : value < 0 ? "−" : "");
+  const tone =
+    amount === 0 ? undefined : amount > 0 ? "print-dash-up" : "print-dash-down";
+
+  return (
+    <>
+      <span className={tone}>
+        {`${sign(amount)}${currency.format(Math.abs(amount))}`}
+      </span>
+      {tracksUnits ? (
+        <span className="pt-sub">
+          {unitChange === 0
+            ? "no change"
+            : `${sign(unitChange)}${Math.abs(unitChange)} ${
+                Math.abs(unitChange) === 1 ? "unit" : "units"
+              }`}
+        </span>
       ) : null}
     </>
   );
@@ -157,6 +209,12 @@ export function PrintableProjectReport({
             const comparison = previous
               ? compareYears(items, previous.items)
               : null;
+            const compareMonths = comparison?.months ?? [];
+            const currentLine = lineTotals(items, compareMonths);
+            const previousLine = lineTotals(previous?.items ?? [], compareMonths);
+            const showsCompareTotal = compareMonths.length > 1;
+            const comparisonColumns =
+              1 + compareMonths.length + (showsCompareTotal ? 1 : 0);
             // The months run across the top now, so the table is as wide as the
             // year is long: the category name, a column per reported month, and
             // the year's own total where it earns a place.
@@ -347,6 +405,114 @@ export function PrintableProjectReport({
                       </>
                     ) : null}
 
+                    {/* The same month-by-month reading the screen gives, not
+                        just the pair of totals underneath it.
+
+                        The summary below answers "is the year ahead". This
+                        answers "where" — a year can be $995,688 up on the
+                        strength of one month and behind in five others, and the
+                        printed document was the only place that could not be
+                        asked. It is the table the office actually discusses, so
+                        it is the one the PDF has to carry.
+
+                        Same column count as the month table above, so it takes
+                        the same density and finishes inside the same page. */}
+                    {comparison && comparison.months.length > 0 && previous ? (
+                      <>
+                        {/* Says what the block is, in the words the screen uses
+                            for it, and in the same treatment as "By property"
+                            above — quieter than the stream heading, because it
+                            introduces part of that section rather than a new
+                            one.
+
+                            Without it the grid opened on a header row reading
+                            "Year | January | February", which is only a
+                            comparison once you have read down to the second
+                            row and worked out that 2025 is not a continuation
+                            of 2026. A table should not need decoding before it
+                            can be read.
+
+                            Current year first, matching the screen and the
+                            rows below: newest, then what it came from. */}
+                        <p className="print-detail-title">
+                          Comparison between {year} and {previous.period_year}
+                        </p>
+                        <table
+                          className="print-table print-compare-grid"
+                          data-density={densityFor(comparisonColumns)}
+                        >
+                          <thead>
+                            <tr>
+                              <th className="pt-item">Year</th>
+                              {comparison.months.map((monthIndex) => (
+                                <th key={monthIndex} className="pt-num">
+                                  {MONTH_NAMES[monthIndex]}
+                                </th>
+                              ))}
+                              {showsCompareTotal ? (
+                                <th className="pt-num">Total</th>
+                              ) : null}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {/* This year first, so the pair reads
+                                newest-then-what-it-came-from — the same order as
+                                the change row's sign, which is this year minus
+                                last. */}
+                            {[
+                              { rowYear: year, totals: currentLine },
+                              { rowYear: previous.period_year, totals: previousLine },
+                            ].map(({ rowYear, totals }) => (
+                              <tr key={rowYear}>
+                                <td>{rowYear}</td>
+                                {totals.cells.map((line, slot) => (
+                                  <td
+                                    key={comparison.months[slot]}
+                                    className="pt-num"
+                                  >
+                                    <Figure
+                                      totals={line}
+                                      tracksUnits={tracksUnits}
+                                    />
+                                  </td>
+                                ))}
+                                {showsCompareTotal ? (
+                                  <td className="pt-num">
+                                    <Figure
+                                      totals={totals.total}
+                                      tracksUnits={tracksUnits}
+                                      isTotal
+                                    />
+                                  </td>
+                                ) : null}
+                              </tr>
+                            ))}
+                            <tr className="pt-subtotal">
+                              <td>Change</td>
+                              {currentLine.cells.map((line, slot) => (
+                                <td key={comparison.months[slot]} className="pt-num">
+                                  <Change
+                                    current={line}
+                                    previous={previousLine.cells[slot]}
+                                    tracksUnits={tracksUnits}
+                                  />
+                                </td>
+                              ))}
+                              {showsCompareTotal ? (
+                                <td className="pt-num">
+                                  <Change
+                                    current={currentLine.total}
+                                    previous={previousLine.total}
+                                    tracksUnits={tracksUnits}
+                                  />
+                                </td>
+                              ) : null}
+                            </tr>
+                          </tbody>
+                          </table>
+                      </>
+                    ) : null}
+
                     {comparison && comparison.months.length > 0 ? (
                       <table className="print-table print-compare">
                         <thead>
@@ -407,6 +573,52 @@ export function PrintableProjectReport({
                           ) : null}
                         </tbody>
                       </table>
+                    ) : null}
+
+                    {/* Why this block covers fewer months than the table above
+                        it, said next to the block rather than in the page
+                        footer.
+
+                        The footer has carried the rule since this document was
+                        written — "Comparisons cover only the months both years
+                        have reported" — and it was not enough. A reader saw a
+                        table running to August above a comparison headed
+                        "January to June" and reported the export as broken,
+                        which is a fair reading: an explanation at the bottom of
+                        the page is not attached to the thing it explains.
+
+                        Stated in full each time, because a PDF is read away
+                        from the app and often a page at a time. The wording
+                        follows the card on screen deliberately — the same
+                        figure should not be qualified two different ways in two
+                        places — but names the years outright, since the reader
+                        of a printout has no filter bar to look at. */}
+                    {comparison && comparison.months.length > 0 && previous ? (
+                      <p className="print-compare-note">
+                        {comparison.months.length < months.length ? (
+                          <>
+                            Compares{" "}
+                            {monthRangeLabel(comparison.months, "long")} —{" "}
+                            {comparison.months.length === 1
+                              ? "the only month"
+                              : `the ${comparison.months.length} months`}{" "}
+                            both {previous.period_year} and {year} have
+                            reported. The table above covers{" "}
+                            {monthRangeLabel(months, "long")}, so its totals run
+                            ahead of the figures here.
+                          </>
+                        ) : (
+                          <>
+                            Compares{" "}
+                            {monthRangeLabel(comparison.months, "long")} —{" "}
+                            {comparison.months.length === 1
+                              ? "the only month"
+                              : "every month"}{" "}
+                            both {previous.period_year} and {year} have
+                            reported.
+                          </>
+                        )}
+                      </p>
                     ) : null}
                   </>
                 )}
