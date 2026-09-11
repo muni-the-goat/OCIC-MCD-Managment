@@ -525,6 +525,8 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: #4f5556;
+    /* A label stranded at the foot of a page has labelled nothing. */
+    break-after: avoid;
   }
 
   .print-table {
@@ -732,7 +734,8 @@
      other — a reader checking August wants the two Augusts in the same place on
      the page. Kept with that table across a page break for the same reason. */
   .print-compare-grid {
-    margin-top: 10px;
+    /* Its own label carries the space above it now. */
+    margin-top: 0;
     break-before: avoid;
   }
   .print-compare-grid tbody td:first-child {

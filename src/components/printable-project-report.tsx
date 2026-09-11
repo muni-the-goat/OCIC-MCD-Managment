@@ -418,79 +418,99 @@ export function PrintableProjectReport({
                         Same column count as the month table above, so it takes
                         the same density and finishes inside the same page. */}
                     {comparison && comparison.months.length > 0 && previous ? (
-                      <table
-                        className="print-table print-compare-grid"
-                        data-density={densityFor(comparisonColumns)}
-                      >
-                        <thead>
-                          <tr>
-                            <th className="pt-item">Year</th>
-                            {comparison.months.map((monthIndex) => (
-                              <th key={monthIndex} className="pt-num">
-                                {MONTH_NAMES[monthIndex]}
-                              </th>
+                      <>
+                        {/* Says what the block is, in the words the screen uses
+                            for it, and in the same treatment as "By property"
+                            above — quieter than the stream heading, because it
+                            introduces part of that section rather than a new
+                            one.
+
+                            Without it the grid opened on a header row reading
+                            "Year | January | February", which is only a
+                            comparison once you have read down to the second
+                            row and worked out that 2025 is not a continuation
+                            of 2026. A table should not need decoding before it
+                            can be read.
+
+                            Current year first, matching the screen and the
+                            rows below: newest, then what it came from. */}
+                        <p className="print-detail-title">
+                          Comparison between {year} and {previous.period_year}
+                        </p>
+                        <table
+                          className="print-table print-compare-grid"
+                          data-density={densityFor(comparisonColumns)}
+                        >
+                          <thead>
+                            <tr>
+                              <th className="pt-item">Year</th>
+                              {comparison.months.map((monthIndex) => (
+                                <th key={monthIndex} className="pt-num">
+                                  {MONTH_NAMES[monthIndex]}
+                                </th>
+                              ))}
+                              {showsCompareTotal ? (
+                                <th className="pt-num">Total</th>
+                              ) : null}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {/* This year first, so the pair reads
+                                newest-then-what-it-came-from — the same order as
+                                the change row's sign, which is this year minus
+                                last. */}
+                            {[
+                              { rowYear: year, totals: currentLine },
+                              { rowYear: previous.period_year, totals: previousLine },
+                            ].map(({ rowYear, totals }) => (
+                              <tr key={rowYear}>
+                                <td>{rowYear}</td>
+                                {totals.cells.map((line, slot) => (
+                                  <td
+                                    key={comparison.months[slot]}
+                                    className="pt-num"
+                                  >
+                                    <Figure
+                                      totals={line}
+                                      tracksUnits={tracksUnits}
+                                    />
+                                  </td>
+                                ))}
+                                {showsCompareTotal ? (
+                                  <td className="pt-num">
+                                    <Figure
+                                      totals={totals.total}
+                                      tracksUnits={tracksUnits}
+                                      isTotal
+                                    />
+                                  </td>
+                                ) : null}
+                              </tr>
                             ))}
-                            {showsCompareTotal ? (
-                              <th className="pt-num">Total</th>
-                            ) : null}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {/* This year first, so the pair reads
-                              newest-then-what-it-came-from — the same order as
-                              the change row's sign, which is this year minus
-                              last. */}
-                          {[
-                            { rowYear: year, totals: currentLine },
-                            { rowYear: previous.period_year, totals: previousLine },
-                          ].map(({ rowYear, totals }) => (
-                            <tr key={rowYear}>
-                              <td>{rowYear}</td>
-                              {totals.cells.map((line, slot) => (
-                                <td
-                                  key={comparison.months[slot]}
-                                  className="pt-num"
-                                >
-                                  <Figure
-                                    totals={line}
+                            <tr className="pt-subtotal">
+                              <td>Change</td>
+                              {currentLine.cells.map((line, slot) => (
+                                <td key={comparison.months[slot]} className="pt-num">
+                                  <Change
+                                    current={line}
+                                    previous={previousLine.cells[slot]}
                                     tracksUnits={tracksUnits}
                                   />
                                 </td>
                               ))}
                               {showsCompareTotal ? (
                                 <td className="pt-num">
-                                  <Figure
-                                    totals={totals.total}
+                                  <Change
+                                    current={currentLine.total}
+                                    previous={previousLine.total}
                                     tracksUnits={tracksUnits}
-                                    isTotal
                                   />
                                 </td>
                               ) : null}
                             </tr>
-                          ))}
-                          <tr className="pt-subtotal">
-                            <td>Change</td>
-                            {currentLine.cells.map((line, slot) => (
-                              <td key={comparison.months[slot]} className="pt-num">
-                                <Change
-                                  current={line}
-                                  previous={previousLine.cells[slot]}
-                                  tracksUnits={tracksUnits}
-                                />
-                              </td>
-                            ))}
-                            {showsCompareTotal ? (
-                              <td className="pt-num">
-                                <Change
-                                  current={currentLine.total}
-                                  previous={previousLine.total}
-                                  tracksUnits={tracksUnits}
-                                />
-                              </td>
-                            ) : null}
-                          </tr>
-                        </tbody>
-                      </table>
+                          </tbody>
+                          </table>
+                      </>
                     ) : null}
 
                     {comparison && comparison.months.length > 0 ? (
