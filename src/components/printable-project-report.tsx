@@ -84,6 +84,44 @@ function Figure({
   );
 }
 
+// A change, carrying its own sign and its own colour.
+//
+// Four cells of the summary below were spelling this out longhand — a ternary
+// for the sign, an Math.abs() for the number, and no colour at all on the
+// value columns while the grid above them was fully coloured. The same figure
+// should not be dressed two ways in one document.
+//
+// Zero is neither a rise nor a fall, so it takes the flat tone rather than
+// green: a year that came out level is a real answer and colouring it as
+// growth would be a small lie.
+//
+// The sign is in the text as well as the colour, for the photocopier.
+function Signed({
+  value,
+  format,
+}: {
+  value: number;
+  format: (n: number) => string;
+}) {
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  return (
+    <span
+      className={
+        value === 0
+          ? "print-dash-flat"
+          : value > 0
+            ? "print-dash-up"
+            : "print-dash-down"
+      }
+    >
+      {sign}
+      {format(Math.abs(value))}
+    </span>
+  );
+}
+
+const percent = (n: number) => `${n.toFixed(1)}%`;
+
 // One cell of the year-on-year row.
 //
 // Figure() draws a zero as an em dash, because an unreported month is not a
@@ -536,17 +574,20 @@ export function PrintableProjectReport({
                               {currency.format(comparison.current.amount)}
                             </td>
                             <td className="pt-num">
-                              {comparison.amountChange >= 0 ? "+" : "−"}
-                              {currency.format(
-                                Math.abs(comparison.amountChange)
-                              )}
+                              <Signed
+                                value={comparison.amountChange}
+                                format={currency.format}
+                              />
                             </td>
                             <td className="pt-pct">
-                              {comparison.amountPercent === null
-                                ? "—"
-                                : `${comparison.amountPercent >= 0 ? "+" : "−"}${Math.abs(
-                                    comparison.amountPercent
-                                  ).toFixed(1)}%`}
+                              {comparison.amountPercent === null ? (
+                                "—"
+                              ) : (
+                                <Signed
+                                  value={comparison.amountPercent}
+                                  format={percent}
+                                />
+                              )}
                             </td>
                           </tr>
                           {tracksUnits ? (
@@ -559,15 +600,20 @@ export function PrintableProjectReport({
                                 {comparison.current.units}
                               </td>
                               <td className="pt-num">
-                                {comparison.unitChange >= 0 ? "+" : "−"}
-                                {Math.abs(comparison.unitChange)}
+                                <Signed
+                                  value={comparison.unitChange}
+                                  format={(n) => String(n)}
+                                />
                               </td>
                               <td className="pt-pct">
-                                {comparison.unitPercent === null
-                                  ? "—"
-                                  : `${comparison.unitPercent >= 0 ? "+" : "−"}${Math.abs(
-                                      comparison.unitPercent
-                                    ).toFixed(1)}%`}
+                                {comparison.unitPercent === null ? (
+                                  "—"
+                                ) : (
+                                  <Signed
+                                    value={comparison.unitPercent}
+                                    format={percent}
+                                  />
+                                )}
                               </td>
                             </tr>
                           ) : null}

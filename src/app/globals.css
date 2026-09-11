@@ -742,6 +742,15 @@
     font-weight: 600;
   }
 
+  /* The share columns elsewhere in this document — "% of total" on a budget
+     report — are a proportion, which has no sign, and their fixed red is an
+     accent. A change does have a sign, so here the figure inside decides its
+     own colour and the cell gets out of the way. Scoped to this table so the
+     budget documents keep the accent they were designed with. */
+  .print-compare .pt-pct {
+    color: inherit;
+  }
+
   /* The summary pair. Narrower than the tables above it and set apart, because
      it is a conclusion rather than more data. */
   .print-compare {
