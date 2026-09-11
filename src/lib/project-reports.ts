@@ -98,11 +98,28 @@ export function lineTotals(
   for (const item of items) {
     for (let slot = 0; slot < months.length; slot++) {
       const monthIndex = months[slot];
-      cells[slot].amount += Number(item[MONTH_KEYS[monthIndex]] ?? 0);
-      cells[slot].units += Number(item[UNIT_KEYS[monthIndex]] ?? 0);
+      const amount = Number(item[MONTH_KEYS[monthIndex]] ?? 0);
+      const unitCount = Number(item[UNIT_KEYS[monthIndex]] ?? 0);
+      cells[slot].amount += amount;
+      cells[slot].units += unitCount;
+      // The total covers the months it was asked for, and nothing else.
+      //
+      // It used to call itemTotal()/itemUnitTotal(), which sum all twelve
+      // columns whatever `months` says. For every caller that passes a year's
+      // own reported months the two agree exactly — an unreported month is
+      // zero in every row, so summing twelve or summing eight lands on the
+      // same figure, which is why this held for so long.
+      //
+      // It stops holding on the year-on-year table, which is handed the months
+      // *both* years reported. With 2025 filed to June and 2026 to August, the
+      // 2026 row's cells would cover January to June while its Total covered
+      // January to August: a Total that is not the sum of the row above it, in
+      // a document whose whole job is to be added up by hand. That is the state
+      // Chroy Changvar Bay's sales report was in on the morning of 2026-09-11,
+      // before the missing 2025 months were entered.
+      total.amount += amount;
+      total.units += unitCount;
     }
-    total.amount += itemTotal(item as MonthlyAmounts);
-    total.units += itemUnitTotal(item as MonthlyUnits);
   }
 
   return { cells, total };

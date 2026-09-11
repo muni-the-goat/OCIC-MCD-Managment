@@ -727,8 +727,20 @@
     font-size: 7px;
   }
 
-  /* The year-on-year block. Narrower than the month table above it and set
-     apart, because it is a conclusion rather than more data. */
+  /* The month-by-month year-on-year grid. Full width, because it carries the
+     same columns as the month table above it and the two are read against each
+     other — a reader checking August wants the two Augusts in the same place on
+     the page. Kept with that table across a page break for the same reason. */
+  .print-compare-grid {
+    margin-top: 10px;
+    break-before: avoid;
+  }
+  .print-compare-grid tbody td:first-child {
+    font-weight: 600;
+  }
+
+  /* The summary pair. Narrower than the tables above it and set apart, because
+     it is a conclusion rather than more data. */
   .print-compare {
     margin-top: 10px;
     width: auto;

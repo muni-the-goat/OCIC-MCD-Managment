@@ -9,6 +9,7 @@ import {
   groupIntoBands,
   hasNamedProperties,
   monthRangeLabel,
+  lineTotals,
   monthTotals,
   propertyGroups,
   reportedMonths,
@@ -78,6 +79,57 @@ function Figure({
       {isTotal ? currency.format(totals.amount) : cell(totals.amount)}
       {tracksUnits ? (
         <span className="pt-sub">{units(totals.units)}</span>
+      ) : null}
+    </>
+  );
+}
+
+// One cell of the year-on-year row.
+//
+// Figure() draws a zero as an em dash, because an unreported month is not a
+// month that earned nothing. Here the reading flips: two years that both
+// reported and landed on the same figure is a real answer — "no change" — and a
+// dash would hide it. So the dash is kept only for a month neither year
+// reported, and everything else carries its sign.
+//
+// The sign is in the text as well as the colour. This document is photocopied
+// and read in black and white, where a rise and a fall distinguished by hue
+// alone are the same mark.
+function Change({
+  current,
+  previous,
+  tracksUnits,
+}: {
+  current: StreamTotals;
+  previous: StreamTotals;
+  tracksUnits: boolean;
+}) {
+  const reported =
+    current.amount !== 0 ||
+    current.units !== 0 ||
+    previous.amount !== 0 ||
+    previous.units !== 0;
+  if (!reported) return <>—</>;
+
+  const amount = current.amount - previous.amount;
+  const unitChange = current.units - previous.units;
+  const sign = (value: number) => (value > 0 ? "+" : value < 0 ? "−" : "");
+  const tone =
+    amount === 0 ? undefined : amount > 0 ? "print-dash-up" : "print-dash-down";
+
+  return (
+    <>
+      <span className={tone}>
+        {`${sign(amount)}${currency.format(Math.abs(amount))}`}
+      </span>
+      {tracksUnits ? (
+        <span className="pt-sub">
+          {unitChange === 0
+            ? "no change"
+            : `${sign(unitChange)}${Math.abs(unitChange)} ${
+                Math.abs(unitChange) === 1 ? "unit" : "units"
+              }`}
+        </span>
       ) : null}
     </>
   );
@@ -157,6 +209,12 @@ export function PrintableProjectReport({
             const comparison = previous
               ? compareYears(items, previous.items)
               : null;
+            const compareMonths = comparison?.months ?? [];
+            const currentLine = lineTotals(items, compareMonths);
+            const previousLine = lineTotals(previous?.items ?? [], compareMonths);
+            const showsCompareTotal = compareMonths.length > 1;
+            const comparisonColumns =
+              1 + compareMonths.length + (showsCompareTotal ? 1 : 0);
             // The months run across the top now, so the table is as wide as the
             // year is long: the category name, a column per reported month, and
             // the year's own total where it earns a place.
@@ -345,6 +403,94 @@ export function PrintableProjectReport({
                           </tbody>
                         </table>
                       </>
+                    ) : null}
+
+                    {/* The same month-by-month reading the screen gives, not
+                        just the pair of totals underneath it.
+
+                        The summary below answers "is the year ahead". This
+                        answers "where" — a year can be $995,688 up on the
+                        strength of one month and behind in five others, and the
+                        printed document was the only place that could not be
+                        asked. It is the table the office actually discusses, so
+                        it is the one the PDF has to carry.
+
+                        Same column count as the month table above, so it takes
+                        the same density and finishes inside the same page. */}
+                    {comparison && comparison.months.length > 0 && previous ? (
+                      <table
+                        className="print-table print-compare-grid"
+                        data-density={densityFor(comparisonColumns)}
+                      >
+                        <thead>
+                          <tr>
+                            <th className="pt-item">Year</th>
+                            {comparison.months.map((monthIndex) => (
+                              <th key={monthIndex} className="pt-num">
+                                {MONTH_NAMES[monthIndex]}
+                              </th>
+                            ))}
+                            {showsCompareTotal ? (
+                              <th className="pt-num">Total</th>
+                            ) : null}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {/* This year first, so the pair reads
+                              newest-then-what-it-came-from — the same order as
+                              the change row's sign, which is this year minus
+                              last. */}
+                          {[
+                            { rowYear: year, totals: currentLine },
+                            { rowYear: previous.period_year, totals: previousLine },
+                          ].map(({ rowYear, totals }) => (
+                            <tr key={rowYear}>
+                              <td>{rowYear}</td>
+                              {totals.cells.map((line, slot) => (
+                                <td
+                                  key={comparison.months[slot]}
+                                  className="pt-num"
+                                >
+                                  <Figure
+                                    totals={line}
+                                    tracksUnits={tracksUnits}
+                                  />
+                                </td>
+                              ))}
+                              {showsCompareTotal ? (
+                                <td className="pt-num">
+                                  <Figure
+                                    totals={totals.total}
+                                    tracksUnits={tracksUnits}
+                                    isTotal
+                                  />
+                                </td>
+                              ) : null}
+                            </tr>
+                          ))}
+                          <tr className="pt-subtotal">
+                            <td>Change</td>
+                            {currentLine.cells.map((line, slot) => (
+                              <td key={comparison.months[slot]} className="pt-num">
+                                <Change
+                                  current={line}
+                                  previous={previousLine.cells[slot]}
+                                  tracksUnits={tracksUnits}
+                                />
+                              </td>
+                            ))}
+                            {showsCompareTotal ? (
+                              <td className="pt-num">
+                                <Change
+                                  current={currentLine.total}
+                                  previous={previousLine.total}
+                                  tracksUnits={tracksUnits}
+                                />
+                              </td>
+                            ) : null}
+                          </tr>
+                        </tbody>
+                      </table>
                     ) : null}
 
                     {comparison && comparison.months.length > 0 ? (
