@@ -742,6 +742,20 @@
   .print-compare thead th {
     border-bottom: 1px solid #212721;
   }
+  /* Sits under the comparison block and is bound to it: break-before avoid so a
+     page break can never separate the figures from the sentence that qualifies
+     them, which is the whole reason this line exists rather than a footnote. */
+  .print-compare-note {
+    margin: 5px 0 0;
+    max-width: 60%;
+    font-size: 9px;
+    line-height: 1.35;
+    color: #4f5556;
+    break-before: avoid;
+  }
+  .print-doc-wide .print-compare-note {
+    max-width: 40%;
+  }
   .print-footer {
     margin-top: 24px;
     padding-top: 8px;

@@ -408,6 +408,52 @@ export function PrintableProjectReport({
                         </tbody>
                       </table>
                     ) : null}
+
+                    {/* Why this block covers fewer months than the table above
+                        it, said next to the block rather than in the page
+                        footer.
+
+                        The footer has carried the rule since this document was
+                        written — "Comparisons cover only the months both years
+                        have reported" — and it was not enough. A reader saw a
+                        table running to August above a comparison headed
+                        "January to June" and reported the export as broken,
+                        which is a fair reading: an explanation at the bottom of
+                        the page is not attached to the thing it explains.
+
+                        Stated in full each time, because a PDF is read away
+                        from the app and often a page at a time. The wording
+                        follows the card on screen deliberately — the same
+                        figure should not be qualified two different ways in two
+                        places — but names the years outright, since the reader
+                        of a printout has no filter bar to look at. */}
+                    {comparison && comparison.months.length > 0 && previous ? (
+                      <p className="print-compare-note">
+                        {comparison.months.length < months.length ? (
+                          <>
+                            Compares{" "}
+                            {monthRangeLabel(comparison.months, "long")} —{" "}
+                            {comparison.months.length === 1
+                              ? "the only month"
+                              : `the ${comparison.months.length} months`}{" "}
+                            both {previous.period_year} and {year} have
+                            reported. The table above covers{" "}
+                            {monthRangeLabel(months, "long")}, so its totals run
+                            ahead of the figures here.
+                          </>
+                        ) : (
+                          <>
+                            Compares{" "}
+                            {monthRangeLabel(comparison.months, "long")} —{" "}
+                            {comparison.months.length === 1
+                              ? "the only month"
+                              : "every month"}{" "}
+                            both {previous.period_year} and {year} have
+                            reported.
+                          </>
+                        )}
+                      </p>
+                    ) : null}
                   </>
                 )}
               </section>
