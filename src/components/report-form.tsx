@@ -607,12 +607,15 @@ export function ReportForm({
               const subtotals = sectionMonthTotals(section);
               const sectionTotal = subtotals.reduce((a, b) => a + b, 0);
               return (
-                <div key={si} className="rounded-lg border">
-                  <div className="flex items-center gap-2 border-b bg-muted/40 p-3">
+                <div key={si} className="overflow-hidden rounded-2xl border">
+                  {/* The name takes the full width on a phone, with the
+                      subtotal and the remove button on the line under it;
+                      side by side from sm up. */}
+                  <div className="flex flex-wrap items-center gap-2 border-b bg-muted/40 p-3">
                     <Input
                       aria-label="Section name"
-                      className="max-w-xs font-medium"
-                      placeholder="Section name (e.g. Social Media Ads)"
+                      className={`w-full font-medium sm:max-w-xs ${FORM_FIELD}`}
+                      placeholder="Section, e.g. Social media ads"
                       value={section.name}
                       onChange={(e) =>
                         updateSection(si, { name: e.target.value })
@@ -644,162 +647,265 @@ export function ReportForm({
                       <Trash2 className="size-4" />
                     </Button>
                   </div>
-                  <div className={isMonthlyBudget ? "" : "overflow-x-auto"}>
-                    <table className="w-full border-collapse text-sm">
-                      <thead>
-                        <tr className="border-b text-muted-foreground">
-                          <th className="sticky left-0 z-10 min-w-44 bg-card p-2 text-left font-medium">
-                            Line item
-                          </th>
-                          {isMonthlyBudget ? (
-                            <th className="min-w-36 p-2 text-right font-medium">
-                              Actual amount
-                            </th>
-                          ) : (
-                            <>
-                              {MONTH_SHORT.map((m) => (
-                                <th
-                                  key={m}
-                                  className="min-w-20 p-2 text-right font-medium"
-                                >
-                                  {m}
-                                </th>
-                              ))}
-                              <th className="min-w-24 p-2 text-right font-medium">
-                                Total
-                              </th>
-                            </>
-                          )}
-                          <th className="w-10 p-2" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {section.items.map((item, ii) => {
-                          const rowTotal = item.amounts.reduce(
-                            (a, b) => a + num(b),
-                            0
-                          );
-                          const historicalAmount = loadedHistory
-                            ? historicalAmounts.get(
-                                historyItemKey(section.name, item.name)
-                              )
-                            : undefined;
-                          return (
-                            <tr key={ii} className="border-b last:border-0">
-                              <td className="sticky left-0 z-10 bg-card p-1">
-                                <Input
-                                  aria-label="Item name"
-                                  className="min-w-40"
-                                  placeholder="e.g. Facebook"
-                                  value={item.name}
-                                  onChange={(e) =>
-                                    updateItem(si, ii, { name: e.target.value })
-                                  }
-                                />
-                                {historicalAmount !== undefined &&
-                                loadedHistory ? (
-                                  <p className="px-2 pb-1 pt-0.5 text-xs text-muted-foreground">
-                                    Previous{" "}
-                                    {MONTH_SHORT[
-                                      loadedHistory.period_month - 1
-                                    ]}{" "}
-                                    {loadedHistory.period_year}:{" "}
-                                    {currency.format(
-                                      historicalAmount
-                                    )}
-                                  </p>
-                                ) : null}
-                              </td>
-                              {(isMonthlyBudget
-                                ? [item.amounts[budgetMonth - 1]]
-                                : item.amounts
-                              ).map((amount, visibleIndex) => {
-                                const monthIndex = isMonthlyBudget
-                                  ? budgetMonth - 1
-                                  : visibleIndex;
-                                return (
-                                  <td key={monthIndex} className="p-1">
-                                    <Input
-                                      aria-label={`${MONTH_SHORT[monthIndex]} amount`}
-                                      type="number"
-                                      min={0}
-                                      step="0.01"
-                                      className={
-                                        isMonthlyBudget
-                                          ? "ml-auto w-full max-w-48 text-right"
-                                          : "w-20 text-right"
-                                      }
-                                      placeholder="0"
-                                      value={amount}
-                                      onChange={(e) =>
-                                        setAmount(
-                                          si,
-                                          ii,
-                                          monthIndex,
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-                                  </td>
-                                );
-                              })}
-                              {!isMonthlyBudget ? (
-                                <td className="p-2 text-right font-medium tabular-nums">
-                                  {currency.format(rowTotal)}
-                                </td>
+                  {isMonthlyBudget ? (
+                    // One month's figures: a list, not a table. A table put the
+                    // item and its amount side by side at every width, which on
+                    // a phone left each about the width of a thumb. Here they
+                    // share a row from sm up and stack below it — the name
+                    // across the full width, then the amount and its remove
+                    // button underneath.
+                    <div>
+                      <div className="hidden grid-cols-[1fr_12rem_2.75rem] gap-2 border-b px-3 py-2 text-sm font-medium text-muted-foreground sm:grid">
+                        <span>Line item</span>
+                        <span className="text-right">Actual amount</span>
+                        <span />
+                      </div>
+                      {section.items.map((item, ii) => {
+                        const historicalAmount = loadedHistory
+                          ? historicalAmounts.get(
+                              historyItemKey(section.name, item.name)
+                            )
+                          : undefined;
+                        return (
+                          <div
+                            key={ii}
+                            className="grid grid-cols-[1fr_2.75rem] items-center gap-2 px-3 py-3 sm:grid-cols-[1fr_12rem_2.75rem] [&+div]:border-t"
+                          >
+                            <div className="col-span-2 sm:col-span-1">
+                              <Input
+                                aria-label="Item name"
+                                placeholder="Item, e.g. Facebook ads"
+                                className={FORM_FIELD}
+                                value={item.name}
+                                onChange={(e) =>
+                                  updateItem(si, ii, { name: e.target.value })
+                                }
+                              />
+                              {historicalAmount !== undefined &&
+                              loadedHistory ? (
+                                <p className="type-caption px-1 pt-1.5 text-muted-foreground">
+                                  Previous{" "}
+                                  {MONTH_SHORT[loadedHistory.period_month - 1]}{" "}
+                                  {loadedHistory.period_year}:{" "}
+                                  {currency.format(historicalAmount)}
+                                </p>
                               ) : null}
-                              <td className="p-1 text-center">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  aria-label="Remove line item"
-                                  disabled={section.items.length === 1}
-                                  onClick={() => {
-                                    setStructureDirty(true);
-                                    updateSection(si, {
-                                      items: section.items.filter(
-                                        (_, j) => j !== ii
-                                      ),
-                                    });
-                                  }}
-                                >
-                                  <Trash2 className="size-4" />
-                                </Button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t bg-muted/40 font-medium">
-                          <td className="sticky left-0 z-10 bg-muted/40 p-2">
-                            Subtotal
-                          </td>
-                          {isMonthlyBudget ? (
-                            <td className="p-2 text-right tabular-nums">
-                              {currency.format(subtotals[budgetMonth - 1])}
-                            </td>
-                          ) : (
-                            <>
-                              {subtotals.map((t, mi) => (
-                                <td
-                                  key={mi}
-                                  className="p-2 text-right tabular-nums"
-                                >
-                                  {t ? currency.format(t) : "—"}
+                            </div>
+                            <div className="relative">
+                              <span
+                                aria-hidden
+                                className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground"
+                              >
+                                $
+                              </span>
+                              {/* inputMode brings up the number pad with a
+                                  decimal point on a phone, rather than the
+                                  full keyboard type="number" alone can. */}
+                              <Input
+                                aria-label={`${MONTH_NAMES[budgetMonth - 1]} amount`}
+                                type="number"
+                                inputMode="decimal"
+                                min={0}
+                                step="0.01"
+                                placeholder="0.00"
+                                className={`pl-7 text-right tabular-nums ${FORM_FIELD}`}
+                                value={item.amounts[budgetMonth - 1]}
+                                onChange={(e) =>
+                                  setAmount(
+                                    si,
+                                    ii,
+                                    budgetMonth - 1,
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Remove line item"
+                              className="size-11 rounded-full text-muted-foreground"
+                              disabled={section.items.length === 1}
+                              onClick={() => {
+                                setStructureDirty(true);
+                                updateSection(si, {
+                                  items: section.items.filter(
+                                    (_, j) => j !== ii
+                                  ),
+                                });
+                              }}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                      <div className="flex items-center justify-between gap-3 border-t bg-muted/40 px-3 py-3 font-medium">
+                        <span>Subtotal</span>
+                        <span className="tabular-nums sm:pr-[3.25rem]">
+                          {currency.format(subtotals[budgetMonth - 1])}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-sm">
+                        <thead>
+                          <tr className="border-b text-muted-foreground">
+                            <th className="sticky left-0 z-10 min-w-44 bg-card p-2 text-left font-medium">
+                              Line item
+                            </th>
+                            {isMonthlyBudget ? (
+                              <th className="min-w-36 p-2 text-right font-medium">
+                                Actual amount
+                              </th>
+                            ) : (
+                              <>
+                                {MONTH_SHORT.map((m) => (
+                                  <th
+                                    key={m}
+                                    className="min-w-20 p-2 text-right font-medium"
+                                  >
+                                    {m}
+                                  </th>
+                                ))}
+                                <th className="min-w-24 p-2 text-right font-medium">
+                                  Total
+                                </th>
+                              </>
+                            )}
+                            <th className="w-10 p-2" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {section.items.map((item, ii) => {
+                            const rowTotal = item.amounts.reduce(
+                              (a, b) => a + num(b),
+                              0
+                            );
+                            const historicalAmount = loadedHistory
+                              ? historicalAmounts.get(
+                                  historyItemKey(section.name, item.name)
+                                )
+                              : undefined;
+                            return (
+                              <tr key={ii} className="border-b last:border-0">
+                                <td className="sticky left-0 z-10 bg-card p-1">
+                                  <Input
+                                    aria-label="Item name"
+                                    className="min-w-40"
+                                    placeholder="e.g. Facebook"
+                                    value={item.name}
+                                    onChange={(e) =>
+                                      updateItem(si, ii, { name: e.target.value })
+                                    }
+                                  />
+                                  {historicalAmount !== undefined &&
+                                  loadedHistory ? (
+                                    <p className="px-2 pb-1 pt-0.5 text-xs text-muted-foreground">
+                                      Previous{" "}
+                                      {MONTH_SHORT[
+                                        loadedHistory.period_month - 1
+                                      ]}{" "}
+                                      {loadedHistory.period_year}:{" "}
+                                      {currency.format(
+                                        historicalAmount
+                                      )}
+                                    </p>
+                                  ) : null}
                                 </td>
-                              ))}
+                                {(isMonthlyBudget
+                                  ? [item.amounts[budgetMonth - 1]]
+                                  : item.amounts
+                                ).map((amount, visibleIndex) => {
+                                  const monthIndex = isMonthlyBudget
+                                    ? budgetMonth - 1
+                                    : visibleIndex;
+                                  return (
+                                    <td key={monthIndex} className="p-1">
+                                      <Input
+                                        aria-label={`${MONTH_SHORT[monthIndex]} amount`}
+                                        type="number"
+                                        min={0}
+                                        step="0.01"
+                                        className={
+                                          isMonthlyBudget
+                                            ? "ml-auto w-full max-w-48 text-right"
+                                            : "w-20 text-right"
+                                        }
+                                        placeholder="0"
+                                        value={amount}
+                                        onChange={(e) =>
+                                          setAmount(
+                                            si,
+                                            ii,
+                                            monthIndex,
+                                            e.target.value
+                                          )
+                                        }
+                                      />
+                                    </td>
+                                  );
+                                })}
+                                {!isMonthlyBudget ? (
+                                  <td className="p-2 text-right font-medium tabular-nums">
+                                    {currency.format(rowTotal)}
+                                  </td>
+                                ) : null}
+                                <td className="p-1 text-center">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Remove line item"
+                                    disabled={section.items.length === 1}
+                                    onClick={() => {
+                                      setStructureDirty(true);
+                                      updateSection(si, {
+                                        items: section.items.filter(
+                                          (_, j) => j !== ii
+                                        ),
+                                      });
+                                    }}
+                                  >
+                                    <Trash2 className="size-4" />
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr className="border-t bg-muted/40 font-medium">
+                            <td className="sticky left-0 z-10 bg-muted/40 p-2">
+                              Subtotal
+                            </td>
+                            {isMonthlyBudget ? (
                               <td className="p-2 text-right tabular-nums">
-                                {currency.format(sectionTotal)}
+                                {currency.format(subtotals[budgetMonth - 1])}
                               </td>
-                            </>
-                          )}
-                          <td />
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
+                            ) : (
+                              <>
+                                {subtotals.map((t, mi) => (
+                                  <td
+                                    key={mi}
+                                    className="p-2 text-right tabular-nums"
+                                  >
+                                    {t ? currency.format(t) : "—"}
+                                  </td>
+                                ))}
+                                <td className="p-2 text-right tabular-nums">
+                                  {currency.format(sectionTotal)}
+                                </td>
+                              </>
+                            )}
+                            <td />
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
                   <div className="p-3">
                     <Button
                       type="button"
@@ -877,7 +983,7 @@ export function ReportForm({
           Above the phone's tab bar, which is fixed in the same place. The
           buttons are the page's pill size; the dialogs they open portal out,
           so none of this reaches the buttons inside them. */}
-      <div className="sticky bottom-[calc(var(--tab-bar-height)+env(safe-area-inset-bottom)+0.75rem)] z-10 flex max-w-3xl flex-wrap items-center gap-3 rounded-full bg-background/75 p-2 shadow-[0_8px_30px_rgba(0,0,0,0.08)] ring-1 ring-foreground/[0.06] backdrop-blur-xl backdrop-saturate-150 md:bottom-6 [&_[data-slot=button]]:h-11 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]]:px-5 [&_[data-slot=button]]:text-[0.9375rem] [&_[data-slot=button]]:font-semibold">
+      <div className="sticky bottom-[calc(var(--tab-bar-height)+env(safe-area-inset-bottom)+0.75rem)] z-10 flex max-w-3xl items-center gap-2 rounded-full sm:gap-3 bg-background/75 p-2 shadow-[0_8px_30px_rgba(0,0,0,0.08)] ring-1 ring-foreground/[0.06] backdrop-blur-xl backdrop-saturate-150 md:bottom-6 [&_[data-slot=button]]:h-11 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]]:px-4 [&_[data-slot=button]]:text-[0.9375rem] [&_[data-slot=button]]:font-semibold sm:[&_[data-slot=button]]:px-5 max-sm:[&>[data-slot=button]:not([data-variant=ghost])]:flex-1">
         <ActionButton
           type="submit"
           name="intent"

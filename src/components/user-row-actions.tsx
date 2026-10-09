@@ -51,7 +51,7 @@ function grantWarning(role: AppRole) {
 // in, and twelve rows of them as a spreadsheet. The height is written on the
 // data attribute too, where the small trigger sets its own.
 const ROW_MENU =
-  "h-9 data-[size=sm]:h-9 rounded-full border-transparent bg-muted/70 px-3.5 shadow-none";
+  "h-9 data-[size=sm]:h-9 rounded-full border-transparent bg-muted/70 px-3.5 shadow-none pointer-coarse:text-base";
 
 const ROW_ACTION = "h-9 gap-2 rounded-full px-3";
 

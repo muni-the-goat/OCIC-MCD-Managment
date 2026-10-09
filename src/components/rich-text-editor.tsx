@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { Placeholder } from "@tiptap/extensions";
 import {
   Bold,
+  ChevronDown,
   IndentDecrease,
   IndentIncrease,
   Italic,
@@ -63,6 +64,7 @@ function ToolbarButton({
   disabled,
   onClick,
   children,
+  className,
 }: {
   icon?: LucideIcon;
   label: string;
@@ -72,6 +74,7 @@ function ToolbarButton({
   onClick: () => void;
   // A text button ("Heading") rather than a glyph.
   children?: React.ReactNode;
+  className?: string;
 }) {
   return (
     <button
@@ -97,7 +100,8 @@ function ToolbarButton({
         "disabled:pointer-events-none disabled:opacity-35",
         // Pressed reads as the liquid tabs' selection: ink, so a glance at
         // the toolbar says what the caret is sitting in.
-        active && "bg-foreground text-background hover:bg-foreground hover:text-background"
+        active && "bg-foreground text-background hover:bg-foreground hover:text-background",
+        className
       )}
     >
       {Icon ? <Icon className="size-[1.125rem]" aria-hidden /> : null}
@@ -123,7 +127,7 @@ function ToolbarGroup({
       role="group"
       aria-label={label}
       className={cn(
-        "flex items-center gap-0.5 rounded-full bg-muted/70 p-0.5",
+        "flex shrink-0 items-center gap-0.5 rounded-full bg-muted/70 p-0.5",
         className
       )}
     >
@@ -240,6 +244,10 @@ export function RichTextEditor({
     }),
   });
   const focused = active?.focused ?? false;
+  // Read without the focus gate: the phone's style menu takes focus from the
+  // editor while it is open, and must still show what the caret is in.
+  const style = active?.h2 ? "heading" : active?.h3 ? "subheading" : "body";
+  const inList = (active?.bullet ?? false) || (active?.ordered ?? false);
   const body = focused && !active?.h2 && !active?.h3;
 
   return (
@@ -254,13 +262,46 @@ export function RichTextEditor({
         role="toolbar"
         aria-label="Formatting"
         aria-controls={id}
-        className="sticky top-16 z-[1] flex flex-wrap items-center gap-1.5 rounded-t-2xl border-b bg-card/90 px-2 py-2 backdrop-blur"
+        // One row on a phone, scrolling sideways, rather than wrapping into
+        // three stacked rows of pills that pushed the text a third of the
+        // screen down. From sm up there is room for everything on one line,
+        // and it wraps only if it must.
+        className="sticky top-16 z-[1] flex items-center gap-1.5 overflow-x-auto rounded-t-2xl border-b bg-card/90 px-2 py-2 backdrop-blur [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden"
       >
+        {/* On a phone the three styles are one menu: the native picker, which
+            is what a thumb expects, and a third of the width. 16px text, or
+            iOS zooms the page when it opens. */}
+        <label className="relative flex shrink-0 sm:hidden">
+          <span className="sr-only">Text style</span>
+          <select
+            value={style}
+            onChange={(event) => {
+              const chain = editor?.chain().focus();
+              if (event.target.value === "heading") {
+                chain?.setHeading({ level: 2 }).run();
+              } else if (event.target.value === "subheading") {
+                chain?.setHeading({ level: 3 }).run();
+              } else {
+                chain?.setParagraph().run();
+              }
+            }}
+            className="h-10 appearance-none rounded-full bg-muted/70 pr-9 pl-4 text-base font-semibold text-foreground outline-none focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            <option value="body">Body</option>
+            <option value="heading">Heading</option>
+            <option value="subheading">Subheading</option>
+          </select>
+          <ChevronDown
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+        </label>
+
         {/* Named styles rather than "H2" and "H3": the people filing these
             reports are not thinking in heading levels, and "Body" is the way
             back that the old toolbar never offered — you had to find the
             pressed H button and press it again. */}
-        <ToolbarGroup label="Text style">
+        <ToolbarGroup label="Text style" className="hidden sm:flex">
           <ToolbarButton
             label="Body text"
             shortcut={`${mod}${alt}0`}
@@ -330,6 +371,9 @@ export function RichTextEditor({
           <ToolbarButton
             icon={IndentIncrease}
             label="Indent"
+            // On a phone, only inside a list: there, width is what decides
+            // whether Undo fits on screen, and these do nothing elsewhere.
+            className={inList ? undefined : "max-sm:hidden"}
             shortcut="Tab"
             disabled={!active?.canIndent}
             onClick={() =>
@@ -339,6 +383,7 @@ export function RichTextEditor({
           <ToolbarButton
             icon={IndentDecrease}
             label="Outdent"
+            className={inList ? undefined : "max-sm:hidden"}
             shortcut="Shift+Tab"
             disabled={!active?.canOutdent}
             onClick={() =>

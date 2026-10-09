@@ -498,10 +498,12 @@
   position: absolute;
   top: 0;
   left: 0;
+  /* Both edges, so a long prompt wraps inside the box. With only a left
+     edge and nowrap it ran on past the right side of a phone screen. */
+  right: 0;
   pointer-events: none;
   color: var(--muted-foreground);
   font-weight: 400;
-  white-space: nowrap;
 }
 
 /* Print-to-PDF budget report. PrintableBudgetReport renders a clean letterhead

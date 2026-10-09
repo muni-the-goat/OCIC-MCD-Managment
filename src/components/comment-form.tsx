@@ -32,7 +32,7 @@ export function CommentForm({ reportId }: { reportId: string }) {
         required
         maxLength={4000}
         placeholder="Add a comment…"
-        className="rounded-xl text-[0.9375rem]"
+        className="rounded-xl text-base"
       />
       {/* Pending only, no checkmark: the comment appearing in the thread above
           and the box emptying are the completion signal, and they say it

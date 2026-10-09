@@ -83,7 +83,7 @@ export function ReviewControls({
                 id="review-comment"
                 name="comment"
                 rows={3}
-                className="rounded-xl text-[0.9375rem]"
+                className="rounded-xl text-base"
                 placeholder="What needs to change…"
               />
             </div>
