@@ -209,3 +209,93 @@ export function StatusMix({
     </div>
   );
 }
+
+export interface BandCell {
+  label: string;
+  caption: string;
+  value: number;
+  tone: StatTone;
+  href: string;
+}
+
+// The dashboard's one row of numbers. It replaces three gauge cards and a
+// "Status mix" card that sat lower down and restated the same three counts —
+// the page printed every figure twice. One band split by hairlines, four
+// cells, the fourth being drafts, which the gauges never showed.
+//
+// Each cell is a link to the filtered list, and the whole cell is the target.
+// The meter is 4px: a semicircle spent a lot of ink restating a percentage the
+// figure beside it already carried, and a bar says the same thing quietly.
+export function StatusBand({
+  cells,
+  total,
+}: {
+  cells: BandCell[];
+  total: number;
+}) {
+  return (
+    <ul className="grid grid-cols-2 overflow-hidden rounded-2xl bg-card shadow-xs ring-1 ring-foreground/10 lg:grid-cols-4">
+      {cells.map((cell, index) => {
+        const percent = share(cell.value, total);
+        return (
+          <li
+            key={cell.label}
+            className={cn(
+              // Hairlines between cells, never around the outside: two columns
+              // on a phone, four from lg.
+              "border-foreground/10",
+              index % 2 === 1 && "border-l",
+              index >= 2 && "border-t lg:border-t-0",
+              index === 2 && "lg:border-l"
+            )}
+          >
+            <Link
+              href={cell.href}
+              aria-label={`${cell.label}: ${cell.value} of ${total}. View these reports.`}
+              className="group flex h-full flex-col gap-3 p-4 outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:p-5"
+            >
+              <span className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                  <span
+                    aria-hidden
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: TONE_COLOR[cell.tone] }}
+                  />
+                  <span className="truncate">{cell.label}</span>
+                </span>
+                <ArrowUpRight
+                  aria-hidden
+                  className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                />
+              </span>
+              <span className="flex items-baseline gap-2">
+                <CountUp
+                  value={cell.value}
+                  className="font-heading text-3xl leading-none font-semibold tabular-nums"
+                />
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {percent}%
+                </span>
+              </span>
+              <span
+                aria-hidden
+                className="h-1 overflow-hidden rounded-full bg-foreground/10"
+              >
+                <span
+                  className="block h-full rounded-full"
+                  style={{
+                    width: `${percent}%`,
+                    backgroundColor: TONE_COLOR[cell.tone],
+                  }}
+                />
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {cell.caption}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}

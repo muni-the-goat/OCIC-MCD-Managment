@@ -36,9 +36,13 @@ export function CommentForm({ reportId }: { reportId: string }) {
       {/* Pending only, no checkmark: the comment appearing in the thread above
           and the box emptying are the completion signal, and they say it
           better than a button could. */}
+      {/* Outline, not filled: on a report awaiting review the decision above is
+          the page's one primary action, and a second solid red button here made
+          posting a comment look as weighty as approving the report. */}
       <ActionButton
         type="submit"
         size="sm"
+        variant="outline"
         pending={pending}
         pendingLabel="Posting…"
       >

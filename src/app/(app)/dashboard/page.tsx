@@ -2,25 +2,18 @@ import Link from "next/link";
 import { Suspense } from "react";
 import {
   ArrowRight,
-  CalendarDays,
-  CheckCircle2,
   ChevronRight,
-  Clock,
   FileText,
   Inbox,
-  LayoutDashboard,
   Plus,
-  ShieldCheck,
   Wallet,
-  XCircle,
-  type LucideIcon,
 } from "lucide-react";
 import {
   AnnualBudgetSummary,
   AnnualBudgetSummarySkeleton,
 } from "@/components/annual-budget-summary";
 import { DashboardChartTabs } from "@/components/dashboard-chart-tabs";
-import { GaugeStatCard, StatusMix } from "@/components/dashboard-stats";
+import { StatusBand } from "@/components/dashboard-stats";
 import { DepartmentBadge } from "@/components/department-badge";
 import {
   MonthlyActivitySummary,
@@ -52,10 +45,8 @@ import {
 import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
 import {
-  periodLabel,
   reportPeriodLabel,
   reportTypeLabel,
-  roleLabel,
   type BudgetPeriod,
   type Department,
   type ReportStatus,
@@ -78,15 +69,6 @@ interface RecentReport {
     email: string;
     department: Department | null;
   } | null;
-}
-
-function Chip({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground">
-      <Icon className="size-3.5 text-muted-foreground" />
-      {children}
-    </span>
-  );
 }
 
 export default async function DashboardPage({
@@ -202,80 +184,192 @@ export default async function DashboardPage({
     now
   );
 
+  // The one sentence under the title says what to do next, not where you are —
+  // the title and the rail already say that. Each branch names the most urgent
+  // thing in the reader's own pile, and the counts behind it are the ones in
+  // the band directly below, so the sentence and the numbers never disagree.
+  const plural = (n: number, one: string, many: string) =>
+    `${n} ${n === 1 ? one : many}`;
+  const headline = reviewer
+    ? submitted > 0
+      ? `${plural(submitted, "report is", "reports are")} waiting for a decision.`
+      : "Nothing is waiting for a decision."
+    : officeWide
+      ? "Where the office's reports stand."
+      : rejected > 0
+        ? `${plural(rejected, "report was", "reports were")} sent back — edit and resubmit ${rejected === 1 ? "it" : "them"}.`
+        : drafts > 0
+          ? `${plural(drafts, "draft has", "drafts have")} not been submitted yet.`
+          : "Everything you've filed is with a reviewer or done.";
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Renders no element of its own until it opens, and opens into a portal,
-          so it costs the space-y-5 stack above nothing. */}
+          so it costs the space-y-6 stack below nothing. */}
       <ReportProgressDialog updates={progress} />
-      <section className="rounded-2xl bg-card p-5 shadow-xs ring-1 ring-foreground/10 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
-          <div className="flex min-w-0 items-center gap-4">
-            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
-              <LayoutDashboard className="size-6" />
-            </span>
-            <div className="min-w-0">
-              <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                MCD workspace
-              </p>
-              <h1 className="truncate font-heading text-2xl font-semibold tracking-tight">
-                Welcome, {profile.full_name || profile.email}
-              </h1>
+      {/* A page title, not a welcome card. The card spent a tile, an eyebrow
+          and three chips on the month, the role and a count — the role is
+          already in the top bar and the count is the band below — and pushed
+          the page's actual work further down. */}
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">{headline}</p>
+        </div>
+        <Button asChild className="gap-1.5">
+          <Link href="/reports/new">
+            <Plus className="size-4" />
+            New report
+          </Link>
+        </Button>
+      </header>
+
+      <StatusBand
+        total={total}
+        cells={[
+          {
+            label: "Awaiting review",
+            caption: "Submitted, not yet decided",
+            value: submitted,
+            tone: "warning",
+            href: "/reports?status=submitted",
+          },
+          {
+            label: "Reviewed",
+            caption: "Approved and counted",
+            value: reviewed,
+            tone: "good",
+            href: "/reports?status=reviewed",
+          },
+          {
+            label: "Rejected",
+            caption: "Sent back for edits",
+            value: rejected,
+            tone: "critical",
+            href: "/reports?status=rejected",
+          },
+          {
+            label: "Draft",
+            caption: "Started, not yet submitted",
+            value: drafts,
+            tone: "neutral",
+            href: "/reports?status=draft",
+          },
+        ]}
+      />
+
+      {/* Directly under the numbers, because for a reviewer this list is the
+          job. It used to sit below the whole annual budget — several thousand
+          pixels of charts between "15 awaiting review" and the fifteen. */}
+      <Card className="rounded-2xl">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+          <div className="space-y-1">
+            <CardTitle className="text-[17px] font-semibold">
+              {reviewer ? "Waiting for a decision" : "Recent reports"}
+            </CardTitle>
+            <CardDescription>
+              {reviewer
+                ? "Newest first. Open one to read it and decide."
+                : officeWide
+                  ? "The most recently updated reports across the office."
+                  : "Your most recently updated reports."}
+            </CardDescription>
+          </div>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="shrink-0 gap-1 rounded-full"
+          >
+            <Link href="/reports">
+              All reports
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {recent.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-10 text-center">
+              <span className="grid size-10 place-items-center rounded-full bg-muted text-muted-foreground">
+                <Inbox className="size-5" />
+              </span>
               <p className="text-sm text-muted-foreground">
                 {reviewer
-                  ? "Here's what needs your attention."
+                  ? "Nothing waiting for review."
                   : officeWide
-                    ? "Here's where the office's reports stand."
-                    : "Here's where your reports stand."}
+                    ? "No reports in the office yet."
+                    : "No reports yet — create your first one."}
               </p>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Chip icon={CalendarDays}>
-              {periodLabel(now.getMonth() + 1, now.getFullYear())}
-            </Chip>
-            <Chip icon={ShieldCheck}>{roleLabel(profile.role)}</Chip>
-            <Chip icon={FileText}>
-              {total} {officeWide ? "reports" : "my reports"}
-            </Chip>
-            <Button asChild size="sm" className="gap-1.5 rounded-full">
-              <Link href="/reports/new">
-                <Plus className="size-4" />
-                New report
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <GaugeStatCard
-          label="Awaiting review"
-          caption="Submitted, not yet decided"
-          value={submitted}
-          total={total}
-          tone="warning"
-          icon={Clock}
-          href="/reports?status=submitted"
-        />
-        <GaugeStatCard
-          label="Reviewed"
-          caption="Approved and counted"
-          value={reviewed}
-          total={total}
-          tone="good"
-          icon={CheckCircle2}
-          href="/reports?status=reviewed"
-        />
-        <GaugeStatCard
-          label="Rejected"
-          caption="Sent back for edits"
-          value={rejected}
-          total={total}
-          tone="critical"
-          icon={XCircle}
-          href="/reports?status=rejected"
-        />
-      </div>
+          ) : (
+            <ul className="-mx-2 space-y-1">
+              {recent.map((report) => {
+                const TypeIcon = report.type === "budget" ? Wallet : FileText;
+                return (
+                  <li key={report.id}>
+                    <Link
+                      href={`/reports/${report.id}`}
+                      className="group flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-muted/60"
+                    >
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:bg-card">
+                        <TypeIcon className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">
+                          {report.title}
+                        </span>
+                        <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="truncate">
+                            {reportTypeLabel(
+                              report.type,
+                              report.budget_period
+                            )}{" "}
+                            ·{" "}
+                            {reportPeriodLabel(
+                              report.type,
+                              report.period_month,
+                              report.period_year,
+                              report.budget_period
+                            )}
+                            {officeWide && report.author
+                              ? ` · ${report.author.full_name || report.author.email}`
+                              : ""}
+                          </span>
+                          {/* Outside the truncating span so a long title never
+                              clips the department off the row. */}
+                          {officeWide && report.author ? (
+                            <DepartmentBadge
+                              label={departmentLabel(
+                                report.author.department,
+                                departments
+                              )}
+                              className="shrink-0"
+                            />
+                          ) : null}
+                        </span>
+                      </span>
+                      {/* Every row in the queue is Submitted by definition, so a
+                          column of identical badges would say nothing. When it
+                          arrived is what tells a reviewer which to open first. */}
+                      {reviewer ? (
+                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                          {new Date(report.updated_at).toLocaleDateString(
+                            "en-GB",
+                            { day: "numeric", month: "short" }
+                          )}
+                        </span>
+                      ) : (
+                        <StatusBadge status={report.status} />
+                      )}
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Each tab streams on its own — a slow budget aggregate must not hold up
           the task mix, or the other way round. */}
@@ -304,161 +398,6 @@ export default async function DashboardPage({
           </Suspense>
         }
       />
-
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="rounded-2xl lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
-            <div className="space-y-1">
-              <CardTitle>
-                {reviewer ? "Pending review" : "Recent reports"}
-              </CardTitle>
-              <CardDescription>
-                {reviewer
-                  ? "Submitted reports waiting on a decision."
-                  : officeWide
-                    ? "The most recently updated reports across the office."
-                    : "Your most recently updated reports."}
-              </CardDescription>
-            </div>
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="shrink-0 gap-1 rounded-full"
-            >
-              <Link href="/reports">
-                All reports
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {recent.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-10 text-center">
-                <span className="grid size-10 place-items-center rounded-full bg-muted text-muted-foreground">
-                  <Inbox className="size-5" />
-                </span>
-                <p className="text-sm text-muted-foreground">
-                  {reviewer
-                    ? "Nothing waiting for review."
-                    : officeWide
-                      ? "No reports in the office yet."
-                      : "No reports yet — create your first one."}
-                </p>
-              </div>
-            ) : (
-              <ul className="-mx-2 space-y-1">
-                {recent.map((report) => {
-                  const TypeIcon = report.type === "budget" ? Wallet : FileText;
-                  return (
-                    <li key={report.id}>
-                      <Link
-                        href={`/reports/${report.id}`}
-                        className="group flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-muted/60"
-                      >
-                        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:bg-card">
-                          <TypeIcon className="size-4" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium">
-                            {report.title}
-                          </span>
-                          <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                            <span className="truncate">
-                              {reportTypeLabel(
-                                report.type,
-                                report.budget_period
-                              )}{" "}
-                              ·{" "}
-                              {reportPeriodLabel(
-                                report.type,
-                                report.period_month,
-                                report.period_year,
-                                report.budget_period
-                              )}
-                              {officeWide && report.author
-                                ? ` · ${report.author.full_name || report.author.email}`
-                                : ""}
-                            </span>
-                            {/* Outside the truncating span so a long title never
-                                clips the department off the row. */}
-                            {officeWide && report.author ? (
-                              <DepartmentBadge
-                                label={departmentLabel(
-                                  report.author.department,
-                                  departments
-                                )}
-                                className="shrink-0"
-                              />
-                            ) : null}
-                          </span>
-                        </span>
-                        <StatusBadge status={report.status} />
-                        <ChevronRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl">
-          <CardHeader className="space-y-1">
-            <CardTitle>Status mix</CardTitle>
-            <CardDescription>
-              {officeWide
-                ? "Every report you can see, by status."
-                : "All of your reports, by status."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-1 flex-col justify-between gap-6">
-            {total === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                No reports to summarise yet.
-              </p>
-            ) : (
-              <>
-                <StatusMix
-                  total={total}
-                  segments={[
-                    {
-                      label: "Reviewed",
-                      value: reviewed,
-                      tone: "good",
-                      href: "/reports?status=reviewed",
-                    },
-                    {
-                      label: "Awaiting review",
-                      value: submitted,
-                      tone: "warning",
-                      href: "/reports?status=submitted",
-                    },
-                    {
-                      label: "Rejected",
-                      value: rejected,
-                      tone: "critical",
-                      href: "/reports?status=rejected",
-                    },
-                    {
-                      label: "Draft",
-                      value: drafts,
-                      tone: "neutral",
-                      href: "/reports?status=draft",
-                    },
-                  ]}
-                />
-                <p className="border-t pt-4 text-xs text-muted-foreground">
-                  {total} report{total === 1 ? "" : "s"} in total
-                  {officeWide ? " across the reports you can access." : "."}
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

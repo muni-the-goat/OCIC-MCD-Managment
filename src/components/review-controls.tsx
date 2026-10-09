@@ -48,19 +48,24 @@ export function ReviewControls({
   }, [state]);
 
   return (
-    <Card>
+    // Ringed in the Awaiting review amber: this is the one card on the page
+    // that asks something of the reader, and it now sits at the top, so it has
+    // to read as a request rather than as more of the report.
+    <Card className="ring-2 ring-status-warning/60">
       <CardHeader>
-        <CardTitle>Review</CardTitle>
+        <CardTitle className="text-[17px] font-semibold">
+          Waiting for your decision
+        </CardTitle>
         <CardDescription>
           {/* Named roles have been wrong in this sentence twice: it credited a
               Vice President after 0019 took the marketing side away from them,
               and it would have excluded a Coordinator after 0030. It says what
               the reader can do instead of who else can do it. */}
           {canMarkReviewed && canReject
-            ? "Mark this report as reviewed, or reject it with feedback. The author can edit and resubmit a rejected report."
+            ? "Read the report below, then mark it as reviewed or send it back with feedback. A rejected report goes back to its author to edit and resubmit."
             : canMarkReviewed
-              ? "Mark this report as reviewed. Sending it back with feedback is not available to you."
-              : "Reject this report with feedback. The author can edit and resubmit it."}
+              ? "Read the report below, then mark it as reviewed. Sending it back with feedback is not available to you."
+              : "Read the report below. If it needs changes, send it back with feedback for the author to edit and resubmit."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -68,19 +73,22 @@ export function ReviewControls({
           <input type="hidden" name="report_id" value={reportId} />
           {canReject ? (
             <div className="space-y-2">
-              <Label htmlFor="review-comment">
-                Comment (required when rejecting)
+              <Label htmlFor="review-comment" className="block leading-snug">
+                Feedback for the author{" "}
+                <span className="font-normal text-muted-foreground">
+                  (needed to reject)
+                </span>
               </Label>
               <Textarea
                 id="review-comment"
                 name="comment"
                 rows={3}
-                placeholder="Feedback for the author…"
+                placeholder="What needs to change…"
               />
             </div>
           ) : null}
           <ActionMessage error={state?.error} />
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             {canMarkReviewed ? (
               <ActionButton
                 type="submit"

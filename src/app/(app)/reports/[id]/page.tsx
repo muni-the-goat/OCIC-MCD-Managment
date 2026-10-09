@@ -29,6 +29,7 @@ import {
 import { departmentLabel } from "@/lib/departments";
 import { getDepartments } from "@/lib/departments-server";
 import { RichText } from "@/components/rich-text";
+import { isRichTextEmpty } from "@/lib/rich-text";
 import { createClient } from "@/lib/supabase/server";
 import {
   MONTHLY_SECTIONS,
@@ -127,6 +128,12 @@ export default async function ReportDetailPage({
   // type, so the report has to actually be submitted, and it has to be theirs —
   // a reviewer landing on this URL should not be congratulated on someone
   // else's work.
+  const filledSections = MONTHLY_SECTIONS.filter(
+    ({ key }) => !isRichTextEmpty(report.content?.[key])
+  );
+  const blankSections = MONTHLY_SECTIONS.filter(
+    ({ key }) => isRichTextEmpty(report.content?.[key])
+  );
   const justSubmitted =
     query.submitted === "1" && isAuthor && report.status === "submitted";
 
@@ -199,6 +206,18 @@ export default async function ReportDetailPage({
         </div>
       ) : null}
 
+      {/* The decision sits beside the status it changes, at the top, rather
+          than under the whole report and its attachments. A reviewer opened
+          this page to decide; the first screen should say so and hold the
+          controls, and the report reads below it. */}
+      {canReview ? (
+        <ReviewControls
+          reportId={report.id}
+          canMarkReviewed={canApprove}
+          canReject={canReject}
+        />
+      ) : null}
+
       {report.type === "budget" ? (
         <Card>
           <CardHeader>
@@ -213,20 +232,36 @@ export default async function ReportDetailPage({
           </CardContent>
         </Card>
       ) : (
+        // No "Report" heading over the report: the page title already is one.
+        // Sections the author left blank are named once at the foot instead of
+        // each printing its heading over a lone dash — half a page of "—" on a
+        // typical report, and the reader had to scan every one to learn that
+        // nothing was there.
         <Card>
-          <CardHeader>
-            <CardTitle>Report</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {MONTHLY_SECTIONS.map(({ key, label }) => (
-              <div key={key}>
-                <h3 className="mb-1.5 font-heading text-lg font-semibold">{label}</h3>
-                <RichText
-                  value={report.content[key]}
-                  className="text-muted-foreground"
-                />
-              </div>
-            ))}
+          <CardContent className="space-y-6">
+            {filledSections.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Every section of this report is blank.
+              </p>
+            ) : (
+              filledSections.map(({ key, label }) => (
+                <section key={key}>
+                  <h2 className="mb-1.5 font-heading text-lg font-semibold">
+                    {label}
+                  </h2>
+                  <RichText
+                    value={report.content[key]}
+                    className="text-muted-foreground"
+                  />
+                </section>
+              ))
+            )}
+            {blankSections.length > 0 && filledSections.length > 0 ? (
+              <p className="border-t pt-4 text-sm text-muted-foreground">
+                Left blank:{" "}
+                {blankSections.map(({ label }) => label).join(", ")}.
+              </p>
+            ) : null}
           </CardContent>
         </Card>
       )}
@@ -271,14 +306,6 @@ export default async function ReportDetailPage({
           )}
         </CardContent>
       </Card>
-
-      {canReview ? (
-        <ReviewControls
-          reportId={report.id}
-          canMarkReviewed={canApprove}
-          canReject={canReject}
-        />
-      ) : null}
 
       <Card>
         <CardHeader>

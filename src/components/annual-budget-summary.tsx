@@ -25,8 +25,11 @@ import {
 import { departmentLabel } from "@/lib/departments";
 import { getDepartments } from "@/lib/departments-server";
 import { createClient } from "@/lib/supabase/server";
+import { ChevronDown } from "lucide-react";
 import {
   MONTH_KEYS,
+  MONTH_NAMES,
+  itemTotal,
   type AppRole,
   type BudgetItem,
   type Department,
@@ -237,11 +240,10 @@ export async function AnnualBudgetSummary({
     <>
     <Card className="rounded-2xl">
       <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-1.5">
-          <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Reviewed expenses
-          </p>
-          <CardTitle>Annual budget summary · FY {selectedYear}</CardTitle>
+        <div className="space-y-1">
+          <CardTitle className="text-[17px] font-semibold">
+            Annual budget · FY {selectedYear}
+          </CardTitle>
           <CardDescription>
             {seesEveryAuthor
               ? "Automatically combines all reviewed monthly budget reports across the office."
@@ -282,7 +284,7 @@ export async function AnnualBudgetSummary({
                 <div className="space-y-1">
                   <h3
                     id="annual-budget-department-matrix"
-                    className="font-heading text-base font-semibold"
+                    className="font-heading text-[17px] font-semibold"
                   >
                     Spend by department and month
                   </h3>
@@ -336,6 +338,18 @@ export async function AnnualBudgetSummary({
   );
 }
 
+const groupMoney = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+});
+
+// Each author as a row that opens, rather than every author's full set of
+// tiles and two charts stacked down the page. Five authors made five identical
+// blocks and a page several thousand pixels long, and the reader had to scroll
+// all of them to compare two totals. The row carries the two figures that
+// answer "whose spend is this and how much" — the rest is one click away, and
+// <details> brings keyboard, screen-reader and pre-hydration behaviour with it.
 function AuthorGroups({
   groups,
   year,
@@ -355,39 +369,72 @@ function AuthorGroups({
   return (
     <div className="space-y-3">
       {separated ? (
-        <h3 className="font-heading text-base font-semibold">
-          Each author&apos;s expenses
-        </h3>
+        <div className="space-y-1">
+          <h3 className="font-heading text-[17px] font-semibold">
+            Each author&apos;s expenses
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Open an author to see their months and biggest line items.
+          </p>
+        </div>
       ) : null}
-      <div className="space-y-6">
-        {groups.map((group) => (
-          <section
-            key={group.id}
-            aria-labelledby={`annual-budget-author-${group.id}`}
-            className="overflow-hidden rounded-lg border"
-          >
-            <div className="border-b bg-muted/30 px-4 py-3">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <h4
-                  id={`annual-budget-author-${group.id}`}
-                  className="font-semibold"
-                >
-                  {group.label}
-                </h4>
-                {/* Beside the name rather than in the sub-line below: with
-                    several authors stacked this is the fastest way to tell
-                    whose figures these are when two share a first name. */}
-                <DepartmentBadge label={group.department} />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Reviewed monthly expenses · FY {year}
-              </p>
-            </div>
-            <div className="p-4">
-              <AnnualBudgetCharts items={group.items} year={year} />
-            </div>
-          </section>
-        ))}
+      <div className="divide-y overflow-hidden rounded-lg border">
+        {groups.map((group) => {
+          const total = group.items.reduce(
+            (sum, item) => sum + itemTotal(item),
+            0
+          );
+          const byMonth = MONTH_KEYS.map((key) =>
+            group.items.reduce((sum, item) => sum + Number(item[key] ?? 0), 0)
+          );
+          const peak = byMonth.indexOf(Math.max(...byMonth));
+          return (
+            <details
+              key={group.id}
+              // With one author there is nothing to choose between, so the
+              // row starts open rather than asking for a click to see anything.
+              open={groups.length === 1}
+              className="group/author"
+            >
+              <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span
+                      id={`annual-budget-author-${group.id}`}
+                      className="font-semibold"
+                    >
+                      {group.label}
+                    </span>
+                    {/* Beside the name: with several authors listed this is
+                        the fastest way to tell two first names apart. */}
+                    <DepartmentBadge label={group.department} />
+                  </span>
+                  {total > 0 ? (
+                    <span className="block text-xs text-muted-foreground">
+                      Highest in {MONTH_NAMES[peak]}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="shrink-0 text-right font-semibold tabular-nums">
+                  {groupMoney.format(total)}
+                </span>
+                <ChevronDown
+                  aria-hidden
+                  className="size-4 shrink-0 text-muted-foreground transition-transform group-open/author:rotate-180 motion-reduce:transition-none"
+                />
+              </summary>
+              <section
+                aria-labelledby={`annual-budget-author-${group.id}`}
+                className="border-t bg-card p-4"
+              >
+                <p className="mb-4 text-xs text-muted-foreground">
+                  Reviewed monthly expenses · FY {year}
+                </p>
+                <AnnualBudgetCharts items={group.items} year={year} />
+              </section>
+            </details>
+          );
+        })}
       </div>
     </div>
   );

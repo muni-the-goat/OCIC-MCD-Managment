@@ -17,8 +17,21 @@ interface NavItem {
   icon: NavIconKey;
 }
 
+// A labelled run of rows. The label is optional: it is only worth printing
+// when the rail holds more than one kind of work, which is the Admin's rail
+// alone. Everyone else gets the same grouping as space, without the words.
+interface NavGroup {
+  label?: string;
+  items: NavItem[];
+}
+
 // One row of the rail. Its own component because each row holds a ref to its
 // glyph, and a hook cannot be called inside the map that builds them.
+//
+// The current page is a tint, not a fill. The brand red is also the colour of
+// every primary button and of Reject, and a solid red row on every screen made
+// "where you are" the loudest thing in the window. Selection in a sidebar is
+// wayfinding, not an action, so it takes the quieter of the two treatments.
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   const { ref, play, reset } = useNavIcon();
   const Icon = NAV_ICONS[item.icon];
@@ -35,10 +48,10 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       onBlur={reset}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+        "flex min-h-9 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
         active
-          ? "bg-primary text-primary-foreground"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          ? "bg-primary/10 font-semibold text-primary"
+          : "font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >
       <Icon ref={ref} size={16} className="flex shrink-0" aria-hidden />
@@ -59,65 +72,88 @@ export function AppNav({ role }: { role: AppRole }) {
   // The rail carries every destination. The phone's tab bar in
   // mobile-tab-bar.tsx carries five of them and drops the create actions —
   // the two lists differ on purpose, so a new page needs a decision in both.
-  const items: NavItem[] = projectsOnly
+  const account: NavGroup = {
+    label: "Account",
+    items: [
+      // A Vice President keeps account management, so the Users link
+      // survives the projects-only nav on its own predicate. A VP Assistant
+      // fails canOpenUsersPage() and simply does not see it.
+      ...(canOpenUsersPage(role)
+        ? [{ href: "/admin/users", label: "Users", icon: "users" as const }]
+        : []),
+      { href: "/profile", label: "Profile", icon: "profile" },
+    ],
+  };
+
+  // The projects side, named the same and in the same order wherever it
+  // appears, so an Admin and a Vice President are pointing at the same rows.
+  const projects: NavItem[] = [
+    { href: "/projects", label: "Projects", icon: "projects" },
+    {
+      href: "/projects/dashboard",
+      label: projectsOnly ? "Dashboard" : "Projects dashboard",
+      icon: projectsOnly ? "dashboard" : "projectsDashboard",
+    },
+    { href: "/projects/new", label: "Project report", icon: "projectReport" },
+  ];
+
+  const groups: NavGroup[] = projectsOnly
     ? [
-        { href: "/projects/dashboard", label: "Dashboard", icon: "dashboard" },
-        { href: "/projects", label: "Projects", icon: "projects" },
-        { href: "/projects/new", label: "Project report", icon: "projectReport" },
-        // A Vice President keeps account management, so the Users link
-        // survives the projects-only nav on its own predicate. A VP Assistant
-        // fails canOpenUsersPage() and simply does not see it.
-        ...(canOpenUsersPage(role)
-          ? [{ href: "/admin/users", label: "Users", icon: "users" as const }]
-          : []),
-        { href: "/profile", label: "Profile", icon: "profile" },
+        // Dashboard first: it is this role's home, as "/" sends them there.
+        { items: [projects[1], projects[0], projects[2]] },
+        account,
       ]
     : [
-        { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-        // An Admin reads both sides, so both dashboards are named rather than
-        // one of them being "Dashboard" and the other a page you have to know
-        // about. The project report form is named here for the same reason: it
-        // was reachable only through a button on the projects dashboard, so an
-        // Admin standing on their own dashboard had no way to file a project
-        // report and no sign that one existed.
+        {
+          label: "Marketing",
+          items: [
+            { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+            { href: "/reports", label: "Reports", icon: "reports" },
+            { href: "/reports/new", label: "New report", icon: "newReport" },
+          ],
+        },
+        // An Admin reads both sides, so both are named rather than one of them
+        // being a page you have to know about. The project report form is named
+        // here for the same reason: an Admin standing on their own dashboard
+        // otherwise had no way to file a project report and no sign one existed.
         ...(seesProjectReports(role)
-          ? [
-              { href: "/projects", label: "Projects", icon: "projects" as const },
-              {
-                href: "/projects/dashboard",
-                label: "Projects dashboard",
-                icon: "projectsDashboard" as const,
-              },
-              {
-                href: "/projects/new",
-                label: "Project report",
-                icon: "projectReport" as const,
-              },
-            ]
+          ? [{ label: "Projects", items: projects }]
           : []),
-        { href: "/reports", label: "Reports", icon: "reports" },
-        { href: "/reports/new", label: "New report", icon: "newReport" },
-        ...(canOpenUsersPage(role)
-          ? [{ href: "/admin/users", label: "Users", icon: "users" as const }]
-          : []),
-        { href: "/profile", label: "Profile", icon: "profile" },
+        account,
       ];
+  // Headings only earn their place when there is more than one kind of work
+  // to tell apart. With one, they would label the obvious.
+  const showLabels = groups.length > 2;
+
+  const isActive = (href: string) =>
+    // "/projects" must not light up while on "/projects/new", the same way
+    // "/reports" already steps aside for "/reports/new" — a parent that stays
+    // highlighted under its own child makes the nav lie about where you are.
+    href === "/reports"
+      ? pathname === "/reports" || /^\/reports\/(?!new)/.test(pathname)
+      : href === "/projects"
+        ? pathname === "/projects"
+        : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <nav className="flex flex-col gap-1">
-      {items.map((item) => {
-        // "/projects" must not light up while on "/projects/new", the same way
-        // "/reports" already steps aside for "/reports/new" — a parent that
-        // stays highlighted under its own child makes the nav lie about where
-        // you are.
-        const active =
-          item.href === "/reports"
-            ? pathname === "/reports" || /^\/reports\/(?!new)/.test(pathname)
-            : item.href === "/projects"
-              ? pathname === "/projects"
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return <NavLink key={item.href} item={item} active={active} />;
-      })}
+    <nav className="flex flex-col gap-5">
+      {groups.map((group, index) => (
+        <div
+          key={group.label ?? index}
+          role="group"
+          aria-label={group.label}
+          className="flex flex-col gap-0.5"
+        >
+          {showLabels && group.label ? (
+            <p className="px-3 pb-1 text-xs font-medium text-muted-foreground">
+              {group.label}
+            </p>
+          ) : null}
+          {group.items.map((item) => (
+            <NavLink key={item.href} item={item} active={isActive(item.href)} />
+          ))}
+        </div>
+      ))}
     </nav>
   );
 }

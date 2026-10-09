@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { CalendarDays, Wallet } from "lucide-react";
+import { ArrowRight, CalendarDays, Wallet } from "lucide-react";
 import { ReportForm } from "@/components/report-form";
 import {
   Card,
+  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -95,35 +96,61 @@ export default async function NewReportPage({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">New report</h1>
         <p className="text-sm text-muted-foreground">
-          Choose the kind of report you want to create.
+          Pick the kind of report you are filing.
         </p>
       </div>
+      {/* Each option is one link with one target, and says what starting it
+          leads to. The old cards had a hover colour on a border they did not
+          draw, so nothing answered the pointer and they read as text. */}
       <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
-        <Link href="/reports/new?type=budget">
-          <Card className="h-full transition-colors hover:border-primary">
-            <CardHeader>
-              <Wallet className="mb-2 size-8 text-primary" />
-              <CardTitle>Monthly budget report</CardTitle>
-              <CardDescription>
-                Monthly actual expenses with freeform sections and automatic
-                subtotals. Reviewed reports update the annual dashboard.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-        <Link href="/reports/new?type=monthly">
-          <Card className="h-full transition-colors hover:border-primary">
-            <CardHeader>
-              <CalendarDays className="mb-2 size-8 text-primary" />
-              <CardTitle>Monthly activity report</CardTitle>
-              <CardDescription>
-                What the month held, written up section by section, plus any
-                supporting documents you attach.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
+        {[
+          {
+            href: "/reports/new?type=budget",
+            icon: Wallet,
+            title: "Monthly budget report",
+            description:
+              "One month's actual expenses, in sections you name. Once reviewed, it counts towards the annual budget.",
+            action: "Start a budget report",
+          },
+          {
+            href: "/reports/new?type=monthly",
+            icon: CalendarDays,
+            title: "Monthly activity report",
+            description:
+              "What your team did this month, written up section by section, with any documents attached.",
+            action: "Start an activity report",
+          },
+        ].map((option) => (
+          <Link
+            key={option.href}
+            href={option.href}
+            className="group rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <Card className="h-full transition-[box-shadow,transform] duration-200 group-hover:ring-primary/40 group-active:scale-[0.99] group-active:duration-100 motion-reduce:group-active:scale-100">
+              <CardHeader className="flex-1">
+                <option.icon className="mb-2 size-7 text-primary" aria-hidden />
+                <CardTitle className="text-[17px] font-semibold">
+                  {option.title}
+                </CardTitle>
+                <CardDescription>{option.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+                  {option.action}
+                  <ArrowRight
+                    aria-hidden
+                    className="size-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+                  />
+                </span>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
       </div>
+      <p className="max-w-3xl text-sm text-muted-foreground">
+        You can save it as a draft and come back to it. Once you submit it, a
+        reviewer marks it as reviewed or sends it back with feedback.
+      </p>
     </div>
   );
 }
