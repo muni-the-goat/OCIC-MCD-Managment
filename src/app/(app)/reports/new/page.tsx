@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, CalendarDays, Wallet } from "lucide-react";
+import { FormHeader } from "@/components/form-header";
 import { ReportForm } from "@/components/report-form";
 import {
   Card,
@@ -77,10 +78,15 @@ export default async function NewReportPage({
     }
 
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          New {type} report
-        </h1>
+      <div className="mx-auto w-full max-w-6xl space-y-8">
+        <FormHeader
+          eyebrow="New report"
+          title={
+            type === "budget"
+              ? "Monthly budget report"
+              : "Monthly activity report"
+          }
+        />
         <ReportForm
           type={type}
           budgetHistory={budgetHistory}
@@ -92,13 +98,11 @@ export default async function NewReportPage({
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">New report</h1>
-        <p className="text-sm text-muted-foreground">
-          Pick the kind of report you are filing.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-6xl space-y-8">
+      <header className="space-y-2">
+        <h1 className="type-title">New report</h1>
+        <p className="type-subtitle">Pick the kind of report you are filing.</p>
+      </header>
       {/* Each option is one link with one target, and says what starting it
           leads to. The old cards had a hover colour on a border they did not
           draw, so nothing answered the pointer and they read as text. */}
@@ -126,16 +130,20 @@ export default async function NewReportPage({
             href={option.href}
             className="group rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <Card className="h-full transition-[box-shadow,transform] duration-200 group-hover:ring-primary/40 group-active:scale-[0.99] group-active:duration-100 motion-reduce:group-active:scale-100">
-              <CardHeader className="flex-1">
-                <option.icon className="mb-2 size-7 text-primary" aria-hidden />
-                <CardTitle className="text-[17px] font-semibold">
+            <Card className="h-full rounded-[1.25rem] shadow-none ring-0 transition-[background-color,transform] duration-200 group-hover:bg-[color-mix(in_oklab,var(--card),var(--foreground)_3%)] group-active:scale-[0.99] group-active:duration-100 motion-reduce:group-active:scale-100">
+              <CardHeader className="flex-1 gap-2">
+                <span className="mb-2 grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+                  <option.icon className="size-6" aria-hidden />
+                </span>
+                <CardTitle className="font-heading text-[1.25rem] leading-tight font-semibold tracking-[-0.012em]">
                   {option.title}
                 </CardTitle>
-                <CardDescription>{option.description}</CardDescription>
+                <CardDescription className="type-callout">
+                  {option.description}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+                <span className="type-callout inline-flex items-center gap-1 font-semibold text-primary">
                   {option.action}
                   <ArrowRight
                     aria-hidden
@@ -147,7 +155,7 @@ export default async function NewReportPage({
           </Link>
         ))}
       </div>
-      <p className="max-w-3xl text-sm text-muted-foreground">
+      <p className="type-callout max-w-3xl text-muted-foreground">
         You can save it as a draft and come back to it. Once you submit it, a
         reviewer marks it as reviewed or sends it back with feedback.
       </p>

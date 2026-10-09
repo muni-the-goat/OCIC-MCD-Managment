@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { FormHeader } from "@/components/form-header";
 import { ReportForm } from "@/components/report-form";
 import { canManageAnyReport, getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -48,10 +49,11 @@ export default async function EditReportPage({
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Edit {reportTypeLabel(report.type, report.budget_period).toLowerCase()} report
-      </h1>
+    <div className="mx-auto w-full max-w-6xl space-y-8">
+      <FormHeader
+        eyebrow={`Editing ${reportTypeLabel(report.type, report.budget_period).toLowerCase()} report`}
+        title={report.title}
+      />
       <ReportForm
         type={report.type}
         report={report}

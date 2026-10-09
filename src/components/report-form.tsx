@@ -21,6 +21,7 @@ import { ResponsiveSelect } from "@/components/ui/responsive-select";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { SubmitCheckDialog } from "@/components/submit-check-dialog";
 import { swapMonthAmounts } from "@/lib/budget-months";
+import { FORM_FIELD } from "@/lib/control-styles";
 import {
   buildSubmitCheck,
   type FiledPeriod,
@@ -45,6 +46,9 @@ interface EditSection {
   name: string;
   items: EditItem[];
 }
+
+// The redesigned pages' surface: white on the ivory page with no ring.
+const SURFACE = "rounded-[1.25rem] shadow-none ring-0";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -363,14 +367,12 @@ export function ReportForm({
         </Alert>
       ) : null}
 
-      <Card className="max-w-3xl">
+      <Card className={`max-w-3xl ${SURFACE}`}>
         <CardHeader>
-          <CardTitle>
-            {type === "budget"
-              ? `${budgetPeriod === "monthly" ? "Monthly" : "Annual"} budget report — actual expense`
-              : "Monthly activity report"}
-          </CardTitle>
-          <CardDescription>
+          {/* "Details", not the report type: the page title above already
+              names the type, and the card said it a second time. */}
+          <CardTitle className="type-headline">Details</CardTitle>
+          <CardDescription className="type-callout">
             {type === "budget"
               ? budgetPeriod === "monthly"
                 ? "Record actual expenses for one month. This report will be reviewed independently."
@@ -386,6 +388,7 @@ export function ReportForm({
             <Input
               id="title"
               name="title"
+              className={FORM_FIELD}
               required
               maxLength={200}
               defaultValue={report?.title ?? ""}
@@ -406,7 +409,7 @@ export function ReportForm({
                 min={2000}
                 max={2100}
                 required
-                className="max-w-40"
+                className={`max-w-40 ${FORM_FIELD}`}
                 defaultValue={report?.period_year ?? now.getFullYear()}
               />
               {/* Budget reports span the whole year; month is not used. */}
@@ -419,7 +422,7 @@ export function ReportForm({
                 <ResponsiveSelect
                   id="budget_period_month"
                   name="period_month"
-                  className="w-full"
+                  className={`w-full ${FORM_FIELD}`}
                   value={String(budgetMonth)}
                   onValueChange={(value) => {
                     const month = Number(value);
@@ -439,6 +442,7 @@ export function ReportForm({
                 <Label htmlFor="period_year">Budget year</Label>
                 <Input
                   id="period_year"
+                  className={FORM_FIELD}
                   name="period_year"
                   type="number"
                   min={2000}
@@ -460,7 +464,7 @@ export function ReportForm({
                 <ResponsiveSelect
                   id="activity_period_month"
                   name="period_month"
-                  className="w-full"
+                  className={`w-full ${FORM_FIELD}`}
                   defaultValue={String(report?.period_month ?? now.getMonth() + 1)}
                   options={MONTH_NAMES.map((name, i) => ({
                     value: String(i + 1),
@@ -472,6 +476,7 @@ export function ReportForm({
                 <Label htmlFor="period_year">Period year</Label>
                 <Input
                   id="period_year"
+                  className={FORM_FIELD}
                   name="period_year"
                   type="number"
                   min={2000}
@@ -486,9 +491,9 @@ export function ReportForm({
       </Card>
 
       {type === "monthly" ? (
-        <Card className="max-w-3xl">
+        <Card className={`max-w-3xl ${SURFACE}`}>
           <CardHeader>
-            <CardTitle>Report sections</CardTitle>
+            <CardTitle className="type-headline">Report sections</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {MONTHLY_SECTIONS.map(({ key, label, placeholder }) => (
@@ -505,14 +510,14 @@ export function ReportForm({
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className={SURFACE}>
           <CardHeader>
-            <CardTitle>
+            <CardTitle className="type-headline">
               {isMonthlyBudget
                 ? `${MONTH_NAMES[budgetMonth - 1]} expenses`
                 : "Monthly expenses"}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="type-callout">
               Group line items into sections (e.g. Social Media Ads, Google
               Ads).{" "}
               {isMonthlyBudget
@@ -786,7 +791,7 @@ export function ReportForm({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="gap-2"
+                      className="h-9 gap-2 rounded-full px-3.5"
                       onClick={() => {
                         setStructureDirty(true);
                         updateSection(si, {
@@ -806,7 +811,7 @@ export function ReportForm({
               <Button
                 type="button"
                 variant="outline"
-                className="gap-2"
+                className="h-10 gap-2 rounded-full px-4"
                 onClick={() => {
                   setStructureDirty(true);
                   setSections((prev) => [
@@ -831,10 +836,10 @@ export function ReportForm({
         </Card>
       )}
 
-      <Card className="max-w-3xl">
+      <Card className={`max-w-3xl ${SURFACE}`}>
         <CardHeader>
-          <CardTitle>Attachments</CardTitle>
-          <CardDescription>
+          <CardTitle className="type-headline">Attachments</CardTitle>
+          <CardDescription className="type-callout">
             Optional supporting files (Excel, PDF, images…), up to 15 MB each.
           </CardDescription>
         </CardHeader>
@@ -852,7 +857,13 @@ export function ReportForm({
       {/* Two submits, one `pending`. Without recording which was pressed, the
           spinner would appear on both and the form would claim to be saving a
           draft and submitting for review at the same moment. */}
-      <div className="flex gap-3">
+      {/* Pinned to the bottom of the screen on a long form, so Save and Submit
+          are always one move away rather than a scroll past every section.
+          A frosted bar, not an opaque one: the form stays visible under it.
+          Above the phone's tab bar, which is fixed in the same place. The
+          buttons are the page's pill size; the dialogs they open portal out,
+          so none of this reaches the buttons inside them. */}
+      <div className="sticky bottom-[calc(var(--tab-bar-height)+env(safe-area-inset-bottom)+0.75rem)] z-10 flex max-w-3xl flex-wrap items-center gap-3 rounded-full bg-background/75 p-2 shadow-[0_8px_30px_rgba(0,0,0,0.08)] ring-1 ring-foreground/[0.06] backdrop-blur-xl backdrop-saturate-150 md:bottom-6 [&_[data-slot=button]]:h-11 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]]:px-5 [&_[data-slot=button]]:text-[0.9375rem] [&_[data-slot=button]]:font-semibold">
         <ActionButton
           type="submit"
           name="intent"

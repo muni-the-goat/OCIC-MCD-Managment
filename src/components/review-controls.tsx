@@ -51,12 +51,12 @@ export function ReviewControls({
     // Ringed in the Awaiting review amber: this is the one card on the page
     // that asks something of the reader, and it now sits at the top, so it has
     // to read as a request rather than as more of the report.
-    <Card className="ring-2 ring-status-warning/60">
+    <Card className="rounded-[1.25rem] shadow-none ring-2 ring-status-warning/60">
       <CardHeader>
-        <CardTitle className="text-[17px] font-semibold">
+        <CardTitle className="type-headline">
           Waiting for your decision
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="type-callout">
           {/* Named roles have been wrong in this sentence twice: it credited a
               Vice President after 0019 took the marketing side away from them,
               and it would have excluded a Coordinator after 0030. It says what
@@ -83,12 +83,16 @@ export function ReviewControls({
                 id="review-comment"
                 name="comment"
                 rows={3}
+                className="rounded-xl text-[0.9375rem]"
                 placeholder="What needs to change…"
               />
             </div>
           ) : null}
           <ActionMessage error={state?.error} />
-          <div className="flex flex-wrap gap-3">
+          {/* Pills at the page's button size. Reject stays the quiet tinted
+              red and never the filled one — the filled button is the one
+              people press without reading. */}
+          <div className="flex flex-wrap gap-3 [&_[data-slot=button]]:h-11 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]]:px-5 [&_[data-slot=button]]:text-[0.9375rem] [&_[data-slot=button]]:font-semibold">
             {canMarkReviewed ? (
               <ActionButton
                 type="submit"

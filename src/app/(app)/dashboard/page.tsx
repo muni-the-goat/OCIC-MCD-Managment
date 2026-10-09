@@ -8,16 +8,11 @@ import {
   Plus,
   Wallet,
 } from "lucide-react";
-import {
-  AnnualBudgetSummary,
-  AnnualBudgetSummarySkeleton,
-} from "@/components/annual-budget-summary";
+import { AnnualBudgetSummary } from "@/components/annual-budget-summary";
 import { DashboardChartTabs } from "@/components/dashboard-chart-tabs";
 import { StatCards } from "@/components/dashboard-stats";
-import {
-  MonthlyActivitySummary,
-  MonthlyActivitySummarySkeleton,
-} from "@/components/monthly-activity-summary";
+import { MonthlyActivitySummary } from "@/components/monthly-activity-summary";
+import { SummarySkeleton } from "@/components/page-skeletons";
 import { ReportProgressDialog } from "@/components/report-progress-dialog";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -396,7 +391,14 @@ export default async function DashboardPage({
         <DashboardChartTabs
           budget={
             showAnnualBudget ? (
-              <Suspense fallback={<AnnualBudgetSummarySkeleton />}>
+              // Keyed by its own filters: a changed year or author mounts a new
+              // boundary, so the card shows its skeleton while the new figures
+              // stream instead of a spinner beside the old ones. The rest of
+              // the page, and the open tab, stay as they are.
+              <Suspense
+                key={`${params.budget_year ?? ""}:${params.budget_author ?? ""}`}
+                fallback={<SummarySkeleton />}
+              >
                 <AnnualBudgetSummary
                   userId={profile.id}
                   role={profile.role}
@@ -407,7 +409,10 @@ export default async function DashboardPage({
             ) : undefined
           }
           activity={
-            <Suspense fallback={<MonthlyActivitySummarySkeleton />}>
+            <Suspense
+              key={`${params.task_year ?? ""}:${params.task_month ?? ""}:${params.task_author ?? ""}`}
+              fallback={<SummarySkeleton />}
+            >
               <MonthlyActivitySummary
                 userId={profile.id}
                 role={profile.role}

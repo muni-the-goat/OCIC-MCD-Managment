@@ -32,6 +32,7 @@ export function CommentForm({ reportId }: { reportId: string }) {
         required
         maxLength={4000}
         placeholder="Add a comment…"
+        className="rounded-xl text-[0.9375rem]"
       />
       {/* Pending only, no checkmark: the comment appearing in the thread above
           and the box emptying are the completion signal, and they say it
@@ -41,8 +42,8 @@ export function CommentForm({ reportId }: { reportId: string }) {
           posting a comment look as weighty as approving the report. */}
       <ActionButton
         type="submit"
-        size="sm"
         variant="outline"
+        className="h-10 rounded-full px-4"
         pending={pending}
         pendingLabel="Posting…"
       >

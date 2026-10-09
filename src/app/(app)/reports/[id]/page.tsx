@@ -4,7 +4,6 @@ import { Download, Pencil } from "lucide-react";
 import { CommentForm } from "@/components/comment-form";
 import { DeleteAttachmentButton } from "@/components/delete-attachment-button";
 import { DeleteReportButton } from "@/components/delete-report-button";
-import { DepartmentBadge } from "@/components/department-badge";
 import { ExportPdfButton } from "@/components/export-pdf-button";
 import { PrintableBudgetReport } from "@/components/printable-budget-report";
 import { PrintPortal } from "@/components/print-portal";
@@ -43,6 +42,10 @@ import {
 } from "@/lib/types";
 
 export const metadata = { title: "Report" };
+
+// The redesigned pages' surface: white on the ivory page with no ring, the
+// fill difference being the edge.
+const SURFACE = "rounded-[1.25rem] shadow-none ring-0";
 
 export default async function ReportDetailPage({
   params,
@@ -138,43 +141,55 @@ export default async function ReportDetailPage({
     query.submitted === "1" && isAuthor && report.status === "submitted";
 
   return (
+    // Centred like the dashboard and the list. An activity report is prose
+    // and gets a reading width; a budget report carries a twelve-month grid
+    // and gets the full column.
     <div
-      className={report.type === "budget" ? "space-y-6" : "max-w-4xl space-y-6"}
+      className={`mx-auto w-full space-y-8 ${report.type === "budget" ? "max-w-6xl" : "max-w-4xl"}`}
     >
       {justSubmitted ? <ReportSubmittedDialog locked={!privileged} /> : null}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {report.title}
-            </h1>
-            <StatusBadge status={report.status} />
-          </div>
-          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
-            <span>
-              {reportTypeLabel(report.type, report.budget_period)} report ·{" "}
-              {reportPeriodLabel(
-                report.type,
-                report.period_month,
-                report.period_year,
-                report.budget_period
-              )} · by {nameOf(report.author_id)}
-            </span>
-            <DepartmentBadge
-              label={departmentLabel(departmentOf(report.author_id), departments)}
-            />
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+        <div className="min-w-0 space-y-2">
+          {/* What kind of report and which month, above the title, the way
+              the dashboard puts its reader's name above "Dashboard". */}
+          <p className="type-eyebrow">
+            {reportTypeLabel(report.type, report.budget_period)} report ·{" "}
+            {reportPeriodLabel(
+              report.type,
+              report.period_month,
+              report.period_year,
+              report.budget_period
+            )}
           </p>
+          <h1 className="type-title text-balance">{report.title}</h1>
+          <div className="type-subtitle flex flex-wrap items-center gap-x-3 gap-y-2">
+            <StatusBadge status={report.status} variant="pill" />
+            <span>
+              By {nameOf(report.author_id)}
+              {departmentLabel(departmentOf(report.author_id), departments)
+                ? ` · ${departmentLabel(departmentOf(report.author_id), departments)}`
+                : ""}
+            </span>
+          </div>
           {report.reviewed_by && report.reviewed_at ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="type-callout text-muted-foreground">
               Reviewed by {nameOf(report.reviewed_by)} on{" "}
-              {new Date(report.reviewed_at).toLocaleDateString()}
+              {new Date(report.reviewed_at).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
             </p>
           ) : null}
         </div>
-        <div className="flex gap-2">
+        {/* The page's own actions as pills, sized here rather than in each
+            component: Export and Delete are shared with other pages that keep
+            their current buttons. Their dialogs portal out of this box, so the
+            sizing never reaches the buttons inside them. */}
+        <div className="flex flex-wrap gap-2 [&_[data-slot=button]]:h-10 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]]:border-transparent [&_[data-slot=button]]:bg-card [&_[data-slot=button]]:px-4 [&_[data-slot=button]]:text-[0.9375rem] [&_[data-slot=button]]:shadow-none">
           {report.type === "budget" ? <ExportPdfButton /> : null}
           {canEdit ? (
-            <Button asChild variant="outline" size="sm" className="gap-2">
+            <Button asChild variant="outline" className="gap-2">
               <Link href={`/reports/${report.id}/edit`}>
                 <Pencil className="size-4" />
                 Edit
@@ -183,7 +198,7 @@ export default async function ReportDetailPage({
           ) : null}
           {canDelete ? <DeleteReportButton reportId={report.id} /> : null}
         </div>
-      </div>
+      </header>
 
       {report.type === "budget" ? (
         <PrintPortal>
@@ -200,9 +215,11 @@ export default async function ReportDetailPage({
       ) : null}
 
       {report.status === "rejected" && isAuthor ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-          This report was rejected. Read the comments below, then edit and
-          resubmit it.
+        <div className="type-callout rounded-[1.25rem] bg-status-critical/10 p-5 text-foreground">
+          <p className="font-semibold">This report was sent back.</p>
+          <p className="mt-1 text-muted-foreground">
+            Read the comments below, then edit and resubmit it.
+          </p>
         </div>
       ) : null}
 
@@ -219,9 +236,9 @@ export default async function ReportDetailPage({
       ) : null}
 
       {report.type === "budget" ? (
-        <Card>
+        <Card className={SURFACE}>
           <CardHeader>
-            <CardTitle>Actual expenses</CardTitle>
+            <CardTitle className="type-headline">Actual expenses</CardTitle>
           </CardHeader>
           <CardContent>
             <BudgetGrid
@@ -237,8 +254,8 @@ export default async function ReportDetailPage({
         // each printing its heading over a lone dash — half a page of "—" on a
         // typical report, and the reader had to scan every one to learn that
         // nothing was there.
-        <Card>
-          <CardContent className="space-y-6">
+        <Card className={SURFACE}>
+          <CardContent className="space-y-8">
             {filledSections.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Every section of this report is blank.
@@ -246,18 +263,21 @@ export default async function ReportDetailPage({
             ) : (
               filledSections.map(({ key, label }) => (
                 <section key={key}>
-                  <h2 className="mb-1.5 font-heading text-lg font-semibold">
+                  <h2 className="mb-2 font-heading text-[1.25rem] leading-tight font-semibold tracking-[-0.012em]">
                     {label}
                   </h2>
+                  {/* Body size, like the rest of the redesigned pages. The
+                      report is the thing being read here, and it was set at
+                      14px in grey — smaller and fainter than its own chrome. */}
                   <RichText
                     value={report.content[key]}
-                    className="text-muted-foreground"
+                    className="text-[1.0625rem] leading-[1.55] text-foreground/85"
                   />
                 </section>
               ))
             )}
             {blankSections.length > 0 && filledSections.length > 0 ? (
-              <p className="border-t pt-4 text-sm text-muted-foreground">
+              <p className="type-callout border-t pt-5 text-muted-foreground">
                 Left blank:{" "}
                 {blankSections.map(({ label }) => label).join(", ")}.
               </p>
@@ -266,23 +286,29 @@ export default async function ReportDetailPage({
         </Card>
       )}
 
-      <Card>
+      <Card className={SURFACE}>
         <CardHeader>
-          <CardTitle>Attachments</CardTitle>
+          <CardTitle className="type-headline">Attachments</CardTitle>
         </CardHeader>
         <CardContent>
           {attachments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No attachments.</p>
+            <p className="type-callout text-muted-foreground">No attachments.</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="-mx-2">
               {attachments.map((attachment) => (
                 <li
                   key={attachment.id}
-                  className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+                  className="type-callout flex min-h-12 items-center justify-between gap-2 rounded-xl px-2 hover:bg-muted/50 [&+li]:mt-1"
                 >
-                  <span className="truncate">{attachment.file_name}</span>
+                  <span className="truncate font-medium">
+                    {attachment.file_name}
+                  </span>
                   <span className="flex shrink-0 items-center gap-1">
-                    <Button asChild variant="ghost" size="sm" className="gap-2">
+                    <Button
+                      asChild
+                      variant="ghost"
+                      className="h-9 gap-2 rounded-full px-3"
+                    >
                       <a
                         href={`/api/attachments/${attachment.id}`}
                         target="_blank"
@@ -307,24 +333,26 @@ export default async function ReportDetailPage({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className={SURFACE}>
         <CardHeader>
-          <CardTitle>Comments</CardTitle>
+          <CardTitle className="type-headline">Comments</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {comments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No comments yet.</p>
+            <p className="type-callout text-muted-foreground">No comments yet.</p>
           ) : (
             <ul className="space-y-3">
               {comments.map((comment) => (
-                <li key={comment.id} className="rounded-md border p-3">
-                  <p className="mb-1 text-xs text-muted-foreground">
+                <li key={comment.id} className="rounded-2xl bg-muted/50 p-4">
+                  <p className="type-caption mb-1 text-muted-foreground">
                     <span className="font-medium text-foreground">
                       {nameOf(comment.author_id)}
                     </span>{" "}
                     · {new Date(comment.created_at).toLocaleString()}
                   </p>
-                  <p className="whitespace-pre-wrap text-sm">{comment.body}</p>
+                  <p className="type-callout whitespace-pre-wrap">
+                    {comment.body}
+                  </p>
                 </li>
               ))}
             </ul>

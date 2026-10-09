@@ -1,17 +1,13 @@
 "use client";
 
+import { useOptimistic, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LiquidTabs } from "@/components/liquid-tabs";
 import { ResponsiveSelect } from "@/components/ui/responsive-select";
+import { PILL_MENU as MENU } from "@/lib/control-styles";
 
 const ALL = "all";
-
-// The two menus wear the pills' shape and surface, so the filter row reads as
-// one control set rather than pills beside form fields. The size is set on the
-// data attribute because the trigger's own h-9 is written there and would
-// otherwise win.
-const MENU =
-  "h-10 data-[size=default]:h-10 rounded-full border-transparent bg-card px-4 shadow-none";
 
 const STATUSES = [
   { value: ALL, label: "All" },
@@ -43,7 +39,19 @@ export function ReportFilters({
     searchParams.has(k)
   );
 
-  const status = searchParams.get("status") ?? ALL;
+  // The pill moves on the click, not when the server answers. The URL is the
+  // truth, but it only changes once the new list has been fetched; holding the
+  // choice optimistically for the length of that navigation lets the ink set
+  // off at once, and it falls back to the URL if the navigation is abandoned.
+  const [, startTransition] = useTransition();
+  const [status, setOptimisticStatus] = useOptimistic(
+    searchParams.get("status") ?? ALL
+  );
+  const chooseStatus = (value: string) =>
+    startTransition(() => {
+      setOptimisticStatus(value);
+      setParam("status", value);
+    });
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
@@ -51,30 +59,14 @@ export function ReportFilters({
           came back" — so it is one tap on a row of pills rather than a menu to
           open and read. Type and author stay menus: they are rarer, and their
           options do not fit on a line. */}
-      <div
-        role="group"
-        aria-label="Status"
-        className="-mx-1 flex max-w-full gap-1.5 overflow-x-auto px-1 py-0.5"
-      >
-        {STATUSES.map((option) => {
-          const active = status === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setParam("status", option.value)}
-              className={
-                "type-callout inline-flex h-10 shrink-0 items-center rounded-full px-4 font-semibold whitespace-nowrap outline-none transition-[background-color,color,transform] duration-200 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] active:duration-100 motion-reduce:active:scale-100 " +
-                (active
-                  ? "bg-foreground text-background"
-                  : "bg-card text-muted-foreground hover:text-foreground")
-              }
-            >
-              {option.label}
-            </button>
-          );
-        })}
+      <div className="-mx-1 max-w-full overflow-x-auto px-1 py-1">
+        <LiquidTabs
+          role="filter"
+          label="Status"
+          options={STATUSES}
+          value={status}
+          onChange={chooseStatus}
+        />
       </div>
       {/* Side by side on a phone, each taking half, rather than wrapping onto
           two staggered lines of different widths. */}

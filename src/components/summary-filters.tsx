@@ -3,8 +3,8 @@
 import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Label } from "@/components/ui/label";
-import { LumaSpin } from "@/components/ui/luma-spin";
 import { ResponsiveSelect } from "@/components/ui/responsive-select";
+import { PILL_MENU } from "@/lib/control-styles";
 import { MONTH_NAMES } from "@/lib/types";
 
 const ALL_AUTHORS = "all";
@@ -42,9 +42,10 @@ export function SummaryFilters({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  // router.replace keeps the stale summary on screen while the server refetches,
-  // with no sign anything is happening. Running it in a transition surfaces that
-  // wait as isPending, so a small spinner can sit beside the filters.
+  // The dashboard keys each summary's Suspense boundary by these params, so once
+  // the new page arrives the card shows its skeleton while the figures stream.
+  // Until then — the moment between the choice and the server answering — the
+  // transition's isPending dims the menus, so the choice is visibly in hand.
   const [isPending, startTransition] = useTransition();
 
   const setParam = (key: string, value: string) => {
@@ -63,18 +64,18 @@ export function SummaryFilters({
   };
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      {isPending ? (
-        <LumaSpin
-          size={22}
-          className="mb-1.5 self-center text-muted-foreground"
-        />
-      ) : null}
-      <div className="space-y-1.5">
-        <Label htmlFor={`${idPrefix}-year`}>Year</Label>
+    // Pill menus without visible labels, the same as the Reports filter row.
+    // Each value names itself ("2026", "September", "All authors"); the labels
+    // stay for screen readers.
+    <div
+      aria-busy={isPending}
+      className={`flex flex-wrap items-center gap-2 transition-opacity duration-200 ${isPending ? "opacity-60" : ""}`}
+    >
+      <div>
+        <Label htmlFor={`${idPrefix}-year`} className="sr-only">Year</Label>
         <ResponsiveSelect
           id={`${idPrefix}-year`}
-          className="w-28"
+          className={`w-28 ${PILL_MENU}`}
           value={String(selectedYear)}
           onValueChange={(value) => setParam(yearParam, value)}
           options={years.map((year) => ({
@@ -84,11 +85,11 @@ export function SummaryFilters({
         />
       </div>
       {months && selectedMonth ? (
-        <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}-month`}>Month</Label>
+        <div>
+          <Label htmlFor={`${idPrefix}-month`} className="sr-only">Month</Label>
           <ResponsiveSelect
             id={`${idPrefix}-month`}
-            className="w-36"
+            className={`w-36 ${PILL_MENU}`}
             value={String(selectedMonth)}
             onValueChange={(value) => setParam(monthParam, value)}
             options={months.map((month) => ({
@@ -99,11 +100,11 @@ export function SummaryFilters({
         </div>
       ) : null}
       {authors.length > 0 ? (
-        <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}-author`}>Author</Label>
+        <div>
+          <Label htmlFor={`${idPrefix}-author`} className="sr-only">Author</Label>
           <ResponsiveSelect
             id={`${idPrefix}-author`}
-            className="w-52"
+            className={`w-52 ${PILL_MENU}`}
             value={selectedAuthor || ALL_AUTHORS}
             onValueChange={(value) => setParam(authorParam, value)}
             options={[

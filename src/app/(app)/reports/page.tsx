@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Plus } from "lucide-react";
 import { ReportFilters } from "@/components/report-filters";
+import { ReportsRowsSkeleton } from "@/components/page-skeletons";
 import { ReportsTable } from "@/components/reports-table";
 import { Button } from "@/components/ui/button";
 import { redirect } from "next/navigation";
@@ -56,6 +58,71 @@ export default async function ReportsPage({
   // isReviewer().
   const showsOtherAuthors = seesOtherAuthors(profile.role);
 
+  let authors: { id: string; label: string }[] = [];
+  if (showsOtherAuthors) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .order("full_name");
+    authors = (profiles ?? []).map((p) => ({
+      id: p.id,
+      label: p.full_name || p.email,
+    }));
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-6xl space-y-8">
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+        <div className="min-w-0 space-y-2">
+          <h1 className="type-title">Reports</h1>
+          <p className="type-subtitle">
+            {showsOtherAuthors
+              ? "Every submitted report across the office, plus all of your own."
+              : "Your monthly budget and activity reports."}
+          </p>
+        </div>
+        <Button
+          asChild
+          className="h-11 gap-2 rounded-full px-5 text-[0.9375rem] font-semibold"
+        >
+          <Link href="/reports/new">
+            <Plus className="size-[1.125rem]" />
+            New report
+          </Link>
+        </Button>
+      </header>
+
+      <ReportFilters authors={authors} showAuthorFilter={showsOtherAuthors} />
+
+      {/* Keyed by the filters, so a status pill or a menu change shows a
+          skeleton of the list alone while the new rows stream. The header and
+          the filters above stay mounted — the liquid pill finishes its slide
+          instead of vanishing into a full-page skeleton. */}
+      <Suspense
+        key={`${params.type ?? "all"}:${params.status ?? "all"}:${params.author ?? "all"}`}
+        fallback={<ReportsRowsSkeleton />}
+      >
+        <ReportsResults
+          params={params}
+          showsOtherAuthors={showsOtherAuthors}
+          canBulkDelete={canManageAnyReport(profile.role)}
+        />
+      </Suspense>
+    </div>
+  );
+}
+
+async function ReportsResults({
+  params,
+  showsOtherAuthors,
+  canBulkDelete,
+}: {
+  params: { type?: string; status?: string; author?: string };
+  showsOtherAuthors: boolean;
+  canBulkDelete: boolean;
+}) {
+  const supabase = await createClient();
+
   let query = supabase
     .from("reports")
     .select(
@@ -109,57 +176,22 @@ export default async function ReportsPage({
     periodSort: report.period_year * 100 + report.period_month,
   }));
 
-  let authors: { id: string; label: string }[] = [];
-  if (showsOtherAuthors) {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, full_name, email")
-      .order("full_name");
-    authors = (profiles ?? []).map((p) => ({
-      id: p.id,
-      label: p.full_name || p.email,
-    }));
+  if (reports.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-[1.25rem] bg-card px-6 py-14 text-center">
+        <p className="type-headline">No reports match these filters.</p>
+        <p className="type-callout text-muted-foreground">
+          Try another status or type, or start one with New report.
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-8">
-      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
-        <div className="min-w-0 space-y-2">
-          <h1 className="type-title">Reports</h1>
-          <p className="type-subtitle">
-            {showsOtherAuthors
-              ? "Every submitted report across the office, plus all of your own."
-              : "Your monthly budget and activity reports."}
-          </p>
-        </div>
-        <Button
-          asChild
-          className="h-11 gap-2 rounded-full px-5 text-[0.9375rem] font-semibold"
-        >
-          <Link href="/reports/new">
-            <Plus className="size-[1.125rem]" />
-            New report
-          </Link>
-        </Button>
-      </header>
-
-      <ReportFilters authors={authors} showAuthorFilter={showsOtherAuthors} />
-
-      {reports.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-[1.25rem] bg-card px-6 py-14 text-center">
-          <p className="type-headline">No reports match these filters.</p>
-          <p className="type-callout text-muted-foreground">
-            Try another status or type, or start one with New report.
-          </p>
-        </div>
-      ) : (
-        <ReportsTable
-          key={`${params.type ?? "all"}:${params.status ?? "all"}:${params.author ?? "all"}`}
-          reports={reportItems}
-          showAuthor={showsOtherAuthors}
-          canBulkDelete={canManageAnyReport(profile.role)}
-        />
-      )}
-    </div>
+    <ReportsTable
+      reports={reportItems}
+      showAuthor={showsOtherAuthors}
+      canBulkDelete={canBulkDelete}
+    />
   );
 }

@@ -325,17 +325,3 @@ export async function MonthlyActivitySummary({
     </Card>
   );
 }
-
-export function MonthlyActivitySummarySkeleton() {
-  return (
-    <Card className="min-h-72 rounded-[1.25rem] shadow-none ring-0">
-      <CardHeader>
-        <div className="h-6 w-64 rounded bg-muted motion-safe:animate-pulse" />
-        <div className="h-4 w-96 max-w-full rounded bg-muted motion-safe:animate-pulse" />
-      </CardHeader>
-      <CardContent>
-        <div className="h-40 rounded-lg bg-muted/60 motion-safe:animate-pulse" />
-      </CardContent>
-    </Card>
-  );
-}
