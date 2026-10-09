@@ -4,23 +4,25 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 
-// OCIC type system: Fustat (display), Poppins (body/UI), Montserrat (labels)
+// OCIC type system: Fustat (display), Poppins (body/UI), Montserrat (labels).
+// These are the faces on Windows and Android; on Apple platforms globals.css
+// puts the system font (SF Pro) in front of all three.
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
-  variable: "--font-sans",
+  variable: "--font-poppins",
 });
 
 const fustat = Fustat({
   subsets: ["latin"],
   weight: ["500", "600", "700", "800"],
-  variable: "--font-display",
+  variable: "--font-fustat",
 });
 
 const montserrat = Montserrat({
   subsets: ["latin"],
   weight: ["500", "600", "700"],
-  variable: "--font-label",
+  variable: "--font-montserrat",
 });
 
 const geistMono = Geist_Mono({
