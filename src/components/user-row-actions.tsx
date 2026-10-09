@@ -46,6 +46,15 @@ function grantWarning(role: AppRole) {
   return `A ${roleLabel(role)} can mark reviewed or reject any report, edit and delete anyone's work, manage every account, and set the approved annual budget.`;
 }
 
+// A menu inside a white list row takes a soft grey fill instead of a border:
+// on the row's own white a bordered field read as a form waiting to be filled
+// in, and twelve rows of them as a spreadsheet. The height is written on the
+// data attribute too, where the small trigger sets its own.
+const ROW_MENU =
+  "h-9 data-[size=sm]:h-9 rounded-full border-transparent bg-muted/70 px-3.5 shadow-none";
+
+const ROW_ACTION = "h-9 gap-2 rounded-full px-3";
+
 export function RoleSelect({
   userId,
   name,
@@ -104,7 +113,7 @@ export function RoleSelect({
   return (
     <>
       <ResponsiveSelect
-        className="w-48"
+        className={`w-44 ${ROW_MENU}`}
         size="sm"
         aria-label="Role"
         value={role}
@@ -188,7 +197,7 @@ export function DepartmentSelect({
 
   return (
     <ResponsiveSelect
-      className="w-52"
+      className={`w-52 ${ROW_MENU}`}
       size="sm"
       aria-label="Department"
       value={department ?? UNASSIGNED}
@@ -238,7 +247,7 @@ export function ResetPasswordButton({
       <Button
         variant="ghost"
         size="sm"
-        className="gap-2"
+        className={ROW_ACTION}
         onClick={() => setConfirming(true)}
         title="Reset password"
       >
@@ -322,7 +331,7 @@ export function DeleteUserButton({
       <Button
         variant="ghost"
         size="sm"
-        className="gap-2 text-destructive"
+        className={`${ROW_ACTION} text-destructive hover:bg-destructive/10 hover:text-destructive`}
         onClick={() => setOpen(true)}
       >
         <Trash2 className="size-4" />

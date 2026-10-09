@@ -1,5 +1,4 @@
 import { AddDepartmentDialog } from "@/components/add-department-dialog";
-import { DepartmentBadge } from "@/components/department-badge";
 import { InviteUserDialog } from "@/components/invite-user-dialog";
 import {
   DeleteUserButton,
@@ -7,15 +6,6 @@ import {
   ResetPasswordButton,
   RoleSelect,
 } from "@/components/user-row-actions";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   canManageUsers,
   canOpenUsersPage,
@@ -50,11 +40,14 @@ export default async function AdminUsersPage() {
   const users = (data ?? []) as Profile[];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
-          <p className="text-sm text-muted-foreground">
+    <div className="mx-auto w-full max-w-6xl space-y-8">
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+        <div className="min-w-0 space-y-2">
+          <p className="type-eyebrow">
+            {users.length} {users.length === 1 ? "person" : "people"}
+          </p>
+          <h1 className="type-title">Users</h1>
+          <p className="type-subtitle">
             {manages
               ? "Invite office members and manage their roles and departments."
               : resets
@@ -63,7 +56,9 @@ export default async function AdminUsersPage() {
           </p>
         </div>
         {manages ? (
-          <div className="flex flex-wrap items-center gap-2">
+          // Pills at the page's button size. Their dialogs portal out of this
+          // box, so the sizing never reaches the buttons inside them.
+          <div className="flex flex-wrap items-center gap-2 [&_[data-slot=button]]:h-11 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]]:px-5 [&_[data-slot=button]]:text-[0.9375rem] [&_[data-slot=button]]:font-semibold [&_[data-variant=outline]]:border-transparent [&_[data-variant=outline]]:bg-card [&_[data-variant=outline]]:shadow-none">
             <AddDepartmentDialog />
             <InviteUserDialog
               departments={departments}
@@ -71,88 +66,108 @@ export default async function AdminUsersPage() {
             />
           </div>
         ) : null}
-      </div>
+      </header>
 
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Joined</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((user) => {
-              const isMe = user.id === me.id;
-              // A Head of Department or Vice President manages everyone below
-              // them, but never an Admin — that account is out of reach.
-              const locked = !manages || (!isAdmin && user.role === "admin");
-              return (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">
-                    {user.full_name || "—"}
+      {/* A list of people rather than a table of fields. Each row leads with
+          who the person is — initials, name, email — and the controls that
+          change them follow, wrapping under the name when the row is narrow
+          instead of pushing the page sideways. The table this replaces
+          scrolled horizontally at every width below a large monitor, with
+          Delete off the right edge. */}
+      <ul className="overflow-hidden rounded-[1.25rem] bg-card">
+        {users.map((user) => {
+          const isMe = user.id === me.id;
+          // A Head of Department or Vice President manages everyone below
+          // them, but never an Admin — that account is out of reach.
+          const locked = !manages || (!isAdmin && user.role === "admin");
+          const name = user.full_name || user.email;
+          return (
+            <li
+              key={user.id}
+              className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3.5 sm:px-5 [&+li]:border-t [&+li]:border-border/70"
+            >
+              <div className="flex min-w-0 flex-1 basis-64 items-center gap-3.5">
+                <span
+                  aria-hidden
+                  className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-[0.875rem] font-semibold text-muted-foreground"
+                >
+                  {initials(name)}
+                </span>
+                <div className="min-w-0">
+                  <p className="type-headline flex items-center gap-2">
+                    <span className="truncate">{user.full_name || "—"}</span>
                     {isMe ? (
-                      <Badge variant="outline" className="ml-2">
+                      <span className="type-caption shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">
                         You
-                      </Badge>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <RoleSelect
-                      userId={user.id}
-                      name={user.full_name || user.email}
-                      role={user.role}
-                      disabled={isMe || locked}
-                      canGrantAdmin={isAdmin}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {/* A Coordinator sees the table but assigns nothing, so they
-                        get the chip rather than a dead control. */}
-                    {locked ? (
-                      <DepartmentBadge
-                        label={departmentLabel(user.department, departments)}
-                      />
-                    ) : (
-                      <DepartmentSelect
-                        userId={user.id}
-                        department={user.department}
-                        departments={departments}
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {new Date(user.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {isMe ? null : (
-                      <span className="inline-flex items-center gap-1">
-                        {resets && (isAdmin || !isProtectedAccount(user.role)) ? (
-                          <ResetPasswordButton
-                            userId={user.id}
-                            name={user.full_name || user.email}
-                          />
-                        ) : null}
-                        {manages && !locked ? (
-                          <DeleteUserButton
-                            userId={user.id}
-                            label={user.full_name || user.email}
-                          />
-                        ) : null}
                       </span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+                    ) : null}
+                  </p>
+                  <p className="type-callout truncate text-muted-foreground">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pl-[3.375rem] sm:pl-0">
+                <RoleSelect
+                  userId={user.id}
+                  name={name}
+                  role={user.role}
+                  disabled={isMe || locked}
+                  canGrantAdmin={isAdmin}
+                />
+                {/* A Coordinator sees the list but assigns nothing, so they
+                    get the department as words rather than a dead control. */}
+                {locked ? (
+                  <span className="type-callout px-3.5 text-muted-foreground">
+                    {departmentLabel(user.department, departments) ??
+                      "Unassigned"}
+                  </span>
+                ) : (
+                  <DepartmentSelect
+                    userId={user.id}
+                    department={user.department}
+                    departments={departments}
+                  />
+                )}
+              </div>
+
+              <span className="type-caption hidden w-24 text-right text-muted-foreground tabular-nums xl:block">
+                Joined{" "}
+                {new Date(user.created_at).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </span>
+
+              {isMe ? (
+                // Holds the column so the rows below stay aligned.
+                <span className="hidden w-[15.5rem] lg:block" aria-hidden />
+              ) : (
+                <div className="flex items-center gap-1 pl-[3.375rem] sm:pl-0 lg:w-[15.5rem] lg:justify-end">
+                  {resets && (isAdmin || !isProtectedAccount(user.role)) ? (
+                    <ResetPasswordButton userId={user.id} name={name} />
+                  ) : null}
+                  {manages && !locked ? (
+                    <DeleteUserButton userId={user.id} label={name} />
+                  ) : null}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
+  );
+}
+
+function initials(name: string) {
+  return (
+    name
+      .split(/[\s@.]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "?"
   );
 }

@@ -9,6 +9,7 @@ import {
 import { ActionButton, ActionMessage } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FORM_FIELD } from "@/lib/control-styles";
 import { useActionToasts } from "@/components/use-action-toasts";
 import { useSuccessFlash } from "@/components/use-success-flash";
 
@@ -27,7 +28,7 @@ export function ChangePasswordForm() {
   });
 
   return (
-    <form ref={formRef} action={formAction} className="max-w-sm space-y-4">
+    <form ref={formRef} action={formAction} className="max-w-md space-y-5">
       <div className="space-y-2">
         <Label htmlFor="current">Current password</Label>
         <Input
@@ -35,6 +36,7 @@ export function ChangePasswordForm() {
           name="current"
           type="password"
           autoComplete="current-password"
+          className={FORM_FIELD}
           required
         />
       </div>
@@ -45,10 +47,13 @@ export function ChangePasswordForm() {
           name="next"
           type="password"
           autoComplete="new-password"
+          className={FORM_FIELD}
           required
           minLength={8}
         />
-        <p className="text-xs text-muted-foreground">At least 8 characters.</p>
+        <p className="type-caption text-muted-foreground">
+          At least 8 characters.
+        </p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="confirm">Confirm new password</Label>
@@ -57,6 +62,7 @@ export function ChangePasswordForm() {
           name="confirm"
           type="password"
           autoComplete="new-password"
+          className={FORM_FIELD}
           required
           minLength={8}
         />
@@ -64,6 +70,7 @@ export function ChangePasswordForm() {
       <div className="space-y-2">
         <ActionButton
           type="submit"
+          className="h-11 rounded-full px-5 text-[0.9375rem] font-semibold"
           pending={pending}
           success={succeeded}
           pendingLabel="Updating…"

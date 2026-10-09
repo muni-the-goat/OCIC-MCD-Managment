@@ -495,10 +495,24 @@ export function ReportForm({
           <CardHeader>
             <CardTitle className="type-headline">Report sections</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-8">
             {MONTHLY_SECTIONS.map(({ key, label, placeholder }) => (
-              <div key={key} className="space-y-2">
-                <Label htmlFor={key}>{label}</Label>
+              <div key={key} className="space-y-2.5">
+                {/* The section names are the outline of the report, so they
+                    read as headings, not as field labels. Summary is the one
+                    the submit check insists on, and says so up front rather
+                    than only in its placeholder. */}
+                <Label
+                  htmlFor={key}
+                  className="type-headline flex items-center gap-2"
+                >
+                  {label}
+                  {key === "summary" ? (
+                    <span className="type-caption rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">
+                      Required
+                    </span>
+                  ) : null}
+                </Label>
                 <RichTextEditor
                   id={key}
                   name={key}
