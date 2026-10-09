@@ -24,12 +24,14 @@ export function DashboardChartTabs({
 
   return (
     <Tabs defaultValue="budget">
-      <TabsList aria-label="Dashboard charts">
-        <TabsTrigger value="budget">
+      {/* A size up from the shared rail: on the redesigned dashboard the body
+          text is 17px, and 14px tab labels read as a footnote beside it. */}
+      <TabsList aria-label="Dashboard charts" className="p-1">
+        <TabsTrigger value="budget" className="min-h-10 px-4 text-[0.9375rem]">
           <Wallet aria-hidden="true" />
           Annual budget
         </TabsTrigger>
-        <TabsTrigger value="activity">
+        <TabsTrigger value="activity" className="min-h-10 px-4 text-[0.9375rem]">
           <ClipboardList aria-hidden="true" />
           Monthly activity
         </TabsTrigger>

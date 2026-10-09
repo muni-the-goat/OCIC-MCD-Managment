@@ -13,6 +13,16 @@ export const TONE_COLOR: Record<StatTone, string> = {
   neutral: "var(--muted-foreground)",
 };
 
+// The tone as text. The raw status colours are fills: the warning amber is
+// 1.9:1 on white, so a label written in it would be unreadable. Mixed most of
+// the way to the foreground it keeps its hue and clears 3:1, enough for the
+// 17px semibold labels it is used on.
+export function toneText(tone: StatTone) {
+  return tone === "neutral"
+    ? "var(--muted-foreground)"
+    : `color-mix(in oklab, ${TONE_COLOR[tone]} 62%, var(--foreground))`;
+}
+
 export function tint(tone: StatTone, percent: number) {
   return `color-mix(in oklab, ${TONE_COLOR[tone]} ${percent}%, transparent)`;
 }
@@ -210,7 +220,7 @@ export function StatusMix({
   );
 }
 
-export interface BandCell {
+export interface StatCell {
   label: string;
   caption: string;
   value: number;
@@ -218,68 +228,58 @@ export interface BandCell {
   href: string;
 }
 
-// The dashboard's one row of numbers. It replaces three gauge cards and a
-// "Status mix" card that sat lower down and restated the same three counts —
-// the page printed every figure twice. One band split by hairlines, four
-// cells, the fourth being drafts, which the gauges never showed.
+// The dashboard's four counts, one card each, in the same order as the life
+// of a report. It replaces three gauge cards and a "Status mix" card further
+// down that restated the same three numbers — the page printed every figure
+// twice. Drafts, which the gauges never showed, are the fourth.
 //
-// Each cell is a link to the filtered list, and the whole cell is the target.
-// The meter is 4px: a semicircle spent a lot of ink restating a percentage the
-// figure beside it already carried, and a bar says the same thing quietly.
-export function StatusBand({
+// The label carries the colour, the number carries the weight. A tinted icon
+// tile, a coloured number and a coloured gauge said "amber" three times; one
+// coloured word is enough to find a card by, and leaves the figure to be read.
+// The bar is 6px: a semicircle spent a lot of ink restating a percentage.
+export function StatCards({
   cells,
   total,
 }: {
-  cells: BandCell[];
+  cells: StatCell[];
   total: number;
 }) {
   return (
-    <ul className="grid grid-cols-2 overflow-hidden rounded-2xl bg-card shadow-xs ring-1 ring-foreground/10 lg:grid-cols-4">
-      {cells.map((cell, index) => {
+    // Two across even on a phone: four full-width cards stacked were a
+    // screen and a half of scrolling before the list they summarise.
+    <ul className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      {cells.map((cell) => {
         const percent = share(cell.value, total);
         return (
-          <li
-            key={cell.label}
-            className={cn(
-              // Hairlines between cells, never around the outside: two columns
-              // on a phone, four from lg.
-              "border-foreground/10",
-              index % 2 === 1 && "border-l",
-              index >= 2 && "border-t lg:border-t-0",
-              index === 2 && "lg:border-l"
-            )}
-          >
+          <li key={cell.label}>
             <Link
               href={cell.href}
               aria-label={`${cell.label}: ${cell.value} of ${total}. View these reports.`}
-              className="group flex h-full flex-col gap-3 p-4 outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:p-5"
+              className="group flex h-full flex-col rounded-[1.25rem] bg-card p-4 outline-none transition-[background-color,transform] duration-200 ease-out hover:bg-[color-mix(in_oklab,var(--card),var(--foreground)_3%)] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.985] active:duration-100 motion-reduce:active:scale-100 sm:p-6"
             >
               <span className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                  <span
-                    aria-hidden
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: TONE_COLOR[cell.tone] }}
-                  />
-                  <span className="truncate">{cell.label}</span>
+                <span
+                  className="type-headline truncate"
+                  style={{ color: toneText(cell.tone) }}
+                >
+                  {cell.label}
                 </span>
+                {/* Not on a phone: there is no hover to reveal it, and its
+                    empty slot was what truncated "Awaiting review". */}
                 <ArrowUpRight
                   aria-hidden
-                  className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                  className="hidden size-5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 sm:block"
                 />
               </span>
-              <span className="flex items-baseline gap-2">
-                <CountUp
-                  value={cell.value}
-                  className="font-heading text-3xl leading-none font-semibold tabular-nums"
-                />
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {percent}%
+              <span className="mt-3 flex flex-wrap items-baseline gap-x-2 sm:mt-4">
+                <CountUp value={cell.value} className="type-figure" />
+                <span className="type-callout text-muted-foreground">
+                  of {total}
                 </span>
               </span>
               <span
                 aria-hidden
-                className="h-1 overflow-hidden rounded-full bg-foreground/10"
+                className="mt-5 h-1.5 overflow-hidden rounded-full bg-foreground/[0.07]"
               >
                 <span
                   className="block h-full rounded-full"
@@ -289,7 +289,7 @@ export function StatusBand({
                   }}
                 />
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="type-callout mt-3 text-muted-foreground">
                 {cell.caption}
               </span>
             </Link>

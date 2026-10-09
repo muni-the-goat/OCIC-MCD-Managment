@@ -99,7 +99,14 @@ export default async function ReportsPage({
     departmentLabel: departmentLabel(report.author?.department, departments),
     hasAuthor: Boolean(report.author),
     status: report.status,
-    updatedLabel: new Date(report.updated_at).toLocaleDateString(),
+    // Day and month only: the row already sits under its period, and "7 Oct"
+    // reads in a narrow column where 10/7/2026 is a puzzle about which
+    // number is the month.
+    updatedLabel: new Date(report.updated_at).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+    }),
+    periodSort: report.period_year * 100 + report.period_month,
   }));
 
   let authors: { id: string; label: string }[] = [];
@@ -115,29 +122,35 @@ export default async function ReportsPage({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
-          <p className="text-sm text-muted-foreground">
+    <div className="mx-auto w-full max-w-6xl space-y-8">
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+        <div className="min-w-0 space-y-2">
+          <h1 className="type-title">Reports</h1>
+          <p className="type-subtitle">
             {showsOtherAuthors
-              ? "All submitted reports across the office, plus your own."
+              ? "Every submitted report across the office, plus all of your own."
               : "Your monthly budget and activity reports."}
           </p>
         </div>
-        <Button asChild className="gap-2">
+        <Button
+          asChild
+          className="h-11 gap-2 rounded-full px-5 text-[0.9375rem] font-semibold"
+        >
           <Link href="/reports/new">
-            <Plus className="size-4" />
+            <Plus className="size-[1.125rem]" />
             New report
           </Link>
         </Button>
-      </div>
+      </header>
 
       <ReportFilters authors={authors} showAuthorFilter={showsOtherAuthors} />
 
       {reports.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-          No reports match. Create one with “New report”.
+        <div className="flex flex-col items-center gap-2 rounded-[1.25rem] bg-card px-6 py-14 text-center">
+          <p className="type-headline">No reports match these filters.</p>
+          <p className="type-callout text-muted-foreground">
+            Try another status or type, or start one with New report.
+          </p>
         </div>
       ) : (
         <ReportsTable

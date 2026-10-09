@@ -238,13 +238,13 @@ export async function AnnualBudgetSummary({
 
   return (
     <>
-    <Card className="rounded-2xl">
+    <Card className="rounded-[1.25rem] shadow-none ring-0">
       <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
-          <CardTitle className="text-[17px] font-semibold">
+          <CardTitle className="type-headline">
             Annual budget · FY {selectedYear}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="type-callout">
             {seesEveryAuthor
               ? "Automatically combines all reviewed monthly budget reports across the office."
               : "Automatically combines only your reviewed monthly budget reports."}
@@ -442,7 +442,7 @@ function AuthorGroups({
 
 export function AnnualBudgetSummarySkeleton() {
   return (
-    <Card className="min-h-72 rounded-2xl">
+    <Card className="min-h-72 rounded-[1.25rem] shadow-none ring-0">
       <CardHeader>
         <div className="h-6 w-64 rounded bg-muted motion-safe:animate-pulse" />
         <div className="h-4 w-96 max-w-full rounded bg-muted motion-safe:animate-pulse" />

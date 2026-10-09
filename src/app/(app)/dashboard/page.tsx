@@ -13,8 +13,7 @@ import {
   AnnualBudgetSummarySkeleton,
 } from "@/components/annual-budget-summary";
 import { DashboardChartTabs } from "@/components/dashboard-chart-tabs";
-import { StatusBand } from "@/components/dashboard-stats";
-import { DepartmentBadge } from "@/components/department-badge";
+import { StatCards } from "@/components/dashboard-stats";
 import {
   MonthlyActivitySummary,
   MonthlyActivitySummarySkeleton,
@@ -22,13 +21,6 @@ import {
 import { ReportProgressDialog } from "@/components/report-progress-dialog";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { redirect } from "next/navigation";
 import {
   canViewAnnualBudget,
@@ -202,29 +194,44 @@ export default async function DashboardPage({
           ? `${plural(drafts, "draft has", "drafts have")} not been submitted yet.`
           : "Everything you've filed is with a reviewer or done.";
 
+  const dateShort = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+    });
+
   return (
-    <div className="space-y-6">
+    // One centred column, as wide as a four-card row wants and no wider. At
+    // full width on a large screen the cards stretched into long low bars and
+    // the eye travelled a long way between a label and its number.
+    <div className="mx-auto w-full max-w-6xl space-y-10 sm:space-y-12">
       {/* Renders no element of its own until it opens, and opens into a portal,
-          so it costs the space-y-6 stack below nothing. */}
+          so it costs the stack below nothing. */}
       <ReportProgressDialog updates={progress} />
-      {/* A page title, not a welcome card. The card spent a tile, an eyebrow
-          and three chips on the month, the role and a count — the role is
-          already in the top bar and the count is the band below — and pushed
-          the page's actual work further down. */}
-      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <div className="min-w-0 space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">{headline}</p>
+
+      {/* A large title with the reader's name above it and one sentence below
+          naming what is next. It replaces a welcome card whose chips restated
+          the role from the top bar and a count from further down. */}
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+        <div className="min-w-0 space-y-2">
+          <p className="type-eyebrow truncate">
+            {profile.full_name || profile.email}
+          </p>
+          <h1 className="type-title">Dashboard</h1>
+          <p className="type-subtitle">{headline}</p>
         </div>
-        <Button asChild className="gap-1.5">
+        <Button
+          asChild
+          className="h-11 gap-2 rounded-full px-5 text-[0.9375rem] font-semibold"
+        >
           <Link href="/reports/new">
-            <Plus className="size-4" />
+            <Plus className="size-[1.125rem]" />
             New report
           </Link>
         </Button>
       </header>
 
-      <StatusBand
+      <StatCards
         total={total}
         cells={[
           {
@@ -261,143 +268,157 @@ export default async function DashboardPage({
       {/* Directly under the numbers, because for a reviewer this list is the
           job. It used to sit below the whole annual budget — several thousand
           pixels of charts between "15 awaiting review" and the fifteen. */}
-      <Card className="rounded-2xl">
-        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+      <section aria-labelledby="dashboard-queue" className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
           <div className="space-y-1">
-            <CardTitle className="text-[17px] font-semibold">
+            <h2 id="dashboard-queue" className="type-section">
               {reviewer ? "Waiting for a decision" : "Recent reports"}
-            </CardTitle>
-            <CardDescription>
+            </h2>
+            <p className="type-callout text-muted-foreground">
               {reviewer
                 ? "Newest first. Open one to read it and decide."
                 : officeWide
                   ? "The most recently updated reports across the office."
                   : "Your most recently updated reports."}
-            </CardDescription>
+            </p>
           </div>
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="shrink-0 gap-1 rounded-full"
+          <Link
+            href="/reports"
+            className="type-callout inline-flex min-h-11 items-center gap-1 rounded-full px-1 font-semibold text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Link href="/reports">
-              All reports
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {recent.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-10 text-center">
-              <span className="grid size-10 place-items-center rounded-full bg-muted text-muted-foreground">
-                <Inbox className="size-5" />
-              </span>
-              <p className="text-sm text-muted-foreground">
-                {reviewer
-                  ? "Nothing waiting for review."
-                  : officeWide
-                    ? "No reports in the office yet."
-                    : "No reports yet — create your first one."}
+            All reports
+            <ArrowRight className="size-4" aria-hidden />
+          </Link>
+        </div>
+
+        {recent.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-[1.25rem] bg-card px-6 py-12 text-center">
+            <span className="grid size-12 place-items-center rounded-full bg-muted text-muted-foreground">
+              <Inbox className="size-6" />
+            </span>
+            <p className="type-headline">
+              {reviewer
+                ? "Nothing is waiting for a decision."
+                : officeWide
+                  ? "No reports in the office yet."
+                  : "No reports yet."}
+            </p>
+            {!reviewer && !officeWide ? (
+              <p className="type-callout text-muted-foreground">
+                Start one with New report — it saves as a draft until you
+                submit it.
               </p>
-            </div>
-          ) : (
-            <ul className="-mx-2 space-y-1">
-              {recent.map((report) => {
-                const TypeIcon = report.type === "budget" ? Wallet : FileText;
-                return (
-                  <li key={report.id}>
-                    <Link
-                      href={`/reports/${report.id}`}
-                      className="group flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-muted/60"
-                    >
-                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:bg-card">
-                        <TypeIcon className="size-4" />
+            ) : null}
+          </div>
+        ) : (
+          // An inset grouped list: one surface, rows divided by hairlines that
+          // start at the text rather than the edge, so the icons read as a
+          // column and the rows as one set.
+          <ul className="overflow-hidden rounded-[1.25rem] bg-card">
+            {recent.map((report) => {
+              const TypeIcon = report.type === "budget" ? Wallet : FileText;
+              return (
+                <li
+                  key={report.id}
+                  className="relative [&+li]:before:absolute [&+li]:before:top-0 [&+li]:before:right-0 [&+li]:before:left-[4.25rem] [&+li]:before:h-px [&+li]:before:bg-border"
+                >
+                  <Link
+                    href={`/reports/${report.id}`}
+                    className="group flex min-h-[4.5rem] items-center gap-4 px-4 py-3 outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 active:bg-muted sm:px-5"
+                  >
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
+                      <TypeIcon className="size-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="type-headline block truncate">
+                        {report.title}
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium">
-                          {report.title}
-                        </span>
-                        <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                          <span className="truncate">
-                            {reportTypeLabel(
-                              report.type,
-                              report.budget_period
-                            )}{" "}
-                            ·{" "}
-                            {reportPeriodLabel(
-                              report.type,
-                              report.period_month,
-                              report.period_year,
-                              report.budget_period
-                            )}
-                            {officeWide && report.author
-                              ? ` · ${report.author.full_name || report.author.email}`
-                              : ""}
-                          </span>
-                          {/* Outside the truncating span so a long title never
-                              clips the department off the row. */}
-                          {officeWide && report.author ? (
-                            <DepartmentBadge
-                              label={departmentLabel(
+                      <span className="type-callout mt-0.5 block truncate text-muted-foreground">
+                        {[
+                          reportTypeLabel(report.type, report.budget_period),
+                          reportPeriodLabel(
+                            report.type,
+                            report.period_month,
+                            report.period_year,
+                            report.budget_period
+                          ),
+                          officeWide && report.author
+                            ? report.author.full_name || report.author.email
+                            : null,
+                          // Words, not a tag: a yellow chip on every row
+                          // fought the status for the eye.
+                          officeWide && report.author
+                            ? (departmentLabel(
                                 report.author.department,
                                 departments
-                              )}
-                              className="shrink-0"
-                            />
-                          ) : null}
-                        </span>
+                              ) ?? "Unassigned")
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </span>
-                      {/* Every row in the queue is Submitted by definition, so a
-                          column of identical badges would say nothing. When it
-                          arrived is what tells a reviewer which to open first. */}
-                      {reviewer ? (
-                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                          {new Date(report.updated_at).toLocaleDateString(
-                            "en-GB",
-                            { day: "numeric", month: "short" }
-                          )}
-                        </span>
-                      ) : (
-                        <StatusBadge status={report.status} />
-                      )}
-                      <ChevronRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+                    </span>
+                    {/* Every row in the queue is Submitted by definition, so a
+                        column of identical badges would say nothing. When it
+                        arrived is what tells a reviewer which to open first. */}
+                    {reviewer ? (
+                      <span className="type-callout shrink-0 text-muted-foreground tabular-nums">
+                        {dateShort(report.updated_at)}
+                      </span>
+                    ) : (
+                      <StatusBadge status={report.status} variant="pill" />
+                    )}
+                    <ChevronRight
+                      aria-hidden
+                      className="size-5 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+                    />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
-      {/* Each tab streams on its own — a slow budget aggregate must not hold up
-          the task mix, or the other way round. */}
-      <DashboardChartTabs
-        budget={
-          showAnnualBudget ? (
-            <Suspense fallback={<AnnualBudgetSummarySkeleton />}>
-              <AnnualBudgetSummary
+      <section aria-labelledby="dashboard-summaries" className="space-y-4">
+        <div className="space-y-1">
+          <h2 id="dashboard-summaries" className="type-section">
+            {showAnnualBudget ? "Spending and activity" : "Activity"}
+          </h2>
+          <p className="type-callout text-muted-foreground">
+            {showAnnualBudget
+              ? "Built only from reviewed reports — drafts and submissions never move these numbers."
+              : "Built only from reviewed activity reports."}
+          </p>
+        </div>
+        {/* Each tab streams on its own — a slow budget aggregate must not hold
+            up the task mix, or the other way round. */}
+        <DashboardChartTabs
+          budget={
+            showAnnualBudget ? (
+              <Suspense fallback={<AnnualBudgetSummarySkeleton />}>
+                <AnnualBudgetSummary
+                  userId={profile.id}
+                  role={profile.role}
+                  year={params.budget_year}
+                  author={params.budget_author}
+                />
+              </Suspense>
+            ) : undefined
+          }
+          activity={
+            <Suspense fallback={<MonthlyActivitySummarySkeleton />}>
+              <MonthlyActivitySummary
                 userId={profile.id}
                 role={profile.role}
-                year={params.budget_year}
-                author={params.budget_author}
+                year={params.task_year}
+                month={params.task_month}
+                author={params.task_author}
               />
             </Suspense>
-          ) : undefined
-        }
-        activity={
-          <Suspense fallback={<MonthlyActivitySummarySkeleton />}>
-            <MonthlyActivitySummary
-              userId={profile.id}
-              role={profile.role}
-              year={params.task_year}
-              month={params.task_month}
-              author={params.task_author}
-            />
-          </Suspense>
-        }
-      />
+          }
+        />
+      </section>
     </div>
   );
 }

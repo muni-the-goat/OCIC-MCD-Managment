@@ -293,6 +293,79 @@
   }
 }
 
+/* The type ramp for the redesigned marketing pages (Dashboard, Reports).
+
+   Apple's iOS text styles, read as px and written in rem so a browser text-size
+   setting scales them: Body and Headline at 17, Callout-ish 15 for supporting
+   lines, Footnote 13 for captions, Title 2 at 24 for a section, and a large
+   title for the page. The old pages ran almost everything at 14px with the
+   title at 24, so a heading and the sentence under it were nearly the same
+   size and the eye had nowhere to land.
+
+   Leading follows Apple's shape rather than one value: tight on the large
+   sizes, loosest at reading sizes. Tracking tightens as size grows. SF Pro
+   tightens itself through its Display cut; Poppins, which Windows and Android
+   get, has no optical sizing, so the negative values are what keep its large
+   sizes from reading as separate letters. They are mild enough not to crowd
+   SF. Small text is left at zero or slightly opened, which every family agrees
+   on. Class names rather than Tailwind utilities because size, weight,
+   leading and tracking only make sense together. */
+.type-eyebrow {
+  font-size: 0.9375rem;
+  line-height: 1.33;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.type-title {
+  font-family: var(--font-heading);
+  font-size: 2.25rem;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+}
+@media (min-width: 40rem) {
+  .type-title {
+    font-size: 2.75rem;
+    line-height: 1.07;
+    letter-spacing: -0.026em;
+  }
+}
+.type-subtitle {
+  font-size: 1.0625rem;
+  line-height: 1.41;
+  color: var(--muted-foreground);
+}
+.type-section {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.016em;
+}
+.type-headline {
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+}
+.type-callout {
+  font-size: 0.9375rem;
+  line-height: 1.33;
+}
+.type-caption {
+  font-size: 0.8125rem;
+  line-height: 1.38;
+  letter-spacing: 0.004em;
+}
+.type-figure {
+  font-family: var(--font-heading);
+  font-size: 3.25rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Formatted text in a monthly activity report — worn by the editor while the
    author types and by the rendered report afterwards, so what they compose is
    what everyone else reads. One class rather than a stack of arbitrary

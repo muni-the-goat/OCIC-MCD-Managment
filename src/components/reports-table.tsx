@@ -3,12 +3,11 @@
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Trash2 } from "lucide-react";
+import { ChevronRight, Trash2 } from "lucide-react";
 import {
   bulkDeleteReports,
   type ActionState,
 } from "@/app/(app)/reports/actions";
-import { DepartmentBadge } from "@/components/department-badge";
 import { StatusBadge } from "@/components/status-badge";
 import { ActionButton, ActionMessage } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
@@ -22,14 +21,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type { ReportStatus } from "@/lib/types";
 
 export interface ReportsTableItem {
@@ -45,6 +36,9 @@ export interface ReportsTableItem {
   hasAuthor: boolean;
   status: ReportStatus;
   updatedLabel: string;
+  // year * 100 + month, so groups sort newest period first whatever order the
+  // rows arrived in.
+  periodSort: number;
 }
 
 function DeleteSelectedButton({ count }: { count: number }) {
@@ -106,27 +100,57 @@ export function ReportsTable({
     });
   };
 
+  // Grouped by the month a report covers, newest first, rows keeping the
+  // server's most-recently-updated order inside each group. The table it
+  // replaces repeated "September 2026" down a Period column on every row; as a
+  // group heading it is said once, and the rows under it have room for the
+  // title to be the biggest thing on the line.
+  const groups: { label: string; sort: number; rows: ReportsTableItem[] }[] =
+    [];
+  for (const report of reports) {
+    let group = groups.find((g) => g.label === report.periodLabel);
+    if (!group) {
+      group = { label: report.periodLabel, sort: report.periodSort, rows: [] };
+      groups.push(group);
+    }
+    group.rows.push(report);
+  }
+  groups.sort((a, b) => b.sort - a.sort);
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
       {canBulkDelete ? (
-        <div className="flex min-h-8 flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            {selectedCount === 0
-              ? "Select reports to delete multiple records at once."
-              : `${selectedCount} ${selectedCount === 1 ? "report" : "reports"} selected`}
-          </p>
+        // A fixed-height bar so ticking the first box does not push the list
+        // down under the pointer. Delete appears only once there is something
+        // to delete: a red button sitting disabled on every visit was the
+        // loudest thing on the page and did nothing.
+        <div className="flex min-h-11 flex-wrap items-center justify-between gap-3 px-1">
+          <label className="type-callout flex min-h-11 cursor-pointer items-center gap-3 text-muted-foreground">
+            <input
+              ref={selectAllRef}
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleAll}
+              className="size-[1.125rem] rounded border-border accent-primary"
+            />
+            <span aria-live="polite">
+              {selectedCount === 0
+                ? "Select all"
+                : `${selectedCount} ${selectedCount === 1 ? "report" : "reports"} selected`}
+            </span>
+          </label>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={selectedCount === 0}
-                className="gap-2"
-              >
-                <Trash2 className="size-4" />
-                Delete selected
-              </Button>
-            </DialogTrigger>
+            {selectedCount > 0 ? (
+              <DialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  className="h-10 gap-2 rounded-full px-4"
+                >
+                  <Trash2 className="size-4" />
+                  Delete selected
+                </Button>
+              </DialogTrigger>
+            ) : null}
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
@@ -163,104 +187,74 @@ export function ReportsTable({
         </div>
       ) : null}
 
-      {/* A pane rather than a table that grows the page.
-
-          The horizontal scrollbar belongs to the scroll box, so capping its
-          height keeps the bar on screen instead of stranding it below every
-          row — this list runs to 200 reports, and reaching the bar meant
-          scrolling past all of them first. max-h rather than h, so a short
-          list still takes only the room it needs.
-
-          The scrolling moved onto the Table's own container, which already
-          existed; this div keeps the border and clips the corners it rounds. */}
-      <div className="overflow-hidden rounded-lg border">
-        <Table containerClassName="max-h-[70vh] overflow-y-auto">
-          <caption className="sr-only">Office reports</caption>
-          {/* Sticky per cell rather than on the row: a sticky thead under
-              border-collapse is not reliable across browsers. The underline is
-              an inset shadow for the same reason — a bottom border on a sticky
-              cell scrolls away from it. The background is the page's own, so
-              the header turns opaque without changing colour. */}
-          <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-background [&_th]:shadow-[inset_0_-1px_0_var(--border)]">
-            <TableRow>
-              {canBulkDelete ? (
-                <TableHead className="w-10">
-                  <input
-                    ref={selectAllRef}
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={toggleAll}
-                    aria-label="Select all visible reports"
-                    className="size-4 rounded border-border accent-primary"
-                  />
-                </TableHead>
-              ) : null}
-              <TableHead>Title</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Period</TableHead>
-              {showAuthor ? (
-                <>
-                  <TableHead>Author</TableHead>
-                  <TableHead>Department</TableHead>
-                </>
-              ) : null}
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Updated</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {reports.map((report) => {
+      {groups.map((group) => (
+        <section key={group.label} aria-label={group.label} className="space-y-2">
+          <h2 className="type-callout px-1 font-semibold text-muted-foreground">
+            {group.label}
+          </h2>
+          <ul className="overflow-hidden rounded-[1.25rem] bg-card">
+            {group.rows.map((report) => {
               const isSelected = selected.has(report.id);
               return (
-                <TableRow
+                <li
                   key={report.id}
                   data-state={isSelected ? "selected" : undefined}
+                  className="group relative flex min-h-[4.5rem] items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/50 has-[a:focus-visible]:bg-muted/50 data-[state=selected]:bg-primary/[0.06] sm:px-5 [&+li]:border-t [&+li]:border-border/70"
                 >
                   {canBulkDelete ? (
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleReport(report.id)}
-                        aria-label={`Select ${report.title}`}
-                        className="size-4 rounded border-border accent-primary"
-                      />
-                    </TableCell>
+                    // Above the row's link overlay, so ticking a box selects
+                    // the report rather than opening it.
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleReport(report.id)}
+                      aria-label={`Select ${report.title}`}
+                      className="relative z-10 size-[1.125rem] shrink-0 rounded border-border accent-primary"
+                    />
                   ) : null}
-                  <TableCell>
+                  <div className="min-w-0 flex-1">
+                    {/* The title's link covers the whole row through its
+                        ::after, so the row is one target without nesting the
+                        checkbox inside a link. */}
                     <Link
                       href={`/reports/${report.id}`}
-                      className="font-medium hover:underline"
+                      // Two lines on a phone before the title is cut: there the
+                      // row is narrow, and the end of a title is often the
+                      // part that tells two reports apart.
+                      className="type-headline line-clamp-2 outline-none after:absolute after:inset-0 after:content-[''] sm:line-clamp-none sm:truncate"
                     >
                       {report.title}
                     </Link>
-                  </TableCell>
-                  <TableCell>{report.typeLabel}</TableCell>
-                  <TableCell>{report.periodLabel}</TableCell>
-                  {showAuthor ? (
-                    <>
-                      <TableCell>{report.authorLabel}</TableCell>
-                      <TableCell>
-                        {report.hasAuthor ? (
-                          <DepartmentBadge label={report.departmentLabel} />
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                    </>
-                  ) : null}
-                  <TableCell>
-                    <StatusBadge status={report.status} />
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
+                    {/* The department as words in the same line, not a tag:
+                        a yellow chip on every row was a second colour fighting
+                        the status pill for the eye, and said nothing the words
+                        cannot. */}
+                    <p className="type-callout mt-0.5 truncate text-muted-foreground">
+                      {[
+                        report.typeLabel,
+                        showAuthor ? report.authorLabel : null,
+                        showAuthor && report.hasAuthor
+                          ? (report.departmentLabel ?? "Unassigned")
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </div>
+                  <StatusBadge status={report.status} variant="pill" />
+                  <span className="type-caption hidden w-20 shrink-0 text-right text-muted-foreground tabular-nums md:block">
                     {report.updatedLabel}
-                  </TableCell>
-                </TableRow>
+                  </span>
+                  <ChevronRight
+                    aria-hidden
+                    className="hidden size-5 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none sm:block"
+                  />
+                </li>
               );
             })}
-          </TableBody>
-        </Table>
-      </div>
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }

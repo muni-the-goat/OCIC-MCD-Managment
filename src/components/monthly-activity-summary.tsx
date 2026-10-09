@@ -258,16 +258,17 @@ export async function MonthlyActivitySummary({
     peopleResult.error;
 
   return (
-    <Card className="rounded-2xl">
+    // Borderless, like every surface on the redesigned dashboard: the card is
+    // white on the ivory page, and a ring on top of that was a second edge
+    // saying the same thing. "Reviewed activity" moved into the section
+    // heading above, which covers both tabs.
+    <Card className="rounded-[1.25rem] shadow-none ring-0">
       <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-1.5">
-          <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Reviewed activity
-          </p>
-          <CardTitle>
+        <div className="space-y-1">
+          <CardTitle className="type-headline">
             Monthly activity · {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="type-callout">
             {seesEveryAuthor
               ? "What each team reported this month, and the documents they filed with it."
               : scopesToManagers
@@ -327,7 +328,7 @@ export async function MonthlyActivitySummary({
 
 export function MonthlyActivitySummarySkeleton() {
   return (
-    <Card className="min-h-72 rounded-2xl">
+    <Card className="min-h-72 rounded-[1.25rem] shadow-none ring-0">
       <CardHeader>
         <div className="h-6 w-64 rounded bg-muted motion-safe:animate-pulse" />
         <div className="h-4 w-96 max-w-full rounded bg-muted motion-safe:animate-pulse" />
