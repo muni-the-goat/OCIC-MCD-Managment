@@ -9,6 +9,7 @@ import {
 } from "@/app/(app)/dashboard/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ActionButton } from "@/components/ui/action-button";
+import { FORM_FIELD, SHEET_BUTTON } from "@/lib/control-styles";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -203,7 +204,7 @@ export function BudgetApprovalBar({
                   fiscal year.
                 </DialogDescription>
               </DialogHeader>
-              <form action={formAction} className="space-y-4">
+              <form action={formAction} className="space-y-5">
                 {state && "error" in state ? (
                   <Alert variant="destructive">
                     <AlertDescription>{state.error}</AlertDescription>
@@ -222,8 +223,9 @@ export function BudgetApprovalBar({
                     placeholder="150000.00"
                     autoComplete="off"
                     required
+                    className={FORM_FIELD}
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="type-caption text-muted-foreground">
                     Currency symbols and thousands separators are fine —
                     $150,000.00 works.
                   </p>
@@ -232,7 +234,7 @@ export function BudgetApprovalBar({
                   type="submit"
                   pending={pending}
                   pendingLabel="Saving…"
-                  className="w-full"
+                  className={SHEET_BUTTON}
                 >
                   Save approved budget
                 </ActionButton>

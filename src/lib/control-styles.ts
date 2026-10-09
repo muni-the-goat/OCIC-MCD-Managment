@@ -16,5 +16,14 @@ export const PILL_MENU =
 // text, and a capsule around a sentence reads as a button. Select and input
 // share it so a month menu and the year beside it line up. 16px: iOS zooms
 // the whole page into any field set smaller the moment it is tapped.
+//
+// The focus is the quiet one the report editor uses — a darker edge and a
+// soft halo — not the brand red ring, which read as an error.
 export const FORM_FIELD =
-  "h-11 data-[size=default]:h-11 rounded-xl bg-card text-base shadow-none";
+  "h-11 data-[size=default]:h-11 rounded-xl bg-card text-base shadow-none focus-visible:border-foreground/30 focus-visible:ring-4 focus-visible:ring-foreground/[0.06]";
+
+// The one button that finishes a form inside a dialog: full width, the pages'
+// pill. These forms end in their own submit rather than a dialog footer, so
+// the footer's styling never reached them.
+export const SHEET_BUTTON =
+  "h-11 w-full rounded-full px-5 text-[0.9375rem] font-semibold";

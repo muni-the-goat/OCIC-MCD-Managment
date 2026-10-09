@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FORM_FIELD, SHEET_BUTTON } from "@/lib/control-styles";
 import { useActionToasts } from "@/components/use-action-toasts";
 import { departmentId } from "@/lib/departments";
 import { toast } from "sonner";
@@ -58,7 +59,7 @@ export function AddDepartmentDialog() {
             it.
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} className="space-y-5">
           {state && "error" in state ? (
             <Alert variant="destructive">
               <AlertDescription>{state.error}</AlertDescription>
@@ -75,11 +76,12 @@ export function AddDepartmentDialog() {
               required
               maxLength={60}
               autoComplete="off"
+              className={FORM_FIELD}
             />
             {/* The id is what every profile stores, and it is frozen at
                 creation — renaming the department later changes only the label.
                 Showing it now is cheaper than explaining it afterwards. */}
-            <p className="text-xs text-muted-foreground">
+            <p className="type-caption text-muted-foreground">
               {id ? (
                 <>
                   Stored as <code className="font-mono">{id}</code>. This cannot
@@ -98,8 +100,9 @@ export function AddDepartmentDialog() {
               placeholder="Corporate"
               maxLength={24}
               autoComplete="off"
+              className={FORM_FIELD}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="type-caption text-muted-foreground">
               Used only for column headers in the department × month spend table,
               where full names make it too wide to read. Defaults to the name.
             </p>
@@ -108,7 +111,7 @@ export function AddDepartmentDialog() {
             type="submit"
             pending={pending}
             pendingLabel="Adding…"
-            className="w-full"
+            className={SHEET_BUTTON}
           >
             Add department
           </ActionButton>

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FORM_FIELD, SHEET_BUTTON } from "@/lib/control-styles";
 import { ResponsiveSelect } from "@/components/ui/responsive-select";
 import type { DepartmentRecord } from "@/lib/departments";
 import { ASSIGNABLE_ROLES, roleLabel } from "@/lib/types";
@@ -67,16 +68,16 @@ export function InviteUserDialog({
               <AlertDescription>{success.success}</AlertDescription>
             </Alert>
             {success.tempPassword ? (
-              <p className="select-all rounded-md border bg-muted p-3 text-center font-mono text-sm">
+              <p className="select-all rounded-2xl bg-muted p-4 text-center font-mono text-base">
                 {success.tempPassword}
               </p>
             ) : null}
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button className={SHEET_BUTTON} onClick={() => setOpen(false)}>
               Done
             </Button>
           </div>
         ) : (
-          <form action={formAction} className="space-y-4">
+          <form action={formAction} className="space-y-5">
             {state && "error" in state ? (
               <Alert variant="destructive">
                 <AlertDescription>{state.error}</AlertDescription>
@@ -84,18 +85,35 @@ export function InviteUserDialog({
             ) : null}
             <div className="space-y-2">
               <Label htmlFor="invite-name">Full name</Label>
-              <Input id="invite-name" name="full_name" required maxLength={120} />
+              {/* Someone else's name and email: iOS offering to AutoFill
+                  the reader's own contact card here is never right. */}
+              <Input
+                id="invite-name"
+                name="full_name"
+                required
+                maxLength={120}
+                autoComplete="off"
+                className={FORM_FIELD}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="invite-email">Email</Label>
-              <Input id="invite-email" name="email" type="email" required />
+              <Input
+                id="invite-email"
+                name="email"
+                type="email"
+                required
+                autoComplete="off"
+                autoCapitalize="none"
+                className={FORM_FIELD}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="invite-role">Role</Label>
               <ResponsiveSelect
                 id="invite-role"
                 name="role"
-                className="w-full"
+                className={`w-full ${FORM_FIELD}`}
                 defaultValue="staff"
                 options={ASSIGNABLE_ROLES.filter(
                   (option) => option !== "admin" || canGrantAdmin
@@ -110,7 +128,7 @@ export function InviteUserDialog({
               <ResponsiveSelect
                 id="invite-department"
                 name="department"
-                className="w-full"
+                className={`w-full ${FORM_FIELD}`}
                 defaultValue={UNASSIGNED}
                 options={[
                   { value: UNASSIGNED, label: "Unassigned" },
@@ -129,7 +147,7 @@ export function InviteUserDialog({
               type="submit"
               pending={pending}
               pendingLabel="Creating…"
-              className="w-full"
+              className={SHEET_BUTTON}
             >
               Create account
             </ActionButton>

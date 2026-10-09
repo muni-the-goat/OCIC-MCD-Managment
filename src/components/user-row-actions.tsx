@@ -298,7 +298,7 @@ export function ResetPasswordButton({
               Share it with the user securely — it won&apos;t be shown again.
             </DialogDescription>
           </DialogHeader>
-          <p className="select-all rounded-md border bg-muted p-3 text-center font-mono text-sm">
+          <p className="select-all rounded-2xl bg-muted p-4 text-center font-mono text-base">
             {tempPassword}
           </p>
           <DialogFooter>
