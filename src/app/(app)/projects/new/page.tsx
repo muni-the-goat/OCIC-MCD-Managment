@@ -120,16 +120,20 @@ export default async function NewProjectReportPage({
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Project monthly report
-        </h1>
-        <p className="text-sm text-muted-foreground">
+    <div className="mx-auto w-full max-w-5xl space-y-8">
+      {/* The report form's header: what is being filed above a large title,
+          and one sentence saying how the form ends. */}
+      <header className="space-y-2">
+        <p className="type-eyebrow">
           {projects.find((entry) => entry.id === project)?.label} ·{" "}
-          {MONTH_NAMES[month - 1]} {year}. Saving writes this month only.
+          {MONTH_NAMES[month - 1]} {year}
         </p>
-      </div>
+        <h1 className="type-title text-balance">Project monthly report</h1>
+        <p className="type-subtitle">
+          Saving writes this month only — every other month on the report is
+          left as it is.
+        </p>
+      </header>
       {/* Keyed on the period, so changing it remounts the form with that
           month's figures. The rows are useState seeded from initialRows, and
           useState does not re-seed on a re-render — without the key, navigating

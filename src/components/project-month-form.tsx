@@ -18,9 +18,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LumaSpin } from "@/components/ui/luma-spin";
 import { ResponsiveSelect } from "@/components/ui/responsive-select";
 import { useActionToasts } from "@/components/use-action-toasts";
+import { FORM_FIELD, SURFACE } from "@/lib/control-styles";
 import {
   currency,
   parseAmountInput,
@@ -242,10 +242,10 @@ export function ProjectMonthForm({
       <input type="hidden" name="year" value={initialYear} />
       <input type="hidden" name="month" value={initialMonth} />
 
-      <Card className="rounded-2xl">
+      <Card className={SURFACE}>
         <CardHeader>
-          <CardTitle>Period</CardTitle>
-          <CardDescription>
+          <CardTitle className="type-headline">Period</CardTitle>
+          <CardDescription className="type-callout">
             The project and month these figures cover. Reopening a month you
             have already saved loads what is in it — only the month you pick is
             written, so correcting June never touches May. Renaming a row moves
@@ -253,12 +253,20 @@ export function ProjectMonthForm({
             applies to the whole report.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap items-end gap-4">
-          <div className="flex flex-col gap-1.5">
+        {/* Dimmed while the chosen month loads, as the filter menus are,
+            rather than a spinner beside them. */}
+        <CardContent
+          aria-busy={navigating}
+          className={cn(
+            "grid grid-cols-2 items-end gap-4 transition-opacity duration-200 sm:flex sm:flex-wrap",
+            navigating && "opacity-60"
+          )}
+        >
+          <div className="col-span-2 flex flex-col gap-2 sm:col-span-1">
             <Label htmlFor="project-project">Project</Label>
             <ResponsiveSelect
               id="project-project"
-              className="w-52"
+              className={`w-full sm:w-56 ${FORM_FIELD}`}
               value={initialProject}
               onValueChange={(value) => setPeriod("project", value)}
               disabled={navigating}
@@ -268,11 +276,11 @@ export function ProjectMonthForm({
               }))}
             />
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="project-year">Year</Label>
             <ResponsiveSelect
               id="project-year"
-              className="w-32"
+              className={`w-full sm:w-32 ${FORM_FIELD}`}
               value={String(initialYear)}
               onValueChange={(value) => setPeriod("year", value)}
               disabled={navigating}
@@ -282,11 +290,11 @@ export function ProjectMonthForm({
               }))}
             />
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="project-month">Month</Label>
             <ResponsiveSelect
               id="project-month"
-              className="w-40"
+              className={`w-full sm:w-40 ${FORM_FIELD}`}
               value={String(initialMonth)}
               onValueChange={(value) => setPeriod("month", value)}
               disabled={navigating}
@@ -296,12 +304,6 @@ export function ProjectMonthForm({
               }))}
             />
           </div>
-          {navigating ? (
-            <LumaSpin
-              size={22}
-              className="mb-1.5 self-center text-muted-foreground"
-            />
-          ) : null}
         </CardContent>
       </Card>
 
@@ -320,10 +322,12 @@ export function ProjectMonthForm({
         );
 
         return (
-          <Card key={stream} className="rounded-2xl">
+          <Card key={stream} className={SURFACE}>
             <CardHeader>
-              <CardTitle>{projectStreamLabelFor(initialProject, stream)}</CardTitle>
-              <CardDescription>
+              <CardTitle className="type-headline">
+                {projectStreamLabelFor(initialProject, stream)}
+              </CardTitle>
+              <CardDescription className="type-callout">
                 {tracksUnits
                   ? "Units sold and their value, by property type."
                   : `Income for the month, by ${noun}.`}
@@ -411,6 +415,7 @@ export function ProjectMonthForm({
                         id={`${stream}-category-${index}`}
                         className={cn(
                           "w-full",
+                          FORM_FIELD,
                           byCategory &&
                             duplicate &&
                             "border-destructive ring-3 ring-destructive/20"
@@ -465,6 +470,7 @@ export function ProjectMonthForm({
                           autoComplete="off"
                           aria-invalid={duplicate || undefined}
                           className={cn(
+                            FORM_FIELD,
                             duplicate &&
                               "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/40"
                           )}
@@ -478,18 +484,28 @@ export function ProjectMonthForm({
                       >
                         Amount
                       </Label>
-                      <Input
-                        id={`${stream}-amount-${index}`}
-                        name={`row:${stream}:${index}:amount`}
-                        value={row.amount}
-                        onChange={(event) =>
-                          setCell(stream, index, "amount", event.target.value)
-                        }
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        autoComplete="off"
-                        className="text-right tabular-nums"
-                      />
+                      {/* A $ inside the box, as on the budget report, so the
+                          field says what it holds without a label beside it. */}
+                      <div className="relative">
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground"
+                        >
+                          $
+                        </span>
+                        <Input
+                          id={`${stream}-amount-${index}`}
+                          name={`row:${stream}:${index}:amount`}
+                          value={row.amount}
+                          onChange={(event) =>
+                            setCell(stream, index, "amount", event.target.value)
+                          }
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          autoComplete="off"
+                          className={`pl-7 text-right tabular-nums ${FORM_FIELD}`}
+                        />
+                      </div>
                     </div>
                     {tracksUnits ? (
                       <div className="flex flex-col gap-1.5">
@@ -509,7 +525,7 @@ export function ProjectMonthForm({
                           inputMode="numeric"
                           placeholder="0"
                           autoComplete="off"
-                          className="text-right tabular-nums"
+                          className={`text-right tabular-nums ${FORM_FIELD}`}
                         />
                       </div>
                     ) : (
@@ -530,6 +546,7 @@ export function ProjectMonthForm({
                       onClick={() => removeRow(stream, index)}
                       aria-label={`Remove ${row.name || "this row"} from the report`}
                       title="Remove from the report"
+                      className="size-11 justify-self-end rounded-full text-muted-foreground"
                     >
                       <Trash2 className="size-4" />
                     </Button>
@@ -538,7 +555,7 @@ export function ProjectMonthForm({
               })}
 
               {clashes.size > 0 ? (
-                <p role="alert" className="text-sm text-destructive">
+                <p role="alert" className="type-callout text-destructive">
                   {[...clashes].map((name) => `"${name}"`).join(", ")}{" "}
                   {clashes.size === 1 ? "is" : "are"} on more than one row.{" "}
                   {byCategory
@@ -551,8 +568,7 @@ export function ProjectMonthForm({
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
-                  className="gap-2"
+                  className="h-10 gap-2 rounded-full px-4"
                   onClick={() => addRow(stream)}
                 >
                   <Plus className="size-4" />
@@ -561,7 +577,7 @@ export function ProjectMonthForm({
                 {/* What is on screen, not what is stored — this is the figure
                     to check against the sheet being copied from, before the
                     save rather than after it. */}
-                <p className="text-sm text-muted-foreground">
+                <p className="type-callout text-muted-foreground">
                   {MONTH_NAMES[initialMonth - 1]} total:{" "}
                   <span className="font-semibold tabular-nums text-foreground">
                     {currency.format(total.amount)}
@@ -580,45 +596,50 @@ export function ProjectMonthForm({
       })}
 
       {startableStreams.length > 0 ? (
-        <Card className="rounded-2xl border-dashed shadow-none">
-          <CardContent className="flex flex-wrap items-center gap-3 py-4">
-            <p className="text-sm text-muted-foreground">
-              {projects.find((project) => project.id === initialProject)?.label}{" "}
-              does not file{" "}
-              {startableStreams
-                .map((stream) =>
-                  projectStreamLabelFor(initialProject, stream).toLowerCase()
-                )
-                .join(" or ")}
-              .
-            </p>
-            {startableStreams.map((stream) => (
-              <Button
-                key={stream}
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => {
-                  setStarted((current) => [...current, stream]);
-                  setRows((current) => ({
-                    ...current,
-                    [stream]:
-                      current[stream].length > 0
-                        ? current[stream]
-                        : [emptyRow()],
-                  }));
-                }}
-              >
-                <Plus className="size-4" />
-                Start {projectStreamLabelFor(initialProject, stream)}
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
+        // Outlined rather than filled: it is an offer, not a report, and a
+        // white surface would read as one more section to fill in.
+        <div className="flex flex-wrap items-center gap-3 rounded-[1.25rem] border border-dashed border-foreground/15 px-5 py-4 sm:px-6">
+          <p className="type-callout text-muted-foreground">
+            {projects.find((project) => project.id === initialProject)?.label}{" "}
+            does not file{" "}
+            {startableStreams
+              .map((stream) =>
+                projectStreamLabelFor(initialProject, stream).toLowerCase()
+              )
+              .join(" or ")}
+            .
+          </p>
+          {startableStreams.map((stream) => (
+            <Button
+              key={stream}
+              type="button"
+              variant="outline"
+              className="h-10 gap-2 rounded-full px-4"
+              onClick={() => {
+                setStarted((current) => [...current, stream]);
+                setRows((current) => ({
+                  ...current,
+                  [stream]:
+                    current[stream].length > 0
+                      ? current[stream]
+                      : [emptyRow()],
+                }));
+              }}
+            >
+              <Plus className="size-4" />
+              Start {projectStreamLabelFor(initialProject, stream)}
+            </Button>
+          ))}
+        </div>
       ) : null}
 
-      <div className="space-y-2">
+      <ActionMessage error={state && "error" in state ? state.error : null} />
+
+      {/* Pinned to the bottom of the screen like the report form's bar, so a
+          long sales report never has to be scrolled to its end to be saved.
+          Frosted, so the rows stay visible under it, and above the phone's
+          tab bar, which is fixed in the same place. */}
+      <div className="sticky bottom-[calc(var(--tab-bar-height)+env(safe-area-inset-bottom)+0.75rem)] z-10 flex max-w-3xl items-center gap-3 rounded-full bg-background/75 p-2 shadow-[0_8px_30px_rgba(0,0,0,0.08)] ring-1 ring-foreground/[0.06] backdrop-blur-xl backdrop-saturate-150 md:bottom-6">
         <ActionButton
           type="submit"
           pending={pending}
@@ -626,12 +647,14 @@ export function ProjectMonthForm({
           disabled={hasDuplicates || navigating}
           pendingLabel="Saving…"
           successLabel="Month saved"
+          className="h-11 rounded-full px-5 text-[0.9375rem] font-semibold max-sm:flex-1"
         >
           Save month
         </ActionButton>
-        <ActionMessage
-          error={state && "error" in state ? state.error : null}
-        />
+        {/* What the button writes, said where it is pressed. */}
+        <p className="type-callout hidden min-w-0 truncate pr-3 text-muted-foreground sm:block">
+          Writes {MONTH_NAMES[initialMonth - 1]} {initialYear} only.
+        </p>
       </div>
     </form>
   );

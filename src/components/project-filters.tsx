@@ -3,8 +3,8 @@
 import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Label } from "@/components/ui/label";
-import { LumaSpin } from "@/components/ui/luma-spin";
 import { ResponsiveSelect } from "@/components/ui/responsive-select";
+import { PILL_MENU } from "@/lib/control-styles";
 import {
   ALL_CATEGORIES,
   ALL_MONTHS,
@@ -49,7 +49,8 @@ export function ProjectFilters({
   const router = useRouter();
   const searchParams = useSearchParams();
   // router.replace leaves the stale table on screen while the server refetches,
-  // with no sign anything is happening. A transition surfaces that wait.
+  // with no sign anything is happening. A transition surfaces that wait: the
+  // menus dim until the new figures arrive, as the dashboard summaries' do.
   const [isPending, startTransition] = useTransition();
 
   const setParam = (key: string, value: string) => {
@@ -70,18 +71,19 @@ export function ProjectFilters({
   };
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      {isPending ? (
-        <LumaSpin
-          size={22}
-          className="mb-1.5 self-center text-muted-foreground"
-        />
-      ) : null}
-      <div className="space-y-1.5">
-        <Label htmlFor="projects-project">Project</Label>
+    // Pill menus without visible labels, the same as the marketing filter
+    // rows: each value names itself ("All projects", "2026", "March"), and the
+    // labels stay for screen readers. Two to a line on a phone, each taking
+    // half, rather than five menus wrapping into a ragged stack.
+    <div
+      aria-busy={isPending}
+      className={`grid w-full grid-cols-2 items-center gap-2 transition-opacity duration-200 sm:flex sm:w-auto sm:flex-wrap ${isPending ? "opacity-60" : ""}`}
+    >
+      <div>
+        <Label htmlFor="projects-project" className="sr-only">Project</Label>
         <ResponsiveSelect
           id="projects-project"
-          className="w-52"
+          className={`w-full sm:w-52 ${PILL_MENU}`}
           value={selectedProject}
           onValueChange={(value) => setParam("project", value)}
           options={[
@@ -96,11 +98,11 @@ export function ProjectFilters({
       {/* Sales, leasing, property management: which report you are reading.
           It answered to "Category" until the word was needed for the tiers
           below, where it is the one the Vice President uses. */}
-      <div className="space-y-1.5">
-        <Label htmlFor="projects-report">Report</Label>
+      <div>
+        <Label htmlFor="projects-report" className="sr-only">Report</Label>
         <ResponsiveSelect
           id="projects-report"
-          className="w-52"
+          className={`w-full sm:w-52 ${PILL_MENU}`}
           value={selectedStream}
           onValueChange={(value) => setParam("stream", value)}
           options={[
@@ -116,11 +118,11 @@ export function ProjectFilters({
           level they want to read at rather than assembling it from two
           controls. The tiers are labelled because "Land" appears in two of
           them and only its heading says which one is being chosen. */}
-      <div className="space-y-1.5">
-        <Label htmlFor="projects-category">Category</Label>
+      <div className="col-span-2 sm:col-span-1">
+        <Label htmlFor="projects-category" className="sr-only">Category</Label>
         <ResponsiveSelect
           id="projects-category"
-          className="w-56"
+          className={`w-full sm:w-56 ${PILL_MENU}`}
           value={selectedCategory}
           onValueChange={(value) => setParam("category", value)}
           options={[
@@ -156,11 +158,11 @@ export function ProjectFilters({
           ]}
         />
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="projects-year">Year</Label>
+      <div>
+        <Label htmlFor="projects-year" className="sr-only">Year</Label>
         <ResponsiveSelect
           id="projects-year"
-          className="w-28"
+          className={`w-full sm:w-28 ${PILL_MENU}`}
           value={String(selectedYear)}
           onValueChange={(value) => setParam("year", value)}
           options={years.map((year) => ({
@@ -177,11 +179,11 @@ export function ProjectFilters({
           fixed part of the calendar, and a picker that grew a row each time
           somebody filed July would be one whose contents move under the
           reader. Picking a month nothing was filed in says so. */}
-      <div className="space-y-1.5">
-        <Label htmlFor="projects-month">Month</Label>
+      <div>
+        <Label htmlFor="projects-month" className="sr-only">Month</Label>
         <ResponsiveSelect
           id="projects-month"
-          className="w-36"
+          className={`w-full sm:w-36 ${PILL_MENU}`}
           value={selectedMonth}
           onValueChange={(value) => setParam("month", value)}
           options={[

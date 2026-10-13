@@ -5,13 +5,10 @@ import {
   ArrowRight,
   ArrowUpRight,
   Building2,
-  CalendarDays,
-  ChartColumnBig,
   Handshake,
   KeyRound,
   Minus,
   Plus,
-  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { ExportPdfButton } from "@/components/export-pdf-button";
@@ -27,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PILL_ACTIONS, SURFACE } from "@/lib/control-styles";
 import {
   YearCompareChart,
   type YearCompareRow,
@@ -66,7 +64,6 @@ import {
   PROJECT_STREAMS,
   projectStreamLabel,
   projectStreamLabelFor,
-  roleLabel,
   streamTracksUnits,
   type ProjectReport,
   type ProjectStream,
@@ -79,20 +76,10 @@ const STREAM_ICONS: Record<ProjectStream, LucideIcon> = {
   property_management: Building2,
 };
 
-function Chip({
-  icon: Icon,
-  children,
-}: {
-  icon: LucideIcon;
-  children: React.ReactNode;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground">
-      <Icon className="size-3.5 text-muted-foreground" />
-      {children}
-    </span>
-  );
-}
+// A label over a figure or a chart inside a card. Sentence case at caption
+// size, where it was uppercase tracked-out Montserrat: the marketing pages
+// dropped the all-caps eyebrows, and a card full of them read as shouting.
+const SUBHEAD = "type-caption font-semibold text-muted-foreground";
 
 export const metadata = { title: "Dashboard" };
 
@@ -126,7 +113,7 @@ function Delta({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 text-sm font-medium tabular-nums",
+        "type-callout inline-flex items-center gap-1 font-medium tabular-nums",
         flat
           ? "text-muted-foreground"
           : up
@@ -341,7 +328,6 @@ export default async function ProjectsDashboardPage({
   ].join(" · ");
 
   const firstName = (profile.full_name || profile.email).split(" ")[0];
-  const now = new Date();
 
   // One card per report, added across whichever projects are on screen. On the
   // shared months, like every other comparison here.
@@ -369,124 +355,117 @@ export default async function ProjectsDashboardPage({
   }).filter((row) => row.value !== 0 || row.previous !== 0);
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-2xl bg-card p-5 shadow-xs ring-1 ring-foreground/10 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
-          <div className="flex min-w-0 items-center gap-4">
-            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
-              <ChartColumnBig className="size-6" />
-            </span>
-            <div className="min-w-0">
-              <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Projects workspace
-              </p>
-              <h1 className="truncate font-heading text-2xl font-semibold tracking-tight">
-                Bonjour, {firstName}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {previousPeriod === null
-                  ? `Here is how ${period} is going.`
-                  : `Here is how ${period} is tracking against ${previousPeriod}.`}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Chip icon={CalendarDays}>
-              {now.toLocaleDateString("en-GB", {
-                month: "long",
-                year: "numeric",
-              })}
-            </Chip>
-            <Chip icon={ShieldCheck}>{roleLabel(profile.role)}</Chip>
-            <Chip icon={Building2}>
-              {shownProjects.length}{" "}
-              {shownProjects.length === 1 ? "project" : "projects"}
-            </Chip>
-            <Button
-              asChild
-              size="sm"
-              variant="outline"
-              className="gap-1.5 rounded-full"
-            >
-              <Link href="/projects">
-                Full tables
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-            {/* "New report" is what the MCD dashboard's button says, and it
-                files a different kind of report entirely. Two buttons with one
-                name, each meaning whichever side of the office you happened to
-                be standing on. */}
-            <Button asChild size="sm" className="gap-1.5 rounded-full">
-              <Link href="/projects/new">
-                <Plus className="size-4" />
-                New project report
-              </Link>
-            </Button>
-          </div>
+    // One centred column, the width of the marketing dashboard's, so the two
+    // dashboards read as one design whichever side of the office opens them.
+    <div className="mx-auto w-full max-w-6xl space-y-10 sm:space-y-12">
+      {/* A large title with the greeting above it and one sentence below
+          saying what the page compares. It replaces a welcome card whose
+          chips restated the date, the role from the top bar and the project
+          count the filter row already shows. */}
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+        <div className="min-w-0 space-y-2">
+          <p className="type-eyebrow truncate">Bonjour, {firstName}</p>
+          <h1 className="type-title">Dashboard</h1>
+          <p className="type-subtitle">
+            {previousPeriod === null
+              ? `Here is how ${period} is going.`
+              : `Here is how ${period} is tracking against ${previousPeriod}.`}
+          </p>
         </div>
-      </section>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            asChild
+            variant="ghost"
+            className="h-11 gap-1.5 rounded-full px-4 text-[0.9375rem] font-semibold text-primary hover:text-primary"
+          >
+            <Link href="/projects">
+              Full tables
+              <ArrowRight className="size-4" aria-hidden />
+            </Link>
+          </Button>
+          {/* "New report" is what the MCD dashboard's button says, and it
+              files a different kind of report entirely. Two buttons with one
+              name, each meaning whichever side of the office you happened to
+              be standing on. */}
+          <Button
+            asChild
+            className="h-11 gap-2 rounded-full px-5 text-[0.9375rem] font-semibold"
+          >
+            <Link href="/projects/new">
+              <Plus className="size-[1.125rem]" />
+              New project report
+            </Link>
+          </Button>
+        </div>
+      </header>
 
-      {/* Export sits with the filters rather than up in the chip row: what
-          it produces is whatever the filters currently select, so the control
-          belongs beside the thing that decides its contents. Same arrangement
-          as the Projects page. */}
-      <div className="flex flex-wrap items-end gap-3">
-        <ProjectFilters
-          years={years}
-          selectedYear={year}
-          selectedMonth={monthSelectionValue(month)}
-          projects={projects}
-          selectedProject={projectParam}
-          selectedStream={streamParam}
-          options={options}
-          selectedCategory={categorySelectionValue(selection)}
-        />
-        <div className="mb-0.5">
-          <ExportPdfButton label="Export PDF" />
+      <div className="space-y-4">
+        {/* Export sits with the filters rather than up in the header: what it
+            produces is whatever the filters currently select, so the control
+            belongs beside the thing that decides its contents. Same
+            arrangement as the Projects page. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <ProjectFilters
+            years={years}
+            selectedYear={year}
+            selectedMonth={monthSelectionValue(month)}
+            projects={projects}
+            selectedProject={projectParam}
+            selectedStream={streamParam}
+            options={options}
+            selectedCategory={categorySelectionValue(selection)}
+          />
+          <div className={PILL_ACTIONS}>
+            <ExportPdfButton label="Export PDF" />
+          </div>
         </div>
+
+        {headline.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+            {headline.map((row) => (
+              <ProjectStatCard
+                key={row.stream}
+                label={projectStreamLabel(row.stream)}
+                icon={STREAM_ICONS[row.stream]}
+                caption={
+                  row.months.length === 0
+                    ? previousPeriod === null
+                      ? `${period}, with no earlier year to set it against`
+                      : `${period}, with nothing in ${previousPeriod} to set it against`
+                    : `${monthRangeLabel(row.months)} ${year}, against ${previousYear}`
+                }
+                value={row.value}
+                previous={row.previous}
+                change={row.change}
+                percent={row.percent}
+                units={
+                  streamTracksUnits(row.stream) ? row.units : undefined
+                }
+                previousUnits={
+                  streamTracksUnits(row.stream) ? row.previousUnits : undefined
+                }
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      {headline.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {headline.map((row) => (
-            <ProjectStatCard
-              key={row.stream}
-              label={projectStreamLabel(row.stream)}
-              icon={STREAM_ICONS[row.stream]}
-              caption={
-                row.months.length === 0
-                  ? previousPeriod === null
-                    ? `${period}, with no earlier year to set it against`
-                    : `${period}, with nothing in ${previousPeriod} to set it against`
-                  : `${monthRangeLabel(row.months)} ${year}, against ${previousYear}`
-              }
-              value={row.value}
-              previous={row.previous}
-              change={row.change}
-              percent={row.percent}
-              units={
-                streamTracksUnits(row.stream) ? row.units : undefined
-              }
-              previousUnits={
-                streamTracksUnits(row.stream) ? row.previousUnits : undefined
-              }
-            />
-          ))}
-        </div>
-      ) : null}
-
       {shownBlocks.length === 0 ? (
-        <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
-          Nothing recorded for this selection in {period}.
-        </p>
+        <div className="flex flex-col items-center gap-2 rounded-[1.25rem] bg-card px-6 py-14 text-center">
+          <p className="type-headline">Nothing recorded for this selection.</p>
+          <p className="type-callout text-muted-foreground">
+            No report has figures for {period}. Try another month or year.
+          </p>
+        </div>
       ) : (
         <>
           {portfolio.length > 1 ? (
-            <Card className="rounded-2xl">
+            <Card className={SURFACE}>
               <CardHeader>
-                <CardTitle>Where the year stands</CardTitle>
-                <CardDescription>
+                <CardTitle className="type-headline">
+                  Where the year stands
+                </CardTitle>
+                <CardDescription className="type-callout">
                   Each report against {previousYear ?? "last year"}, counting
                   only the months both years have reported.
                 </CardDescription>
@@ -504,11 +483,9 @@ export default async function ProjectsDashboardPage({
           ) : null}
 
           {shownBlocks.map(({ project, streams }) => (
-            <section key={project.id} className="space-y-5">
+            <section key={project.id} className="space-y-4">
               {shownProjects.length > 1 ? (
-                <h2 className="font-heading text-lg font-semibold tracking-tight">
-                  {project.label}
-                </h2>
+                <h2 className="type-section">{project.label}</h2>
               ) : null}
               {streams.map((entry) => {
                 const tracksUnits = streamTracksUnits(entry.stream);
@@ -529,12 +506,12 @@ export default async function ProjectsDashboardPage({
                     : null;
 
                 return (
-                  <Card key={entry.stream} className="rounded-2xl">
+                  <Card key={entry.stream} className={SURFACE}>
                     <CardHeader>
-                      <CardTitle>
+                      <CardTitle className="type-headline">
                         {projectStreamLabelFor(project.id, entry.stream)}
                       </CardTitle>
-                      <CardDescription>
+                      <CardDescription className="type-callout">
                         {range === null
                           ? entry.previousYear === null
                             ? `${period}, with no earlier year to set it against.`
@@ -555,10 +532,10 @@ export default async function ProjectsDashboardPage({
                       {shownProjects.length > 1 || !showsMonthChart ? (
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div className="space-y-1">
-                            <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            <p className={SUBHEAD}>
                               Value
                             </p>
-                            <p className="font-heading text-2xl font-semibold tabular-nums">
+                            <p className="font-heading text-2xl font-bold tracking-[-0.016em] tabular-nums">
                               {/* The compared figure where there is a year to
                                   compare against — the shared months, like
                                   everything else here — and this year's own
@@ -569,7 +546,7 @@ export default async function ProjectsDashboardPage({
                                   : entry.totals.amount
                               )}
                               {compared ? (
-                                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                                <span className="type-callout ml-2 font-normal tracking-normal text-muted-foreground">
                                   from{" "}
                                   {currency.format(compared.previous.amount)}
                                 </span>
@@ -587,15 +564,15 @@ export default async function ProjectsDashboardPage({
                           </div>
                           {tracksUnits ? (
                             <div className="space-y-1">
-                              <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              <p className={SUBHEAD}>
                                 Units
                               </p>
-                              <p className="font-heading text-2xl font-semibold tabular-nums">
+                              <p className="font-heading text-2xl font-bold tracking-[-0.016em] tabular-nums">
                                 {compared
                                   ? compared.current.units
                                   : entry.totals.units}
                                 {compared ? (
-                                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                                  <span className="type-callout ml-2 font-normal tracking-normal text-muted-foreground">
                                     from {compared.previous.units}
                                   </span>
                                 ) : null}
@@ -614,7 +591,7 @@ export default async function ProjectsDashboardPage({
 
                       {showsMonthChart ? (
                         <div className="space-y-2">
-                          <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                          <p className={SUBHEAD}>
                             By month
                           </p>
                           <YearCompareChart
@@ -632,7 +609,7 @@ export default async function ProjectsDashboardPage({
                           part of the answer. */}
                       {entry.properties.length > 1 ? (
                         <div className="space-y-2">
-                          <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                          <p className={SUBHEAD}>
                             By property
                           </p>
                           <YearCompareChart

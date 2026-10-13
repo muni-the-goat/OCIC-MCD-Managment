@@ -21,6 +21,7 @@ import {
   reportedMonths,
   showsGrandTotal,
 } from "@/lib/project-reports";
+import { SURFACE } from "@/lib/control-styles";
 import { cn } from "@/lib/utils";
 import {
   MONTH_SHORT,
@@ -36,6 +37,11 @@ const DESCRIPTIONS: Record<ProjectStream, string> = {
   leasing: "Leasing income by property.",
   property_management: "Property management income by property.",
 };
+
+// A card's title: the size of the New report choices', between a headline and
+// a section. It names a whole report, so it outranks the headings inside it.
+const TITLE =
+  "font-heading text-[1.25rem] leading-tight font-semibold tracking-[-0.012em]";
 
 // Every table on this card is laid out to the same grid, which is what lets the
 // two main ones share a scroll box and sit their months over one another.
@@ -477,7 +483,7 @@ function YearComparisonTable({
   const showsTotalColumn = months.length > 1;
 
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
+    <div className="overflow-x-auto rounded-xl border bg-card">
       <table
         className="w-full table-fixed border-separate border-spacing-0 text-sm"
         style={{
@@ -615,13 +621,15 @@ export function ProjectStreamCard({
   // the same empty card, and the period is what tells them apart.
   if (items.length === 0 || months.length === 0) {
     return (
-      <Card className="rounded-2xl">
+      <Card className={SURFACE}>
         <CardHeader>
-          <CardTitle>{label}</CardTitle>
-          <CardDescription>{DESCRIPTIONS[stream]}</CardDescription>
+          <CardTitle className={TITLE}>{label}</CardTitle>
+          <CardDescription className="type-callout">
+            {DESCRIPTIONS[stream]}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
+          <p className="type-callout rounded-2xl bg-muted/50 px-6 py-10 text-center text-muted-foreground">
             Nothing recorded for {period} yet.
           </p>
         </CardContent>
@@ -676,13 +684,15 @@ export function ProjectStreamCard({
     : [];
 
   return (
-    <Card className="rounded-2xl">
+    <Card className={SURFACE}>
       <CardHeader>
-        <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <p className="type-caption font-semibold text-muted-foreground">
           {period}
         </p>
-        <CardTitle>{label}</CardTitle>
-        <CardDescription>{DESCRIPTIONS[stream]}</CardDescription>
+        <CardTitle className={TITLE}>{label}</CardTitle>
+        <CardDescription className="type-callout">
+          {DESCRIPTIONS[stream]}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {/* One scroll box, both tables.
@@ -698,7 +708,7 @@ export function ProjectStreamCard({
             The row heading stays pinned while the months scroll under it, so
             scrolling right never leaves you looking at a figure you can no
             longer name. */}
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-x-auto rounded-xl border">
           <FigureTable
             caption={`${label} ${year}, by category and month${
               tracksUnits ? ", with unit counts" : ""
@@ -747,9 +757,9 @@ export function ProjectStreamCard({
         </div>
 
         {comparison && comparison.months.length > 0 && previous ? (
-          <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
+          <div className="space-y-4 rounded-2xl bg-muted/50 p-4 sm:p-5">
             <div>
-              <p className="font-label text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <p className="type-headline">
                 {/* Says what the block is, in the words someone would use for
                     it. It read "Jan–Aug, 2026 against 2025", which front-loaded
                     a month range to qualify a comparison the reader had not
@@ -765,14 +775,14 @@ export function ProjectStreamCard({
               </p>
               <dl className="mt-3 grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <dt className="text-sm text-muted-foreground">Value</dt>
-                  <dd className="text-lg font-semibold tabular-nums">
+                  <dt className="type-callout text-muted-foreground">Value</dt>
+                  <dd className="font-heading text-xl font-bold tracking-[-0.012em] tabular-nums">
                     {currency.format(comparison.current.amount)}
-                    <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    <span className="type-callout ml-2 font-normal tracking-normal text-muted-foreground">
                       from {currency.format(comparison.previous.amount)}
                     </span>
                   </dd>
-                  <dd className="text-sm">
+                  <dd className="type-callout">
                     <Delta
                       change={comparison.amountChange}
                       percent={comparison.amountPercent}
@@ -784,14 +794,14 @@ export function ProjectStreamCard({
                 </div>
                 {tracksUnits ? (
                   <div className="space-y-1">
-                    <dt className="text-sm text-muted-foreground">Units</dt>
-                    <dd className="text-lg font-semibold tabular-nums">
+                    <dt className="type-callout text-muted-foreground">Units</dt>
+                    <dd className="font-heading text-xl font-bold tracking-[-0.012em] tabular-nums">
                       {comparison.current.units}
-                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                      <span className="type-callout ml-2 font-normal tracking-normal text-muted-foreground">
                         from {comparison.previous.units}
                       </span>
                     </dd>
-                    <dd className="text-sm">
+                    <dd className="type-callout">
                       <Delta
                         change={comparison.unitChange}
                         percent={comparison.unitPercent}
@@ -822,7 +832,7 @@ export function ProjectStreamCard({
                 This is also where the month range went when the heading above
                 stopped carrying it. A range is a qualification, and it belongs
                 next to the thing it qualifies rather than in front of it. */}
-            <p className="text-xs text-muted-foreground">
+            <p className="type-caption text-muted-foreground">
               The figures above compare {monthRangeLabel(comparison.months)} —{" "}
               {comparison.months.length === 1
                 ? "the only month"

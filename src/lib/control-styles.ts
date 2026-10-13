@@ -27,3 +27,14 @@ export const FORM_FIELD =
 // the footer's styling never reached them.
 export const SHEET_BUTTON =
   "h-11 w-full rounded-full px-5 text-[0.9375rem] font-semibold";
+
+// A page's own secondary actions as white pills beside the filter menus —
+// Export PDF and the like. Set on the container rather than on each button:
+// Export is shared with pages that keep their own buttons, and a dialog a
+// button opens portals out of the box, so the sizing never reaches it.
+export const PILL_ACTIONS =
+  "[&_[data-slot=button]]:h-10 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]]:border-transparent [&_[data-slot=button]]:bg-card [&_[data-slot=button]]:px-4 [&_[data-slot=button]]:text-[0.9375rem] [&_[data-slot=button]]:shadow-none";
+
+// The redesigned pages' surface: white on the ivory page with no ring. For a
+// Card, which otherwise draws a hairline ring and a shadow.
+export const SURFACE = "rounded-[1.25rem] shadow-none ring-0";

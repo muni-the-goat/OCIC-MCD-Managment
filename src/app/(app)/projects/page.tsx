@@ -5,6 +5,7 @@ import { PrintableProjectReport } from "@/components/printable-project-report";
 import { ProjectFilters } from "@/components/project-filters";
 import { ProjectStreamCard } from "@/components/project-stream-card";
 import { getProfile, seesProjectReports } from "@/lib/auth";
+import { PILL_ACTIONS } from "@/lib/control-styles";
 import {
   ALL_PROJECTS,
   ALL_STREAMS,
@@ -171,49 +172,52 @@ export default async function ProjectsPage({
   ].join(" · ");
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-          <p className="text-sm text-muted-foreground">
-            Sales, leasing and property management across OCIC&apos;s projects,
-            each year set against the one before it.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <ProjectFilters
-            years={years}
-            selectedYear={year}
-            selectedMonth={monthSelectionValue(month)}
-            projects={projects}
-            selectedProject={projectParam}
-            selectedStream={streamParam}
-            options={options}
-            selectedCategory={categorySelectionValue(selection)}
-          />
-          <div className="mb-0.5">
-            <ExportPdfButton label="Export PDF" />
-          </div>
+    // Full width, unlike the dashboards' centred column: these are the
+    // workbook's own tables, a column per month, and every pixel given to the
+    // margin is a month scrolled off the right edge.
+    <div className="space-y-8 sm:space-y-10">
+      <header className="space-y-2">
+        <h1 className="type-title">Projects</h1>
+        <p className="type-subtitle">
+          Sales, leasing and property management across OCIC&apos;s projects,
+          each year set against the one before it.
+        </p>
+      </header>
+
+      {/* Under the title rather than beside it, as on the Reports list: five
+          menus and an export beside a 44px title left neither room to
+          breathe. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <ProjectFilters
+          years={years}
+          selectedYear={year}
+          selectedMonth={monthSelectionValue(month)}
+          projects={projects}
+          selectedProject={projectParam}
+          selectedStream={streamParam}
+          options={options}
+          selectedCategory={categorySelectionValue(selection)}
+        />
+        <div className={PILL_ACTIONS}>
+          <ExportPdfButton label="Export PDF" />
         </div>
       </div>
 
       {blocks.length === 0 ? (
-        <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
+        <p className="type-headline rounded-[1.25rem] bg-card px-6 py-14 text-center">
           No projects have been set up yet.
         </p>
       ) : (
         blocks.map(({ project, streams }) => (
-          <section key={project.id} className="space-y-5">
+          <section key={project.id} className="space-y-4">
             {/* The project name only earns a heading when more than one is on
                 screen. With a single project selected it would restate the
                 filter directly above it. */}
             {shownProjects.length > 1 ? (
-              <h2 className="font-heading text-lg font-semibold tracking-tight">
-                {project.label}
-              </h2>
+              <h2 className="type-section">{project.label}</h2>
             ) : null}
             {streams.length === 0 ? (
-              <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
+              <p className="type-callout rounded-[1.25rem] bg-card px-6 py-14 text-center text-muted-foreground">
                 {project.label} has nothing recorded for {period}.
               </p>
             ) : (

@@ -289,3 +289,104 @@ export function PageSkeleton() {
     </Shell>
   );
 }
+
+// The projects filter row: five pill menus and Export.
+function ProjectFiltersSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+      {[
+        "sm:w-52",
+        "sm:w-52",
+        "col-span-2 sm:w-56",
+        "sm:w-28",
+        "sm:w-36",
+        "sm:w-32",
+      ].map((width, i) => (
+        <Bone key={i} className={cn("h-10", width)} />
+      ))}
+    </div>
+  );
+}
+
+// One report's card on the Projects page: a title, then the table.
+function ProjectTableSkeleton() {
+  return (
+    <div className="space-y-5 rounded-[1.25rem] bg-card p-6">
+      <div className="space-y-2">
+        <Bone onCard className="h-3.5 w-16" />
+        <Bone onCard className="h-6 w-44 rounded-lg" />
+        <Bone onCard className="h-3.5 w-80 max-w-full" />
+      </div>
+      <div className="space-y-2">
+        {Array.from({ length: 6 }, (_, i) => (
+          <Bone key={i} onCard className="h-9 w-full rounded-lg" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ProjectsTablesSkeleton() {
+  return (
+    <Shell width="max-w-none" label="Loading projects">
+      <Header eyebrow={false} action={false} />
+      <div className="space-y-8 sm:space-y-10">
+        <ProjectFiltersSkeleton />
+        <ProjectTableSkeleton />
+        <ProjectTableSkeleton />
+      </div>
+    </Shell>
+  );
+}
+
+export function ProjectsDashboardSkeleton() {
+  return (
+    <Shell label="Loading the dashboard">
+      <Header />
+      <div className="space-y-4">
+        <ProjectFiltersSkeleton />
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div
+              key={i}
+              className="space-y-4 rounded-[1.25rem] bg-card p-5 sm:p-6"
+            >
+              <Bone onCard className="h-5 w-32" />
+              <Bone onCard className="h-8 w-48 rounded-xl" />
+              <Bone onCard className="h-7 w-40" />
+              <Bone onCard className="h-3.5 w-52 max-w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <SummarySkeleton />
+    </Shell>
+  );
+}
+
+export function ProjectFormSkeleton() {
+  return (
+    <Shell width="max-w-5xl" label="Loading the form">
+      <Header eyebrow action={false} />
+      <div className="space-y-4">
+        <div className="space-y-5 rounded-[1.25rem] bg-card p-6">
+          <Bone onCard className="h-5 w-24" />
+          <Bone onCard className="h-3.5 w-full" />
+          <div className="flex flex-wrap gap-4">
+            {["w-56", "w-32", "w-40"].map((width, i) => (
+              <Bone key={i} onCard className={cn("h-11 rounded-xl", width)} />
+            ))}
+          </div>
+        </div>
+        {[4, 3].map((rows, i) => (
+          <div key={i} className="space-y-3 rounded-[1.25rem] bg-card p-6">
+            <Bone onCard className="h-5 w-32" />
+            {Array.from({ length: rows }, (_, r) => (
+              <Bone key={r} onCard className="h-11 w-full rounded-xl" />
+            ))}
+          </div>
+        ))}
+      </div>
+    </Shell>
+  );
+}
