@@ -5,7 +5,7 @@ import {
   toneText,
   type StatTone,
 } from "@/components/dashboard-stats";
-import { currency, signedPercent } from "@/lib/project-reports";
+import { currency } from "@/lib/project-reports";
 
 // A report's year, set against the one before it. The projects answer to
 // GaugeStatCard, which counts reports rather than money and so measures a share
@@ -80,38 +80,23 @@ export function ProjectStatCard({
           year drew the same full sweep whether it was up by one per cent or
           by forty. This says which. */}
       <div className="mt-auto min-w-0 pt-5">
-        {/* The amount and the percentage as two pills, one above the other.
-            Joined as "Down $10,378,417.00 · 25.1%" they read as one figure,
-            and the reader had to stop to find where the money ended. */}
-        <div className="flex flex-col items-start gap-1.5">
-          <p
-            className="type-callout inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1 font-semibold tabular-nums"
-            style={{
-              backgroundColor: tint(tone, 12),
-              color: toneText(tone),
-            }}
-          >
-            {/* The direction is in the word and the arrow as well as the
-                colour: a rise and a fall must not be told apart by hue. */}
-            <Direction className="size-4 shrink-0" aria-hidden />
-            <span className="truncate">
-              {flat
-                ? "No change"
-                : `${up ? "Up" : "Down"} ${currency.format(Math.abs(change))}`}
-            </span>
-          </p>
-          {flat || percent === null ? null : (
-            <p
-              className="type-callout rounded-full px-3 py-1 font-semibold tabular-nums"
-              style={{
-                backgroundColor: tint(tone, 12),
-                color: toneText(tone),
-              }}
-            >
-              {signedPercent(percent)}
-            </p>
-          )}
-        </div>
+        <p
+          className="type-callout inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1 font-semibold tabular-nums"
+          style={{
+            backgroundColor: tint(tone, 12),
+            color: toneText(tone),
+          }}
+        >
+          {/* The direction is in the word and the arrow as well as the
+              colour: a rise and a fall must not be told apart by hue. */}
+          <Direction className="size-4 shrink-0" aria-hidden />
+          <span className="truncate">
+            {flat
+              ? "No change"
+              : `${up ? "Up" : "Down"} ${currency.format(Math.abs(change))}`}
+            {percent === null ? "" : ` · ${Math.abs(percent).toFixed(1)}%`}
+          </span>
+        </p>
         <p className="type-caption mt-2.5 text-muted-foreground">{caption}</p>
       </div>
     </div>

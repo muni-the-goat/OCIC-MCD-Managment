@@ -12,17 +12,14 @@ import {
   compareYears,
   type CategorySelection,
   currency,
-  directionColor,
   groupIntoBands,
   hasNamedProperties,
   type LineTotals,
   lineTotals,
   monthRangeLabel,
-  percentChange,
   propertyGroups,
   reportedMonths,
   showsGrandTotal,
-  signedPercent,
 } from "@/lib/project-reports";
 import { SURFACE } from "@/lib/control-styles";
 import { cn } from "@/lib/utils";
@@ -160,8 +157,14 @@ function ChangeFigure({
 
   return (
     <span
-      className="flex flex-col items-end leading-tight tabular-nums"
-      style={{ color: directionColor(amount) }}
+      className={cn(
+        "flex flex-col items-end leading-tight tabular-nums",
+        amount === 0
+          ? "text-muted-foreground"
+          : amount > 0
+            ? "text-status-good"
+            : "text-status-critical"
+      )}
     >
       {/* One piece. Written as two — a sign and a number — it gave the
           browser a break opportunity between them, and a column that was
@@ -183,34 +186,6 @@ function ChangeFigure({
   );
 }
 
-// The month's change as a share of last year's figure, in its own row under
-// the amount. Side by side in one cell the two read as one number — "+$651.66
-// 0.2%" — and a reader could not tell which was which without stopping.
-//
-// A dash where there is nothing to divide by: a month neither year reported,
-// or one last year left at zero, which this year cannot be a share of.
-function PercentFigure({
-  current,
-  previous,
-}: {
-  current: number;
-  previous: number;
-}) {
-  const percent =
-    current === 0 && previous === 0 ? null : percentChange(current, previous);
-  if (percent === null) {
-    return <span className="text-muted-foreground">—</span>;
-  }
-  return (
-    <span
-      className="font-medium tabular-nums whitespace-nowrap"
-      style={{ color: directionColor(percent) }}
-    >
-      {signedPercent(percent)}
-    </span>
-  );
-}
-
 function Delta({
   change,
   percent,
@@ -224,26 +199,24 @@ function Delta({
   const up = change > 0;
   const Icon = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
 
-  // The amount, then the percentage on a line of its own beneath it. Joined
-  // as "Up $40,890.74 · 0.9%" the two read as one figure, and the reader had
-  // to stop to tell which half was the money.
   return (
     <span
-      className="flex flex-col gap-0.5 font-medium tabular-nums"
-      style={{ color: directionColor(change) }}
-    >
-      <span className="inline-flex items-center gap-1">
-        <Icon className="size-4 shrink-0" aria-hidden />
-        {/* The sign is carried by the word as well as the arrow and the
-            colour: a rise and a fall must not be distinguishable by hue
-            alone. */}
-        {flat ? "No change" : `${up ? "Up" : "Down"} ${suffix}`}
-      </span>
-      {flat || percent === null ? null : (
-        // Indented to the text above, past the arrow, so the two lines read
-        // as one change said two ways.
-        <span className="pl-5">{signedPercent(percent)}</span>
+      className={cn(
+        "inline-flex items-center gap-1 font-medium tabular-nums",
+        flat
+          ? "text-muted-foreground"
+          : up
+            ? "text-status-good"
+            : "text-status-critical"
       )}
+    >
+      <Icon className="size-4" aria-hidden />
+      {/* The sign is carried by the word as well as the arrow and the colour:
+          a rise and a fall must not be distinguishable by hue alone. */}
+      <span>
+        {flat ? "No change" : `${up ? "Up" : "Down"} ${suffix}`}
+        {percent === null ? "" : ` · ${Math.abs(percent).toFixed(1)}%`}
+      </span>
     </span>
   );
 }
@@ -570,14 +543,14 @@ function YearComparisonTable({
           <tr className="bg-table-subtotal">
             <th
               scope="row"
-              className="sticky left-0 z-10 border-t bg-table-subtotal px-3 pt-2.5 pb-1.5 text-left font-medium whitespace-nowrap"
+              className="sticky left-0 z-10 border-t border-b bg-table-subtotal px-3 py-2.5 text-left font-medium whitespace-nowrap"
             >
               Change
             </th>
             {current.cells.map((cell, slot) => (
               <td
                 key={months[slot]}
-                className="border-t border-l px-4 pt-2.5 pb-1.5 text-right"
+                className="border-t border-b border-l px-4 py-2.5 text-right"
               >
                 <ChangeFigure
                   current={cell}
@@ -587,40 +560,11 @@ function YearComparisonTable({
               </td>
             ))}
             {showsTotalColumn ? (
-              <td className="border-t border-l-2 px-4 pt-2.5 pb-1.5 text-right">
+              <td className="border-t border-b border-l-2 px-4 py-2.5 text-right">
                 <ChangeFigure
                   current={current.total}
                   previous={previous.total}
                   showUnits={showUnits}
-                />
-              </td>
-            ) : null}
-          </tr>
-          {/* The change as a share of last year, on a row of its own and
-              named, rather than squeezed in beside the amount above. */}
-          <tr className="bg-table-subtotal">
-            <th
-              scope="row"
-              className="sticky left-0 z-10 border-b bg-table-subtotal px-3 pt-1.5 pb-2.5 text-left font-medium whitespace-nowrap"
-            >
-              Percentage
-            </th>
-            {current.cells.map((cell, slot) => (
-              <td
-                key={months[slot]}
-                className="border-b border-l px-4 pt-1.5 pb-2.5 text-right"
-              >
-                <PercentFigure
-                  current={cell.amount}
-                  previous={previous.cells[slot].amount}
-                />
-              </td>
-            ))}
-            {showsTotalColumn ? (
-              <td className="border-b border-l-2 px-4 pt-1.5 pb-2.5 text-right">
-                <PercentFigure
-                  current={current.total.amount}
-                  previous={previous.total.amount}
                 />
               </td>
             ) : null}
