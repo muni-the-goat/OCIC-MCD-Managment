@@ -2,7 +2,11 @@
 
 import { useActionState, useMemo, useRef, useState } from "react";
 import { History, Plus, Trash2 } from "lucide-react";
-import { saveReport, type ActionState } from "@/app/(app)/reports/actions";
+import {
+  finishReport,
+  saveReport,
+  type ActionState,
+} from "@/app/(app)/reports/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CancelEditButton } from "@/components/cancel-edit-button";
 import { ActionButton } from "@/components/ui/action-button";
@@ -20,6 +24,10 @@ import { Label } from "@/components/ui/label";
 import { ResponsiveSelect } from "@/components/ui/responsive-select";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { SubmitCheckDialog } from "@/components/submit-check-dialog";
+import {
+  MAX_ATTACHMENT_BYTES,
+  uploadAttachmentsFromBrowser,
+} from "@/lib/attachments";
 import { swapMonthAmounts } from "@/lib/budget-months";
 import { FORM_FIELD } from "@/lib/control-styles";
 import {
@@ -141,8 +149,69 @@ export function ReportForm({
   // not happen to them.
   locksOnSubmit?: boolean;
 }) {
+  // The files picked so far. useActionState swaps in the action from each
+  // render, so the action below reads the current list.
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  // The id a new report was saved under on an earlier attempt. If an upload
+  // fails after the report was saved, the next press must update that report,
+  // not create a second one beside it.
+  const [savedReportId, setSavedReportId] = useState<string | null>(null);
+
+  // A save with attachments runs in three steps, and the files never pass
+  // through the server action. On Vercel a request to a function is capped at
+  // 4.5 MB, so posting a larger file with the form was refused before the app
+  // ran at all — the author saw the error page, and nothing was saved. Now:
+  //
+  //   1. saveReport saves the report as a draft and returns its id
+  //   2. the browser uploads each file straight to storage under that id
+  //   3. finishReport files the report, if Submit was pressed, and opens it
+  //
+  // Without files it is the single action it always was.
+  const saveWithAttachments = async (
+    previous: ActionState,
+    formData: FormData
+  ): Promise<ActionState> => {
+    const files = attachmentFiles;
+    if (files.length === 0) {
+      const result = await saveReport(previous, formData);
+      return result && "savedReportId" in result ? null : result;
+    }
+
+    // Refused before anything is saved, so an oversized file costs nothing.
+    const oversized = files.find((file) => file.size > MAX_ATTACHMENT_BYTES);
+    if (oversized) {
+      return {
+        error: `"${oversized.name}" is larger than 15 MB. Remove it, or attach a smaller copy.`,
+      };
+    }
+
+    formData.set("defer_uploads", "1");
+    const saved = await saveReport(previous, formData);
+    if (!saved || !("savedReportId" in saved)) return saved;
+    const reportId = saved.savedReportId;
+    setSavedReportId(reportId);
+
+    const uploadError = await uploadAttachmentsFromBrowser(
+      reportId,
+      files,
+      // Each file leaves the list once it is stored, so pressing again after
+      // a failure sends only the ones still waiting.
+      (done) =>
+        setAttachmentFiles((current) =>
+          current.filter((file) => file !== done)
+        )
+    );
+    if (uploadError) {
+      return {
+        error: `Your report was saved as a draft, but ${uploadError}. Press the button again to retry — files already attached are kept.`,
+      };
+    }
+
+    return finishReport(reportId, formData.get("intent") === "submit");
+  };
+
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
-    saveReport,
+    saveWithAttachments,
     null
   );
   // Which of the two submit buttons was pressed, so only that one reports work.
@@ -182,8 +251,6 @@ export function ReportForm({
   const [loadedHistoryId, setLoadedHistoryId] = useState<string | null>(
     initialHistory?.id ?? null
   );
-  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
-
   const historySource = useMemo(
     () => findPreviousBudget(budgetHistory, budgetMonth, budgetYear),
     [budgetHistory, budgetMonth, budgetYear]
@@ -345,7 +412,13 @@ export function ReportForm({
         name="budget_period"
         value={type === "budget" ? budgetPeriod : "annual"}
       />
-      {report ? <input type="hidden" name="report_id" value={report.id} /> : null}
+      {report || savedReportId ? (
+        <input
+          type="hidden"
+          name="report_id"
+          value={report?.id ?? savedReportId ?? ""}
+        />
+      ) : null}
       {type === "budget" ? (
         <input type="hidden" name="budget_sections" value={budgetPayload} />
       ) : null}
@@ -964,8 +1037,9 @@ export function ReportForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* No name: the files are not part of the form's POST. The action
+              above uploads them from the browser — see saveWithAttachments. */}
           <FileUploadCard
-            name="files"
             files={attachmentFiles}
             onFilesChange={setAttachmentFiles}
             maxSizeMb={15}
