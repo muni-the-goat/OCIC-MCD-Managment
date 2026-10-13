@@ -701,3 +701,26 @@ export const currency = new Intl.NumberFormat("en-US", {
   currency: "USD",
   maximumFractionDigits: 2,
 });
+
+// The ink for a rise or a fall: the status green or red, mixed most of the way
+// toward the foreground. The raw status hues are fills, not ink — the green is
+// barely 3:1 on white — so this keeps the hue and lets the figure be read.
+// Shared by the tables, the dashboard and the chart tooltips, so a fall is one
+// red across the page.
+export function directionColor(value: number) {
+  if (value === 0) return "var(--muted-foreground)";
+  return `color-mix(in oklab, var(--status-${value > 0 ? "good" : "critical"}) 72%, var(--foreground))`;
+}
+
+// A change as a share of last year, signed, with a real minus so a column of
+// them does not jitter. Null where last year is zero: a percentage of nothing
+// is not a figure.
+export function percentChange(current: number, previous: number) {
+  if (previous === 0) return null;
+  return ((current - previous) / Math.abs(previous)) * 100;
+}
+
+export function signedPercent(percent: number) {
+  const sign = percent > 0 ? "+" : percent < 0 ? "\u2212" : "";
+  return `${sign}${Math.abs(percent).toFixed(1)}%`;
+}

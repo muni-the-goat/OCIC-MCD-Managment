@@ -39,6 +39,7 @@ import {
   compareYears,
   type Comparison,
   currency,
+  directionColor,
   filterItems,
   monthRangeLabel,
   monthSelectionValue,
@@ -49,6 +50,7 @@ import {
   propertyComparison,
   reportedMonths,
   restrictToMonth,
+  signedPercent,
   yearTotals,
 } from "@/lib/project-reports";
 import {
@@ -57,7 +59,6 @@ import {
   getStreamReports,
   streamKey,
 } from "@/lib/project-reports-server";
-import { cn } from "@/lib/utils";
 import {
   MONTH_NAMES,
   MONTH_SHORT,
@@ -110,24 +111,23 @@ function Delta({
   const up = change > 0;
   const Icon = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
 
+  // The amount, then the percentage on a line of its own beneath it: joined
+  // as "Up $40,890.74 · 0.9%" the two read as one figure.
   return (
     <span
-      className={cn(
-        "type-callout inline-flex items-center gap-1 font-medium tabular-nums",
-        flat
-          ? "text-muted-foreground"
-          : up
-            ? "text-status-good"
-            : "text-status-critical"
-      )}
+      className="type-callout flex flex-col gap-0.5 font-medium tabular-nums"
+      style={{ color: directionColor(change) }}
     >
-      {/* The direction is carried by the word and the arrow as well as the
-          colour: a rise and a fall must not be distinguishable by hue alone. */}
-      <Icon className="size-4" aria-hidden />
-      <span>
+      <span className="inline-flex items-center gap-1">
+        {/* The direction is carried by the word and the arrow as well as the
+            colour: a rise and a fall must not be distinguishable by hue
+            alone. */}
+        <Icon className="size-4 shrink-0" aria-hidden />
         {flat ? "No change" : `${up ? "Up" : "Down"} ${suffix}`}
-        {percent === null ? "" : ` · ${Math.abs(percent).toFixed(1)}%`}
       </span>
+      {flat || percent === null ? null : (
+        <span className="pl-5">{signedPercent(percent)}</span>
+      )}
     </span>
   );
 }

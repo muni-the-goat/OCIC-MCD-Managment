@@ -17,6 +17,11 @@ import {
   ChartTooltip,
   type ChartConfig,
 } from "@/components/ui/chart";
+import {
+  directionColor,
+  percentChange,
+  signedPercent,
+} from "@/lib/project-reports";
 
 // Two years side by side, one pair per month — or per report, or per property,
 // depending on what the caller puts on the axis. One component for all three
@@ -180,15 +185,8 @@ function useDrawOnScroll<T extends HTMLElement>() {
 // last year as a share of last year. Null where last year has nothing to be a
 // share of — a percentage of zero is not a figure.
 function changeOf(current: number | null, previous: number | null) {
-  if (current === null || previous === null || previous === 0) return null;
-  return ((current - previous) / Math.abs(previous)) * 100;
-}
-
-function signedPercent(percent: number) {
-  // A real minus sign, not a hyphen: it is the width of the plus beside it,
-  // so a column of changes does not jitter.
-  const sign = percent > 0 ? "+" : percent < 0 ? "−" : "";
-  return `${sign}${Math.abs(percent).toFixed(1)}%`;
+  if (current === null || previous === null) return null;
+  return percentChange(current, previous);
 }
 
 // The label over a pair of bars: this year's figure, and its change on last
@@ -367,10 +365,7 @@ function ChangeRows({
       : direction === "down"
         ? ArrowDownRight
         : Minus;
-  const color =
-    direction === "flat"
-      ? "var(--muted-foreground)"
-      : `color-mix(in oklab, var(--status-${direction === "up" ? "good" : "critical"}) 72%, var(--foreground))`;
+  const color = directionColor(difference);
   const sign = direction === "up" ? "+" : direction === "down" ? "\u2212" : "";
 
   return (
