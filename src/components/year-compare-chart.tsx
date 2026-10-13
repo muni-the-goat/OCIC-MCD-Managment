@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useId, useState } from "react";
+import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -335,15 +336,70 @@ function CompareTooltip({
           </div>
         ))}
       </div>
-      {change !== null && difference !== null ? (
-        <div className="mt-2 flex items-center gap-2.5 border-t pt-2">
-          <span className="type-caption text-muted-foreground">Change</span>
-          <span className="type-caption ml-auto pl-4 font-semibold tabular-nums">
-            {difference < 0 ? "−" : difference > 0 ? "+" : ""}
-            {compact.format(Math.abs(difference))} · {signedPercent(change)}
+      {hasPrevious && difference !== null ? (
+        <ChangeRows difference={difference} percent={change} />
+      ) : null}
+    </div>
+  );
+}
+
+// The change, in two rows: the amount, then the share of last year. One line
+// carrying both ran to "+$2.3K · +0.9%", and the reader had to split it to read
+// either.
+//
+// Coloured by direction — the status palette's green for a rise, red for a
+// fall — because that is the answer the reader hovered for. Never by colour
+// alone: the arrow and the sign say it too, for a reader who cannot tell the
+// two apart. The raw status hues are fills, not ink (the green is barely 3:1
+// on white), so the text is mixed most of the way toward the foreground: the
+// hue survives and the figures stay readable.
+function ChangeRows({
+  difference,
+  percent,
+}: {
+  difference: number;
+  percent: number | null;
+}) {
+  const direction = difference > 0 ? "up" : difference < 0 ? "down" : "flat";
+  const Icon =
+    direction === "up"
+      ? ArrowUpRight
+      : direction === "down"
+        ? ArrowDownRight
+        : Minus;
+  const color =
+    direction === "flat"
+      ? "var(--muted-foreground)"
+      : `color-mix(in oklab, var(--status-${direction === "up" ? "good" : "critical"}) 72%, var(--foreground))`;
+  const sign = direction === "up" ? "+" : direction === "down" ? "\u2212" : "";
+
+  return (
+    <div className="mt-2 space-y-1.5 border-t pt-2">
+      <div className="flex items-center gap-2.5">
+        <span className="type-caption text-muted-foreground">Change</span>
+        <span
+          className="type-callout ml-auto inline-flex items-center gap-1 pl-4 font-semibold tabular-nums"
+          style={{ color }}
+        >
+          <Icon className="size-4 shrink-0" aria-hidden />
+          {direction === "flat"
+            ? "No change"
+            : `${sign}${currency.format(Math.abs(difference))}`}
+        </span>
+      </div>
+      {percent === null || direction === "flat" ? null : (
+        <div className="flex items-center gap-2.5">
+          <span className="type-caption text-muted-foreground">
+            Percentage
+          </span>
+          <span
+            className="type-callout ml-auto pl-4 font-semibold tabular-nums"
+            style={{ color }}
+          >
+            {signedPercent(percent)}
           </span>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
