@@ -7,15 +7,13 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  LabelList,
   XAxis,
   YAxis,
 } from "recharts";
 import {
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
-  ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
 
@@ -108,7 +106,13 @@ const STAGGER_MS = 110;
 // The ring is the card surface rather than no stroke at all: in May the two
 // years cross, and without it the dots merge into one blob at the crossing.
 function dot(color: string) {
-  return { r: 5, fill: color, stroke: "var(--card)", strokeWidth: 2 };
+  return { r: 4, fill: color, stroke: "var(--card)", strokeWidth: 2 };
+}
+
+// The hovered month's dot grows and keeps its ring, so it reads as the same
+// mark answering the pointer rather than a second one laid over it.
+function activeDot(color: string) {
+  return { r: 6, fill: color, stroke: "var(--card)", strokeWidth: 2.5 };
 }
 
 const compact = new Intl.NumberFormat("en-US", {
@@ -171,6 +175,179 @@ function useDrawOnScroll<T extends HTMLElement>() {
   return { ref, seen };
 }
 
+// Where the year is going, on the pair's own scale: what changed against
+// last year as a share of last year. Null where last year has nothing to be a
+// share of — a percentage of zero is not a figure.
+function changeOf(current: number | null, previous: number | null) {
+  if (current === null || previous === null || previous === 0) return null;
+  return ((current - previous) / Math.abs(previous)) * 100;
+}
+
+function signedPercent(percent: number) {
+  // A real minus sign, not a hyphen: it is the width of the plus beside it,
+  // so a column of changes does not jitter.
+  const sign = percent > 0 ? "+" : percent < 0 ? "−" : "";
+  return `${sign}${Math.abs(percent).toFixed(1)}%`;
+}
+
+// The label over a pair of bars: this year's figure, and its change on last
+// year underneath. One per pair rather than a number on every bar — the pair
+// is the thing being compared, and two figures side by side over two narrow
+// bars collide at any useful size.
+//
+// Both bars carry this LabelList and each draws it only when it is the taller
+// of its pair, so the label always clears both bars. Measuring the taller bar
+// from the shorter one's geometry would need the axis scale, which a label is
+// not handed; the taller bar's own top is exact.
+//
+// Passed as an element, not a function: recharts mounts a function as a
+// component, so a fresh one each render would remount every label. It clones
+// an element instead, adding the bar's index and geometry to these props.
+function PairLabel({
+  rows,
+  series,
+  hasPrevious,
+  index,
+  viewBox,
+}: {
+  rows: YearCompareRow[];
+  series: "current" | "previous";
+  hasPrevious: boolean;
+  index?: number;
+  viewBox?: unknown;
+}) {
+  const row = index === undefined ? undefined : rows[index];
+  const box = viewBox as
+    | { x?: number; y?: number; width?: number }
+    | undefined;
+  if (!row || !box || box.x === undefined || box.y === undefined) {
+    return null;
+  }
+  const current = row.current ?? 0;
+  const previous = hasPrevious ? (row.previous ?? 0) : 0;
+  if (current <= 0 && previous <= 0) return null;
+
+  // Ties go to this year, so exactly one bar of the pair draws it.
+  const tallest = current >= previous ? "current" : "previous";
+  if (tallest !== series) return null;
+
+  const width = box.width ?? 0;
+  // The middle of the pair: the 2px gap sits between the two bars, last
+  // year on the left.
+  const x = !hasPrevious
+    ? box.x + width / 2
+    : series === "current"
+      ? box.x - 1
+      : box.x + width + 1;
+  const change = hasPrevious ? changeOf(row.current, row.previous) : null;
+
+  return (
+    <text x={x} textAnchor="middle" className="tabular-nums">
+      <tspan
+        x={x}
+        y={box.y - (change === null ? 8 : 24)}
+        className="fill-foreground text-xs font-semibold"
+      >
+        {/* A reported zero is a figure, and the change beside it says
+            what it fell from; only a year that never reported is a dash. */}
+        {row.current === null ? "—" : compact.format(row.current)}
+      </tspan>
+      {change === null ? null : (
+        <tspan
+          x={x}
+          y={box.y - 8}
+          className="fill-muted-foreground text-[0.6875rem]"
+        >
+          {signedPercent(change)}
+        </tspan>
+      )}
+    </text>
+  );
+}
+
+// The hover readout. Values lead and the year follows, the legend's order
+// inverted: by the time the reader is hovering they know which colour is which
+// and want the number. Each row is keyed by a short stroke of its series —
+// a filled box at this density is ink doing a label's job.
+//
+// Last year first, then this year, then what changed: it reads as a sentence,
+// "from this, to this, by this much", in the same left-to-right order as the
+// bars.
+function CompareTooltip({
+  active,
+  payload,
+  currentLabel,
+  previousLabel,
+  hasPrevious,
+}: {
+  active?: boolean;
+  payload?: ReadonlyArray<{ payload?: unknown }>;
+  currentLabel: string;
+  previousLabel: string;
+  hasPrevious: boolean;
+}) {
+  const row = payload?.[0]?.payload as YearCompareRow | undefined;
+  if (!active || !row) return null;
+
+  const lines = [
+    ...(hasPrevious
+      ? [
+          {
+            key: "previous",
+            label: previousLabel,
+            value: row.previous,
+            color: "var(--color-previous)",
+          },
+        ]
+      : []),
+    {
+      key: "current",
+      label: currentLabel,
+      value: row.current,
+      color: "var(--color-current)",
+    },
+  ];
+  const change = hasPrevious ? changeOf(row.current, row.previous) : null;
+  const difference =
+    row.current !== null && row.previous !== null
+      ? row.current - row.previous
+      : null;
+
+  return (
+    <div className="min-w-48 rounded-xl bg-popover px-3.5 py-3 text-popover-foreground shadow-[0_8px_30px_rgba(0,0,0,0.12)] ring-1 ring-foreground/[0.08]">
+      <p className="type-caption mb-2 font-semibold">{row.full}</p>
+      <div className="space-y-1.5">
+        {lines.map((line) => (
+          <div key={line.key} className="flex items-center gap-2.5">
+            <span
+              aria-hidden
+              className="h-[3px] w-3 shrink-0 rounded-full"
+              style={{ backgroundColor: line.color }}
+            />
+            <span className="type-caption text-muted-foreground">
+              {line.label}
+            </span>
+            <span className="type-callout ml-auto pl-4 font-semibold tabular-nums">
+              {line.value === null || line.value === 0
+                ? "—"
+                : currency.format(line.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+      {change !== null && difference !== null ? (
+        <div className="mt-2 flex items-center gap-2.5 border-t pt-2">
+          <span className="type-caption text-muted-foreground">Change</span>
+          <span className="type-caption ml-auto pl-4 font-semibold tabular-nums">
+            {difference < 0 ? "−" : difference > 0 ? "+" : ""}
+            {compact.format(Math.abs(difference))} · {signedPercent(change)}
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function YearCompareChart({
   rows,
   currentYear,
@@ -186,12 +363,11 @@ export function YearCompareChart({
   height?: string;
   variant?: "bar" | "line";
 }) {
+  const previousLabel = previousYear === null ? "Last year" : String(previousYear);
+  const currentLabel = String(currentYear);
   const config = {
-    previous: {
-      label: previousYear === null ? "Last year" : String(previousYear),
-      color: "var(--series-4)",
-    },
-    current: { label: String(currentYear), color: "var(--series-1)" },
+    previous: { label: previousLabel, color: "var(--series-4)" },
+    current: { label: currentLabel, color: "var(--series-1)" },
   } satisfies ChartConfig;
 
   // With nothing to compare against, the second series would be a flat run
@@ -210,17 +386,17 @@ export function YearCompareChart({
   // gradient id would have every chart on the page pointing at whichever <defs>
   // mounted last.
   const gradientId = useId().replace(/:/g, "");
-  const fillOf = (series: "current" | "previous") =>
-    `url(#${gradientId}-${series})`;
 
   const axes = (
     <>
+      {/* Hairlines one step off the card, solid: the grid is there to be
+          read against, not looked at. */}
       <CartesianGrid vertical={false} stroke="var(--border)" />
       <XAxis
         dataKey="label"
         tickLine={false}
         axisLine={false}
-        tickMargin={8}
+        tickMargin={10}
         // The floor width guarantees room for every tick, so render them all
         // rather than letting recharts thin them.
         interval={0}
@@ -230,164 +406,217 @@ export function YearCompareChart({
         tickLine={false}
         axisLine={false}
         tickMargin={4}
-        width={64}
+        width={56}
+        tickCount={5}
         className="text-xs tabular-nums"
         tickFormatter={(value: number) =>
           value === 0 ? "$0" : compact.format(value)
         }
       />
       <ChartTooltip
+        // A line is aimed at by month, never by its 2px stroke, so a hairline
+        // follows the pointer to the nearest one. A bar is its own target; the
+        // slot behind it only tints, enough to say which pair is being read.
         cursor={
           isLine
-            ? { stroke: "var(--border)", strokeWidth: 1 }
-            : { fill: "var(--muted)", opacity: 0.5 }
+            ? { stroke: "var(--foreground)", strokeOpacity: 0.18, strokeWidth: 1 }
+            : { fill: "var(--foreground)", fillOpacity: 0.035 }
         }
         isAnimationActive={false}
         content={
-          <ChartTooltipContent
-            labelFormatter={(_, payload) =>
-              (payload?.[0]?.payload as YearCompareRow | undefined)?.full ?? ""
-            }
-            formatter={(value, name) => (
-              <div className="flex flex-1 items-center justify-between gap-4">
-                <span className="text-muted-foreground">
-                  {config[name as keyof typeof config]?.label ?? name}
-                </span>
-                <span className="font-medium tabular-nums">
-                  {value === null || Number(value) === 0
-                    ? "—"
-                    : currency.format(Number(value))}
-                </span>
-              </div>
-            )}
+          <CompareTooltip
+            currentLabel={currentLabel}
+            previousLabel={previousLabel}
+            hasPrevious={hasPrevious}
           />
         }
       />
-      {/* Two series are never told apart by colour alone: the legend names
-          them, and the tooltip repeats the year beside every figure. */}
-      {hasPrevious ? <ChartLegend content={<ChartLegendContent />} /> : null}
     </>
   );
 
   return (
-    // A phone cannot fit twelve month labels, and dropping every other one
-    // hides half the year. The plot keeps a floor width and scrolls inside this
-    // box instead, so the page itself never scrolls sideways.
-    <div ref={ref} className="-mx-1 overflow-x-auto px-1 pb-1">
-      {!seen ? (
-        // Holds the exact space the chart will take, so arriving at the card
-        // does not shove the rest of the page down as it draws.
-        <div className={`${height} w-full`} style={{ minWidth }} />
-      ) : (
-        <ChartContainer
-          config={config}
-          className={`aspect-auto ${height} w-full`}
-          style={{ minWidth }}
-        >
-          <Chart
-            accessibilityLayer
-            data={rows}
-            margin={{ top: 12, right: 12, left: 12, bottom: 0 }}
-            // 2px of card surface between the paired bars, so they read as two
-            // marks rather than one two-tone one. Ignored by AreaChart.
-            barGap={2}
+    <div className="space-y-3">
+      {/* Above the plot, in the order the bars stand — last year on the left
+          — and keyed by the mark's own shape: a block for a bar, a stroke for
+          a line. A single series needs none; the card's title names it. */}
+      {hasPrevious ? (
+        <ul className="type-caption flex flex-wrap items-center gap-x-4 gap-y-1 text-foreground/80">
+          {(
+            [
+              ["previous", previousLabel, "var(--series-4)"],
+              ["current", currentLabel, "var(--series-1)"],
+            ] as const
+          ).map(([key, label, color]) => (
+            <li key={key} className="flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className={
+                  isLine ? "h-[3px] w-3.5 rounded-full" : "size-2.5 rounded-[3px]"
+                }
+                style={{ backgroundColor: color }}
+              />
+              {label}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {/* A phone cannot fit twelve month labels, and dropping every other one
+          hides half the year. The plot keeps a floor width and scrolls inside
+          this box instead, so the page itself never scrolls sideways. */}
+      <div ref={ref} className="-mx-1 overflow-x-auto px-1 pb-1">
+        {!seen ? (
+          // Holds the exact space the chart will take, so arriving at the card
+          // does not shove the rest of the page down as it draws.
+          <div className={`${height} w-full`} style={{ minWidth }} />
+        ) : (
+          <ChartContainer
+            config={config}
+            className={`aspect-auto ${height} w-full`}
+            style={{ minWidth }}
           >
-            {isLine ? (
-              <defs>
-                {(["previous", "current"] as const).map((series) => (
+            <Chart
+              accessibilityLayer
+              data={rows}
+              // Headroom over the bars for the pair labels.
+              margin={{ top: isLine ? 12 : 36, right: 12, left: 4, bottom: 0 }}
+              // 2px of card surface between the paired bars, so they read as
+              // two marks rather than one two-tone one. Ignored by AreaChart.
+              barGap={2}
+            >
+              {isLine ? (
+                <defs>
                   <linearGradient
-                    key={series}
-                    id={`${gradientId}-${series}`}
+                    id={`${gradientId}-current`}
                     x1="0"
                     y1="0"
                     x2="0"
                     y2="1"
                   >
-                    {/* Weak, and fading to nothing at the axis. The two years
-                        overlap for most of the year and the lower fill has to
-                        stay legible through the upper one — at full strength the
-                        series in front simply erases the one behind. */}
+                    {/* A wash, not a block, fading out before the axis. */}
                     <stop
                       offset="0%"
-                      stopColor={`var(--color-${series})`}
-                      stopOpacity={0.24}
+                      stopColor="var(--color-current)"
+                      stopOpacity={0.14}
                     />
                     <stop
-                      offset="100%"
-                      stopColor={`var(--color-${series})`}
-                      stopOpacity={0.01}
+                      offset="95%"
+                      stopColor="var(--color-current)"
+                      stopOpacity={0}
                     />
                   </linearGradient>
-                ))}
-              </defs>
-            ) : null}
-            {axes}
-            {isLine ? (
-              <>
-                {hasPrevious ? (
+                </defs>
+              ) : null}
+              {axes}
+              {isLine ? (
+                <>
+                  {/* Last year is a line with no fill. Two washes overlapping
+                      for most of the year mixed into a third colour that
+                      belonged to neither, and the eye read the overlap as a
+                      region with a meaning of its own. This year keeps the
+                      wash: it is the year the card is about. */}
+                  {hasPrevious ? (
+                    <Area
+                      dataKey="previous"
+                      stroke="var(--color-previous)"
+                      fill="none"
+                      type={CURVE}
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      // Months are readings, not a continuous signal — the dot
+                      // is where a number actually exists.
+                      dot={dot("var(--color-previous)")}
+                      activeDot={activeDot("var(--color-previous)")}
+                      // An unreported month stays a gap in the line rather than
+                      // being bridged over as though it had been filled in.
+                      connectNulls={false}
+                      animationDuration={DRAW_MS}
+                      animationEasing="ease-out"
+                    />
+                  ) : null}
                   <Area
-                    dataKey="previous"
-                    stroke="var(--color-previous)"
-                    fill={fillOf("previous")}
+                    dataKey="current"
+                    stroke="var(--color-current)"
+                    fill={`url(#${gradientId}-current)`}
                     // Area multiplies its own fillOpacity into the gradient, and
-                    // its default 0.6 leaves the stops below washing out to
-                    // nothing. The gradient is the only thing setting opacity.
+                    // its default 0.6 washes the stops out to nothing. The
+                    // gradient is the only thing setting opacity.
                     fillOpacity={1}
                     type={CURVE}
-                    strokeWidth={2.5}
-                    // Months are readings, not a continuous signal — the dot is
-                    // where a number actually exists.
-                    dot={dot("var(--color-previous)")}
-                    activeDot={{ r: 7 }}
-                    // An unreported month stays a gap in the line rather than
-                    // being bridged over as though it had been filled in.
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    dot={dot("var(--color-current)")}
+                    activeDot={activeDot("var(--color-current)")}
                     connectNulls={false}
                     animationDuration={DRAW_MS}
                     animationEasing="ease-out"
+                    // A beat behind last year, so the two are read in the order
+                    // the card states them: here is last year, and here is this
+                    // year against it.
+                    animationBegin={hasPrevious ? STAGGER_MS : 0}
                   />
-                ) : null}
-                <Area
-                  dataKey="current"
-                  stroke="var(--color-current)"
-                  fill={fillOf("current")}
-                  fillOpacity={1}
-                  type={CURVE}
-                  strokeWidth={2.5}
-                  dot={dot("var(--color-current)")}
-                  activeDot={{ r: 7 }}
-                  connectNulls={false}
-                  animationDuration={DRAW_MS}
-                  animationEasing="ease-out"
-                  // A beat behind last year, so the two are read in the order
-                  // the card states them: here is last year, and here is this
-                  // year against it.
-                  animationBegin={hasPrevious ? STAGGER_MS : 0}
-                />
-              </>
-            ) : (
-              <>
-                {hasPrevious ? (
+                </>
+              ) : (
+                <>
+                  {/* 24px rather than filling the slot. Across three reports on
+                      a laptop the slot is several hundred pixels, and a bar that
+                      wide is a block of colour that outweighs the figures it
+                      stands for; the rest of the slot is air.
+
+                      A fixed size, not maxBarSize: under a cap recharts still
+                      centres each bar in its own half of the slot, so a pair
+                      stood a hundred pixels apart and read as two unrelated
+                      bars. A fixed size packs the pair together at the slot's
+                      centre, 2px apart. */}
+                  {hasPrevious ? (
+                    <Bar
+                      dataKey="previous"
+                      fill="var(--color-previous)"
+                      radius={[4, 4, 0, 0]}
+                      barSize={24}
+                      activeBar={{ fillOpacity: 0.82 }}
+                      animationDuration={DRAW_MS}
+                      animationEasing="ease-out"
+                    >
+                      <LabelList
+                        content={
+                          <PairLabel
+                            rows={rows}
+                            series="previous"
+                            hasPrevious={hasPrevious}
+                          />
+                        }
+                      />
+                    </Bar>
+                  ) : null}
                   <Bar
-                    dataKey="previous"
-                    fill="var(--color-previous)"
+                    dataKey="current"
+                    fill="var(--color-current)"
                     radius={[4, 4, 0, 0]}
+                    barSize={24}
+                    activeBar={{ fillOpacity: 0.82 }}
                     animationDuration={DRAW_MS}
                     animationEasing="ease-out"
-                  />
-                ) : null}
-                <Bar
-                  dataKey="current"
-                  fill="var(--color-current)"
-                  radius={[4, 4, 0, 0]}
-                  animationDuration={DRAW_MS}
-                  animationEasing="ease-out"
-                  animationBegin={hasPrevious ? STAGGER_MS : 0}
-                />
-              </>
-            )}
-          </Chart>
-        </ChartContainer>
-      )}
+                    animationBegin={hasPrevious ? STAGGER_MS : 0}
+                  >
+                    <LabelList
+                      content={
+                        <PairLabel
+                          rows={rows}
+                          series="current"
+                          hasPrevious={hasPrevious}
+                        />
+                      }
+                    />
+                  </Bar>
+                </>
+              )}
+            </Chart>
+          </ChartContainer>
+        )}
+      </div>
     </div>
   );
 }
