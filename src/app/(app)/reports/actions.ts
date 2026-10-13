@@ -15,9 +15,14 @@ import {
   type RichValue,
 } from "@/lib/rich-text";
 import { createClient } from "@/lib/supabase/server";
+import { MAX_ATTACHMENT_BYTES, storageSafeName } from "@/lib/attachments";
 import { MONTHLY_SECTIONS, type BudgetPeriod } from "@/lib/types";
 
 export type ActionState = { error: string } | null;
+
+// What saveReport answers when the browser is uploading the attachments itself:
+// the report is saved as a draft, and this is the id to upload them into.
+export type SaveReportState = ActionState | { savedReportId: string };
 
 // What one section of a monthly activity report arrives as.
 //
@@ -104,8 +109,6 @@ const reportSchema = z.object({
   period_year: z.coerce.number().int().min(2000).max(2100),
 });
 
-const MAX_FILE_BYTES = 15 * 1024 * 1024;
-
 async function uploadAttachments(
   supabase: Awaited<ReturnType<typeof createClient>>,
   reportId: string,
@@ -114,10 +117,10 @@ async function uploadAttachments(
 ): Promise<string | null> {
   for (const file of files) {
     if (!(file instanceof File) || file.size === 0) continue;
-    if (file.size > MAX_FILE_BYTES) {
+    if (file.size > MAX_ATTACHMENT_BYTES) {
       return `"${file.name}" is larger than 15 MB`;
     }
-    const safeName = file.name.replace(/[^\w.\- ]/g, "_");
+    const safeName = storageSafeName(file.name);
     const path = `${reportId}/${crypto.randomUUID()}-${safeName}`;
 
     const { error: uploadError } = await supabase.storage
@@ -140,11 +143,18 @@ async function uploadAttachments(
 }
 
 export async function saveReport(
-  _prev: ActionState,
+  _prev: SaveReportState,
   formData: FormData
-): Promise<ActionState> {
+): Promise<SaveReportState> {
   const profile = await getProfile();
   const supabase = await createClient();
+  // Set by the form when it has files to attach. It then uploads them from the
+  // browser straight to storage, because on Vercel a request to a function is
+  // capped at 4.5 MB — any file bigger than that, posted through this action,
+  // was refused before the action ever ran, and the author was shown the error
+  // page with their report lost. This action saves the report as a draft and
+  // hands back its id; finishReport() files it once the uploads are in.
+  const deferUploads = formData.get("defer_uploads") === "1";
 
   const parsed = reportSchema.safeParse({
     type: formData.get("type"),
@@ -309,6 +319,8 @@ export async function saveReport(
     }
   }
 
+  // Still accepted here, for a form posted by a page loaded before the browser
+  // uploads existed. Files this way are capped at 4.5 MB on Vercel.
   const files = formData.getAll("files") as File[];
   const uploadError = await uploadAttachments(supabase, id, profile.id, files);
   if (uploadError) {
@@ -316,6 +328,19 @@ export async function saveReport(
     return { error: `Report saved, but: ${uploadError}` };
   }
 
+  // Left as a draft so the browser can still write to it — can_edit_report()
+  // refuses an author's writes once their report is submitted.
+  if (deferUploads) return { savedReportId: id };
+
+  return finishSave(supabase, id, intent);
+}
+
+// The end of a save: file the report if that was asked for, then open it.
+async function finishSave(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  id: string,
+  intent: "draft" | "submitted"
+): Promise<ActionState> {
   if (intent === "submitted") {
     const { data: submitted, error } = await supabase
       .from("reports")
@@ -343,6 +368,22 @@ export async function saveReport(
   // useActionToasts to pick up the way saveProjectMonth() does, and the form
   // that would have shown one is unmounted by the navigation.
   redirect(`/reports/${id}${intent === "submitted" ? "?submitted=1" : ""}`);
+}
+
+// The second half of a save whose attachments the browser uploaded: called once
+// they are all in storage. The report is a draft at this point, so filing it is
+// the same status change saveReport makes, guarded the same way — only a draft
+// the reader can update is moved, and RLS decides whether they can.
+export async function finishReport(
+  reportId: string,
+  submit: boolean
+): Promise<ActionState> {
+  await getProfile();
+  const supabase = await createClient();
+  if (!z.string().uuid().safeParse(reportId).success) {
+    return { error: "This report could not be found" };
+  }
+  return finishSave(supabase, reportId, submit ? "submitted" : "draft");
 }
 
 export async function deleteReport(formData: FormData) {
